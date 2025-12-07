@@ -28,6 +28,31 @@ public class SessionImpl implements Session {
     }
 
     @Override
+    public <T> void update(T entity) {
+
+    }
+
+    @Override
+    public void commit() {
+
+    }
+
+    @Override
+    public void rollback() {
+
+    }
+
+    @Override
+    public void flush() {
+
+    }
+
+    @Override
+    public void begin() {
+
+    }
+
+    @Override
     public void close() {
 
     }

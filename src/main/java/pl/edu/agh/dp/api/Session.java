@@ -7,5 +7,10 @@ public interface Session extends AutoCloseable {
     <T> void save(T entity);
     <T> T find(Class<T> entityClass, Object id);
     <T> void delete(T entity);
+    <T>  void update(T entity);
+    void commit();
+    void rollback();
+    void flush();
+    void begin();
     void close();
 }
