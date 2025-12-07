@@ -1,6 +1,16 @@
 package pl.edu.agh.dp.core.uow;
 
+import java.util.HashSet;
+import java.util.Set;
+
 public class DefaultUnitOfWork implements UnitOfWork {
+
+    private final Set<Object> newEntities = new HashSet<>();
+    private final Set<Object> dirtyEntities = new HashSet<>();
+    private final Set<Object> removedEntities = new HashSet<>();
+
+
+
     @Override
     public void registerNew(Object entity) {
 
