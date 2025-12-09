@@ -42,10 +42,10 @@ public class ConfigurationImpl implements Configuration {
 
         // 4. Creating schema - TODO add option to not create new db if there is no changes
         String schemaAuto = properties.getProperty("orm.schema.auto", "none");
-        if ("create".equalsIgnoreCase(schemaAuto)) {
-            SchemaGenerator generator = new SchemaGenerator(registry, cp);
-            generator.generate();
-        }
+//        if ("create".equalsIgnoreCase(schemaAuto)) {
+//            SchemaGenerator generator = new SchemaGenerator(registry, cp);
+//            generator.generate();
+//        }
 
         // 5. SessionFactory -> creation of EntityPersisters inside
         return new SessionFactoryImpl(registry, cp, properties);

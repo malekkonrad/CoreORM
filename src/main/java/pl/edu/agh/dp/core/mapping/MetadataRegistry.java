@@ -17,7 +17,7 @@ public class MetadataRegistry {
 
         for (Class<?> clazz : entitiesClasses){
             EntityMetadata entity =  MetadataBuilder.buildEntityMetadata(clazz);
-
+            System.out.println(entity);
             entities.put(clazz, entity);
         }
     }

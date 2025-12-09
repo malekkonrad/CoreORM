@@ -5,6 +5,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
+import java.util.ArrayList;
 import java.util.List;
 
 @Getter
@@ -15,11 +16,23 @@ public class EntityMetadata {
     Class<?> entityClass;
     String tableName;
     PropertyMetadata idProperty;
-    List<PropertyMetadata> properties;
-    List<AssociationMetadata> associationMetadata;
+    List<PropertyMetadata> properties = new ArrayList<>();
+    List<AssociationMetadata> associationMetadata =  new ArrayList<>();
     InheritanceMetadata inheritanceMetadata;
 
     public void addProperty(PropertyMetadata pm) {
+        properties.add(pm);
+    }
 
+    // for testing purposes
+    public String toString() {
+        StringBuilder sb = new StringBuilder();
+        sb.append("EntityMetadata{\n");
+        sb.append("  entityClass: ").append(entityClass.getName()).append("\n");
+        sb.append("  tableName: ").append(tableName).append("\n");
+        sb.append("  idProperty: ").append(idProperty).append("\n");
+        sb.append("  properties: ").append(properties).append("\n");
+        sb.append("}");
+        return sb.toString();
     }
 }

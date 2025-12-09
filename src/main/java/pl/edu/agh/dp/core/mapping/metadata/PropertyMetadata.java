@@ -12,4 +12,8 @@ public class PropertyMetadata {
     String columnName; // np. "first_name"
     Class<?> type;     // np. String.class
     boolean isId;
+
+    public String toString(){
+        return String.format("%s=%s", name, columnName);
+    }
 }

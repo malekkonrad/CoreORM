@@ -10,4 +10,6 @@ import pl.edu.agh.dp.api.annotations.Entity;
 public class User {
     private String id;
     private String name;
+    private String email;
+    private String secondName;
 }
