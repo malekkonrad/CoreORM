@@ -21,4 +21,8 @@ public class MetadataRegistry {
             entities.put(clazz, entity);
         }
     }
+
+    public EntityMetadata getEntityMetadata(Class<?> clazz) {
+        return entities.get(clazz);
+    }
 }
