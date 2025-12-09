@@ -15,7 +15,7 @@ public class MetadataBuilder {
         // TODO: detect inheritance
         // TODO: detect associations
 
-        // SIMPLE: basic mapping (for now)
+        // Basic mapping TODO add more complexity
         meta.setTableName(clazz.getSimpleName().toLowerCase());
 
         for (Field f : clazz.getDeclaredFields()) {

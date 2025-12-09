@@ -15,7 +15,6 @@ import java.util.Set;
 
 public class ConfigurationImpl implements Configuration {
 
-
     private final Properties properties = new Properties();
     private final List<Class<?>> entityClasses = new ArrayList<>();
 
@@ -25,31 +24,30 @@ public class ConfigurationImpl implements Configuration {
     }
 
     public SessionFactory buildSessionFactory() {
-        // 1. Skanowanie encji
+        // 1. Scanning for entities
         ClassLoader cl = Thread.currentThread().getContextClassLoader();
         Set<Class<?>> foundEntities = ClassPathScanner.scanForEntities(cl);     // FIXME przenieść gdzie indzie??? cl
         entityClasses.addAll(foundEntities);
 
-        // 2. Budowa metadanych
+        // 2. Building registry - inside EntityMetadata are being created
         MetadataRegistry registry = new MetadataRegistry();
         registry.build(entityClasses);
 
-        // 3. Przygotowanie połączenia do DB
+        // 3. Connection to db
         ConnectionProvider cp = new JdbcConnectionProvider(
                 properties.getProperty("db.url"),
                 properties.getProperty("db.user"),
                 properties.getProperty("db.password")
         );
 
-        // 4. AUTOMATYCZNE TWORZENIE SCHEMATU – TUTAJ użyty SchemaGenerator
+        // 4. Creating schema - TODO add option to not create new db if there is no changes
         String schemaAuto = properties.getProperty("orm.schema.auto", "none");
         if ("create".equalsIgnoreCase(schemaAuto)) {
             SchemaGenerator generator = new SchemaGenerator(registry, cp);
             generator.generate();
         }
 
-
-        // 5. Tworzymy SessionFactory (to zbuduje EntityPersistery itd.)
+        // 5. SessionFactory -> creation of EntityPersisters inside
         return new SessionFactoryImpl(registry, cp, properties);
     }
 

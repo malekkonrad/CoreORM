@@ -9,8 +9,8 @@ import java.util.Map;
 
 @Getter
 public class MetadataRegistry {
-    Map<Class<?>, EntityMetadata> entities;
 
+    private Map<Class<?>, EntityMetadata> entities;
 
     public void build(List<Class<?>> entitiesClasses) {
         entities = new HashMap<>();
