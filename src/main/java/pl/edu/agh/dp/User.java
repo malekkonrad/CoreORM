@@ -6,7 +6,7 @@ import pl.edu.agh.dp.api.annotations.Entity;
 
 @Getter
 @Setter
-@Entity
+@Entity(table = "users")
 public class User {
     private String id;
     private String name;

@@ -5,6 +5,8 @@ import pl.edu.agh.dp.api.Session;
 import pl.edu.agh.dp.core.mapping.metadata.EntityMetadata;
 import pl.edu.agh.dp.core.persister.EntityPersister;
 
+import java.sql.Connection;
+
 @NoArgsConstructor
 public class EntityPersisterImpl implements EntityPersister {
 
@@ -22,7 +24,7 @@ public class EntityPersisterImpl implements EntityPersister {
 
     @Override
     public void insert(Object entity, Session session) {
-
+        Connection con = session.getConnection();
     }
 
     @Override

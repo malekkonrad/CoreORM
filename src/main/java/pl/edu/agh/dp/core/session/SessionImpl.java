@@ -1,9 +1,7 @@
 package pl.edu.agh.dp.core.session;
 
 import pl.edu.agh.dp.api.Session;
-import pl.edu.agh.dp.core.jdbc.ConnectionProvider;
 import pl.edu.agh.dp.core.persister.EntityPersister;
-import pl.edu.agh.dp.core.persister.impl.EntityPersisterImpl;
 import pl.edu.agh.dp.core.uow.DefaultUnitOfWork;
 import pl.edu.agh.dp.core.uow.UnitOfWork;
 
@@ -12,21 +10,21 @@ import java.util.Map;
 
 public class SessionImpl implements Session {
 
-    private final Connection connectionProvider;
+    private final Connection connection;
     private final Map<Class<?>, EntityPersister> entityPersisters;
 
-    private final UnitOfWork unitOfWork;
+    private final UnitOfWork uow;
 
-    public SessionImpl(Connection connectionProvider,
+    public SessionImpl(Connection connection,
                        Map<Class<?>, EntityPersister> entityPersisters) {
-        this.unitOfWork = new DefaultUnitOfWork();
-        this.connectionProvider = connectionProvider;
+        this.uow = new DefaultUnitOfWork();
+        this.connection = connection;
         this.entityPersisters = entityPersisters;
     }
 
     @Override
     public <T> void save(T entity) {
-
+        uow.registerNew(entity);
     }
 
     @Override
@@ -66,6 +64,22 @@ public class SessionImpl implements Session {
 
     @Override
     public void close() {
+        uow.commit(this);
+        try{
+            connection.close();
+        }catch(Exception e){
+            System.err.println("Error closing connection");
+        }
 
+    }
+
+    @Override
+    public EntityPersister getEntityPersister(Class<?> clazz) {
+        return entityPersisters.get(clazz);
+    }
+
+    @Override
+    public Connection getConnection() {
+        return connection;
     }
 }

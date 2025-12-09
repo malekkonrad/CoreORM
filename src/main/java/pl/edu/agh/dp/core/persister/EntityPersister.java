@@ -7,8 +7,8 @@ public interface EntityPersister {
     EntityMetadata metadata = null;
     InheritanceStrategy inheritanceStrategy = null;
 
-    public Object findById(Object id, Session session);
-    public void insert(Object entity, Session session);
-    public void update(Object entity, Session session);
-    public void delete(Object entity, Session session);
+    Object findById(Object id, Session session);
+    void insert(Object entity, Session session);
+    void update(Object entity, Session session);
+    void delete(Object entity, Session session);
 }

@@ -10,6 +10,13 @@ import java.sql.SQLException;
 public class JdbcConnectionProvider implements ConnectionProvider {
     String url, user, password;
 
+    static {
+        try {
+            Class.forName("org.postgresql.Driver");
+        } catch (ClassNotFoundException e) {
+            throw new RuntimeException("Could not load PostgreSQL JDBC driver", e);
+        }
+    }
 
     @Override
     public Connection getConnection() {

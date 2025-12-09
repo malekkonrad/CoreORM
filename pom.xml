@@ -40,12 +40,17 @@
       <artifactId>junit-jupiter-params</artifactId>
       <scope>test</scope>
     </dependency>
-      <dependency>
-          <groupId>org.projectlombok</groupId>
-          <artifactId>lombok</artifactId>
-          <version>1.18.30</version> // Use the latest stable version
-          <scope>provided</scope>
-      </dependency>
+    <dependency>
+        <groupId>org.projectlombok</groupId>
+        <artifactId>lombok</artifactId>
+        <version>1.18.30</version>
+        <scope>provided</scope>
+    </dependency>
+    <dependency>
+        <groupId>org.postgresql</groupId>
+        <artifactId>postgresql</artifactId>
+        <version>42.7.2</version>
+    </dependency>
   </dependencies>
 
   <build>
@@ -90,6 +95,45 @@
           <artifactId>maven-project-info-reports-plugin</artifactId>
           <version>3.6.1</version>
         </plugin>
+
+          <plugin>
+              <groupId>org.apache.maven.plugins</groupId>
+              <artifactId>maven-jar-plugin</artifactId>
+              <version>3.3.0</version>
+              <configuration>
+                  <archive>
+                      <manifest>
+                          <!-- pełna nazwa klasy z main() -->
+                          <mainClass>pl.edu.agh.dp.App</mainClass>
+                      </manifest>
+                  </archive>
+              </configuration>
+          </plugin>
+          <!--        fat jar-->
+          <plugin>
+              <groupId>org.apache.maven.plugins</groupId>
+              <artifactId>maven-shade-plugin</artifactId>
+              <version>3.5.0</version>
+              <executions>
+                  <execution>
+                      <phase>package</phase>
+                      <goals>
+                          <goal>shade</goal>
+                      </goals>
+                      <configuration>
+                          <createDependencyReducedPom>false</createDependencyReducedPom>
+                          <transformers>
+                              <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
+                                  <mainClass>pl.edu.agh.dp.App</mainClass>
+                              </transformer>
+                              <!-- to pomaga z usługami typu JDBC, ale przy Class.forName nie jest konieczne -->
+                              <transformer implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer"/>
+                          </transformers>
+                      </configuration>
+                  </execution>
+              </executions>
+          </plugin>
+
       </plugins>
     </pluginManagement>
   </build>

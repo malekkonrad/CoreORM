@@ -1,5 +1,7 @@
 package pl.edu.agh.dp.core.uow;
 
+import pl.edu.agh.dp.api.Session;
+
 import java.util.HashSet;
 import java.util.Set;
 
@@ -13,7 +15,7 @@ public class DefaultUnitOfWork implements UnitOfWork {
 
     @Override
     public void registerNew(Object entity) {
-
+        newEntities.add(entity);
     }
 
     @Override
@@ -32,8 +34,10 @@ public class DefaultUnitOfWork implements UnitOfWork {
     }
 
     @Override
-    public void commit() {
-
+    public void commit(Session session) {
+        for (Object entity : newEntities) {
+            session.getEntityPersister(entity.getClass()).insert(entity, session);
+        }
     }
 
     @Override

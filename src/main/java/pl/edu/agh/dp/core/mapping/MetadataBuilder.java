@@ -16,7 +16,12 @@ public class MetadataBuilder {
         // TODO: detect associations
 
         // Basic mapping TODO add more complexity
-        meta.setTableName(clazz.getSimpleName().toLowerCase());
+//        meta.setTableName(clazz.getName().toLowerCase());
+
+        String tableName = clazz.getName().toLowerCase().split("\\.")[clazz.getName().toLowerCase().split("\\.").length - 1] + "s";
+        meta.setTableName(tableName);
+
+//        System.out.println(tableName);
 
         for (Field f : clazz.getDeclaredFields()) {
             PropertyMetadata pm =
