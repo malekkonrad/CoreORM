@@ -53,37 +53,4 @@ public class ConfigurationImpl implements Configuration {
         return new SessionFactoryImpl(registry, cp, properties);
     }
 
-
-
-
-//    public SessionFactory buildSessionFactory() {
-//
-//        ClassLoader cl = Thread.currentThread().getContextClassLoader();
-//
-//        // 1. AUTOMATYCZNE skanowanie klas użytkownika
-//        Set<Class<?>> autoEntities =
-//                ClassPathScanner.scanForEntities(cl);
-//
-//        autoEntities.forEach(this::addEntity);
-//
-//        // 2. Budowa metadanych
-//        MetadataRegistry registry = new MetadataRegistry();
-//        registry.build(entityClasses);
-//
-//        // 3. JDBC + SessionFactory
-//        ConnectionProvider cp = new JdbcConnectionProvider(
-//                properties.getProperty("db.url"),
-//                properties.getProperty("db.user"),
-//                properties.getProperty("db.password")
-//        );
-//
-//        return new SessionFactory(registry, cp, properties);
-//    }
-
-
-
-
-
-
-
 }

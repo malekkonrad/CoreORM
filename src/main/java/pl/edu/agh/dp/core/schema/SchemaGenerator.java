@@ -39,15 +39,15 @@ public class SchemaGenerator {
                 st.executeUpdate(sql);
             }
 
-            // 2. (opcjonalnie) tabele pośrednie ManyToMany
-            for (EntityMetadata meta : entities) {
-                for (AssociationMetadata assoc : meta.getAssociationMetadata()) {
-                    if (assoc.getType() == AssociationMetadata.Type.MANY_TO_MANY) {
-                        String joinSql = createJoinTableSql(meta, assoc);
-                        st.executeUpdate(joinSql);
-                    }
-                }
-            }
+            // 2.  tabele pośrednie ManyToMany
+//            for (EntityMetadata meta : entities) {
+//                for (AssociationMetadata assoc : meta.getAssociationMetadata()) {
+//                    if (assoc.getType() == AssociationMetadata.Type.MANY_TO_MANY) {
+//                        String joinSql = createJoinTableSql(meta, assoc);
+//                        st.executeUpdate(joinSql);
+//                    }
+//                }
+//            }
 
         } catch (Exception e) {
             throw new RuntimeException("Error while generating schema", e);
