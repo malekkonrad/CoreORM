@@ -64,6 +64,7 @@ public class SessionImpl implements Session {
 
     @Override
     public void close() {
+        System.out.println("Closing session");
         uow.commit(this);
         try{
             connection.close();

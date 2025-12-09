@@ -23,13 +23,16 @@ public class App {
                 .setProperty("db.url", dbUrl)
                 .setProperty("db.user", dbUser)
                 .setProperty("db.password", dbPassword)
-                .setProperty("orm.schema.auto", "create") // <-- WŁĄCZA SchemaGenerator
+                .setProperty("orm.schema.auto", "drop-create") // <-- WŁĄCZA SchemaGenerator
                 .buildSessionFactory();
 
         try (Session session = sf.openSession()) {
             User u = new User();
+            u.setId(1);
             u.setName("Jan");
+            u.setEmail("konrad@gmail.com");
             session.save(u);
+            session.commit();
         }
     }
 }

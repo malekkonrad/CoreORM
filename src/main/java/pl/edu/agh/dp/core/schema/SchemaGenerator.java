@@ -64,7 +64,7 @@ public class SchemaGenerator {
         PropertyMetadata id = meta.getIdProperty();
         sb.append(id.getColumnName())
                 .append(" ")
-                .append(sqlType(id.getType()))
+                .append(sqlTypeForId(id.getType()))
                 .append(" PRIMARY KEY");
 
         // zwykłe kolumny
@@ -111,5 +111,11 @@ public class SchemaGenerator {
         if (type == boolean.class || type == Boolean.class) return "BOOLEAN";
         // itd. – według potrzeb
         return "VARCHAR(255)";
+    }
+
+    private String sqlTypeForId(Class<?> type) {
+        if (type == Long.class || type == long.class) return "BIGSERIAL";
+        // inne typy według potrzeb
+        return sqlType(type); // fallback
     }
 }

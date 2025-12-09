@@ -8,8 +8,9 @@ import pl.edu.agh.dp.api.annotations.Entity;
 @Setter
 @Entity(table = "users")
 public class User {
-    private String id;
+    private int id;
     private String name;
     private String email;
     private String secondName;
+    private String secondEmail;
 }

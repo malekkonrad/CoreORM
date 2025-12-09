@@ -15,6 +15,7 @@ public class DefaultUnitOfWork implements UnitOfWork {
 
     @Override
     public void registerNew(Object entity) {
+        System.out.println(entity);
         newEntities.add(entity);
     }
 
