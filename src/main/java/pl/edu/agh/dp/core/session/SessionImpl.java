@@ -1,15 +1,27 @@
 package pl.edu.agh.dp.core.session;
 
 import pl.edu.agh.dp.api.Session;
+import pl.edu.agh.dp.core.jdbc.ConnectionProvider;
+import pl.edu.agh.dp.core.persister.EntityPersister;
+import pl.edu.agh.dp.core.persister.impl.EntityPersisterImpl;
 import pl.edu.agh.dp.core.uow.DefaultUnitOfWork;
 import pl.edu.agh.dp.core.uow.UnitOfWork;
 
+import java.sql.Connection;
+import java.util.Map;
+
 public class SessionImpl implements Session {
+
+    private final Connection connectionProvider;
+    private final Map<Class<?>, EntityPersister> entityPersisters;
 
     private final UnitOfWork unitOfWork;
 
-    public SessionImpl() {
+    public SessionImpl(Connection connectionProvider,
+                       Map<Class<?>, EntityPersister> entityPersisters) {
         this.unitOfWork = new DefaultUnitOfWork();
+        this.connectionProvider = connectionProvider;
+        this.entityPersisters = entityPersisters;
     }
 
     @Override
