@@ -6,7 +6,8 @@ services:
       - DB_USER=orm_user
       - DB_PASSWORD=secret
     depends_on:
-      - db
+      db:
+        condition: service_started
     ports:
       - "8080:8080" # Optional, if your app exposes a port
 

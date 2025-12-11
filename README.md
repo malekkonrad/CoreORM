@@ -12,8 +12,6 @@ ORM library in Java
 docker compose up --build
 ```
 
-uruchomić dwa razy - za pierwszym się wyjebie bo postgresql długo się stawia xd
-
 ```bash
 docker compose exec db psql -U orm_user -d orm_demo
 ```
