@@ -34,7 +34,9 @@ public class SessionFactoryImpl  implements SessionFactory {
     }
 
     public Session openSession() {
-        return new SessionImpl(connectionProvider.getConnection(), entityPersisters);
+        Session session = new SessionImpl(connectionProvider.getConnection(), entityPersisters);
+        session.begin();
+        return session;
     }
 
 

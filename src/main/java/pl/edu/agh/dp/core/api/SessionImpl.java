@@ -31,7 +31,8 @@ public class SessionImpl implements Session {
 
     @Override
     public <T> T find(Class<T> entityClass, Object id) {
-        return null;
+        Object entity = entityPersisters.get(entityClass).findById(id, this);
+        return entityClass.cast(entity);
     }
 
     @Override

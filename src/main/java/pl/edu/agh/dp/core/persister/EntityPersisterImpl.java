@@ -25,7 +25,41 @@ public class EntityPersisterImpl implements EntityPersister {
 
     @Override
     public Object findById(Object id, Session session) {
-        return null;
+        try {
+            Connection con = session.getConnection();
+
+            PropertyMetadata idMeta = metadata.getIdProperty();
+            String idColumnName = idMeta.getColumnName();
+
+            List<String> columns = new ArrayList<>();
+            // id column
+            columns.add(idColumnName);
+
+            // Zwykłe kolumny
+            for (PropertyMetadata pm : metadata.getProperties()) {
+                columns.add(pm.getColumnName());
+            }
+
+            StringBuilder sql = new StringBuilder();
+            sql.append("SELECT ")
+                    .append(String.join(", ", columns))
+                    .append(" FROM ")
+                    .append(metadata.getTableName())
+                    .append(" WHERE ")
+                    .append(idColumnName)
+                    .append(" = ?");
+
+            try (PreparedStatement ps = con.prepareStatement(sql.toString(),
+                    Statement.RETURN_GENERATED_KEYS)) {
+
+                ps.setObject(1, id);
+
+                ResultSet entity = ps.executeQuery();
+                return ResultMapper.mapRow(metadata, entity);
+            }
+        } catch (Exception e) {
+            throw new RuntimeException("Error finding entity with id = " + id, e);
+        }
     }
 
     @Override

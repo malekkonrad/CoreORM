@@ -37,7 +37,8 @@ public class App {
             session.save(u);
             session.commit();
 
-            User user = session.find(User.class, new HashMap<String, Object>(){{put("id", 5);}});
+            User user = session.find(User.class, 1);
+            System.out.println(user.getEmail());
         }
     }
 }

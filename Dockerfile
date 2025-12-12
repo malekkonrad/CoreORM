@@ -3,9 +3,16 @@ FROM maven:3.9-eclipse-temurin-17 AS build
 WORKDIR /app
 
 COPY pom.xml .
+
+# 2. Pre-download dependencies (cacheable layer)
+RUN mvn dependency:go-offline -B
+
+# This is faster because the src change many times,
+# but the dependencies almost never, so they are kept in cache
+# 3. Copy the actual source code
 COPY src ./src
 
-# budujemy jar + kopiujemy zależności do target/dependency
+# 4. Build the project — now it's fast because deps are cached
 RUN mvn clean package dependency:copy-dependencies -DskipTests
 
 # Run stage

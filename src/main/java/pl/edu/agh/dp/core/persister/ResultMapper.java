@@ -12,7 +12,8 @@ public class ResultMapper {
     public static Object mapRow(EntityMetadata meta, ResultSet rs){
         try {
             Object obj = meta.getEntityClass().getDeclaredConstructor().newInstance();
-
+            // result row first points to 0 so move it up
+            rs.next();
             // ID field
             PropertyMetadata id = meta.getIdProperty();
             Field idf = meta.getEntityClass().getDeclaredField(id.getName());
