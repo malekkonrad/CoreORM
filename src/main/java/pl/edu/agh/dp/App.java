@@ -5,6 +5,8 @@ import pl.edu.agh.dp.api.Orm;
 import pl.edu.agh.dp.api.Session;
 import pl.edu.agh.dp.api.SessionFactory;
 
+import java.util.HashMap;
+
 public class App {
     public static void main(String[] args) {
 
@@ -35,7 +37,7 @@ public class App {
             session.save(u);
             session.commit();
 
-//            session.find(User.class, new Object(){{String yes = "yes";}});
+            User user = session.find(User.class, new HashMap<String, Object>(){{put("id", 5);}});
         }
     }
 }
