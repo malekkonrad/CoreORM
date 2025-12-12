@@ -1,11 +1,11 @@
-package pl.edu.agh.dp.core.session;
+package pl.edu.agh.dp.core.api;
 
 import pl.edu.agh.dp.api.Configuration;
 import pl.edu.agh.dp.api.SessionFactory;
 import pl.edu.agh.dp.core.jdbc.ConnectionProvider;
 import pl.edu.agh.dp.core.jdbc.JdbcConnectionProvider;
 import pl.edu.agh.dp.core.mapping.MetadataRegistry;
-import pl.edu.agh.dp.core.mapping.scanner.ClassPathScanner;
+import pl.edu.agh.dp.core.mapping.ClassPathScanner;
 import pl.edu.agh.dp.core.schema.SchemaDropper;
 import pl.edu.agh.dp.core.schema.SchemaGenerator;
 

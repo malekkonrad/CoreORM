@@ -1,9 +1,9 @@
-package pl.edu.agh.dp.core.session;
+package pl.edu.agh.dp.core.api;
 
 import pl.edu.agh.dp.api.Session;
 import pl.edu.agh.dp.core.persister.EntityPersister;
-import pl.edu.agh.dp.core.uow.DefaultUnitOfWork;
-import pl.edu.agh.dp.core.uow.UnitOfWork;
+import pl.edu.agh.dp.core.persister.DefaultUnitOfWork;
+import pl.edu.agh.dp.core.persister.UnitOfWork;
 
 import java.sql.Connection;
 import java.util.Map;

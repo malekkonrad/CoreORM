@@ -1,7 +1,7 @@
 package pl.edu.agh.dp.core.persister;
 
 import pl.edu.agh.dp.api.Session;
-import pl.edu.agh.dp.core.mapping.metadata.EntityMetadata;
+import pl.edu.agh.dp.core.mapping.EntityMetadata;
 
 public interface EntityPersister {
     EntityMetadata metadata = null;

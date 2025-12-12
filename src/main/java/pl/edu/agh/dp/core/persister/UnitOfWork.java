@@ -1,4 +1,4 @@
-package pl.edu.agh.dp.core.uow;
+package pl.edu.agh.dp.core.persister;
 
 import pl.edu.agh.dp.api.Session;
 

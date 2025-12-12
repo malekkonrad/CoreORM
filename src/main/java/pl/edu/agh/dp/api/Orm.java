@@ -1,6 +1,6 @@
 package pl.edu.agh.dp.api;
 
-import pl.edu.agh.dp.core.session.ConfigurationImpl;
+import pl.edu.agh.dp.core.api.ConfigurationImpl;
 
 public final class Orm {
     private Orm() {}

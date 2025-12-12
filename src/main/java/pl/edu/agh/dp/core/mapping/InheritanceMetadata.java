@@ -1,4 +1,4 @@
-package pl.edu.agh.dp.core.mapping.metadata;
+package pl.edu.agh.dp.core.mapping;
 
 import java.util.Map;
 

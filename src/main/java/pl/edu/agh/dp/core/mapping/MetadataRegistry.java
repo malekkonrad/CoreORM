@@ -1,7 +1,6 @@
 package pl.edu.agh.dp.core.mapping;
 
 import lombok.Getter;
-import pl.edu.agh.dp.core.mapping.metadata.EntityMetadata;
 
 import java.util.HashMap;
 import java.util.List;

@@ -1,10 +1,9 @@
-package pl.edu.agh.dp.core.persister.impl;
+package pl.edu.agh.dp.core.persister;
 
 import lombok.NoArgsConstructor;
 import pl.edu.agh.dp.api.Session;
-import pl.edu.agh.dp.core.mapping.metadata.EntityMetadata;
-import pl.edu.agh.dp.core.mapping.metadata.PropertyMetadata;
-import pl.edu.agh.dp.core.persister.EntityPersister;
+import pl.edu.agh.dp.core.mapping.EntityMetadata;
+import pl.edu.agh.dp.core.mapping.PropertyMetadata;
 import pl.edu.agh.dp.core.util.ReflectionUtils;
 
 import java.sql.Connection;

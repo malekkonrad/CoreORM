@@ -3,9 +3,9 @@ package pl.edu.agh.dp.core.schema;
 
 import pl.edu.agh.dp.core.jdbc.ConnectionProvider;
 import pl.edu.agh.dp.core.mapping.MetadataRegistry;
-import pl.edu.agh.dp.core.mapping.metadata.AssociationMetadata;
-import pl.edu.agh.dp.core.mapping.metadata.EntityMetadata;
-import pl.edu.agh.dp.core.mapping.metadata.PropertyMetadata;
+import pl.edu.agh.dp.core.mapping.AssociationMetadata;
+import pl.edu.agh.dp.core.mapping.EntityMetadata;
+import pl.edu.agh.dp.core.mapping.PropertyMetadata;
 
 import java.sql.Connection;
 import java.sql.Statement;

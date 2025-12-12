@@ -1,8 +1,5 @@
 package pl.edu.agh.dp.core.mapping;
 
-import pl.edu.agh.dp.core.mapping.metadata.EntityMetadata;
-import pl.edu.agh.dp.core.mapping.metadata.PropertyMetadata;
-
 import java.lang.reflect.Field;
 
 public class MetadataBuilder {

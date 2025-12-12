@@ -1,7 +1,6 @@
 package pl.edu.agh.dp.api;
 
 import pl.edu.agh.dp.core.persister.EntityPersister;
-import pl.edu.agh.dp.core.uow.UnitOfWork;
 
 import java.sql.Connection;
 

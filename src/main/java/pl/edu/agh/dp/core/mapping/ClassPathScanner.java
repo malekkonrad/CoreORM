@@ -1,11 +1,10 @@
-package pl.edu.agh.dp.core.mapping.scanner;
+package pl.edu.agh.dp.core.mapping;
 
 
 
 import pl.edu.agh.dp.api.annotations.Entity;
 
 import java.io.*;
-import java.net.*;
 import java.util.*;
 import java.util.jar.*;
 
