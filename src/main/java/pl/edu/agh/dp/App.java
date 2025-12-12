@@ -1,5 +1,6 @@
 package pl.edu.agh.dp;
 
+import pl.edu.agh.dp.api.Configuration;
 import pl.edu.agh.dp.api.Orm;
 import pl.edu.agh.dp.api.Session;
 import pl.edu.agh.dp.api.SessionFactory;
@@ -33,6 +34,8 @@ public class App {
             u.setEmail("konrad@gmail.com");
             session.save(u);
             session.commit();
+
+//            session.find(User.class, new Object(){{String yes = "yes";}});
         }
     }
 }
