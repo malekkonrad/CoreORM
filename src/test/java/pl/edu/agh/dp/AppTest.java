@@ -60,22 +60,22 @@ public class AppTest {
         session.commit();
 
         // Sprawdź bezpośrednio w bazie
-        try (Connection conn = DriverManager.getConnection("jdbc:sqlite:src/test/resources/test.db");
-             Statement stmt = conn.createStatement();
-             ResultSet rs = stmt.executeQuery("SELECT * FROM users WHERE id = 1")) {
-            if (rs.next()) {
-                System.out.println("FOUND IN DB: id=" + rs.getLong("id") + ", name=" + rs.getString("name"));
-            } else {
-                System.out.println("NOT FOUND IN DB!");
-            }
-        } catch (SQLException e) {
-            e.printStackTrace();
-        }
+//        try (Connection conn = DriverManager.getConnection("jdbc:sqlite:src/test/resources/test.db");
+//             Statement stmt = conn.createStatement();
+//             ResultSet rs = stmt.executeQuery("SELECT * FROM users WHERE id = 1")) {
+//            if (rs.next()) {
+//                System.out.println("FOUND IN DB: id=" + rs.getLong("id") + ", name=" + rs.getString("name"));
+//            } else {
+//                System.out.println("NOT FOUND IN DB!");
+//            }
+//        } catch (SQLException e) {
+//            e.printStackTrace();
+//        }
 
 
         User user = session.find(User.class, 1L);
         assertEquals(u.getId(), user.getId());
-        assertEquals(user.getEmail(), u.getEmail());
-        assertEquals(user.getName(), u.getName());
+        assertEquals(u.getEmail(), user.getEmail());
+        assertEquals(u.getName(), user.getName());
     }
 }
