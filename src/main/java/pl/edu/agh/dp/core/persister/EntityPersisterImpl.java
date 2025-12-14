@@ -2,6 +2,7 @@ package pl.edu.agh.dp.core.persister;
 
 import lombok.NoArgsConstructor;
 import pl.edu.agh.dp.api.Session;
+import pl.edu.agh.dp.core.exceptions.IntegrityException;
 import pl.edu.agh.dp.core.jdbc.JdbcExecutor;
 import pl.edu.agh.dp.core.mapping.EntityMetadata;
 import pl.edu.agh.dp.core.mapping.PropertyMetadata;
@@ -86,9 +87,13 @@ public class EntityPersisterImpl implements EntityPersister {
             sql.deleteCharAt(sql.length() - 1);
             sql.append(")");
 
+            if (!idProvided) {
+                throw new IntegrityException("You must provide an id column for: " + metadata.getEntityClass().getName());
+            }
+
             Long generatedId = jdbc.insert(sql.toString(), values.toArray());
-            PropertyMetadata idProp = metadata.getIdProperty();
-            ReflectionUtils.setFieldValue(entity, idProp.getName(), generatedId);
+            // FIXME for multiple id columns
+            ReflectionUtils.setFieldValue(entity, idColumn, generatedId);
 
 
         } catch (Exception e) {
@@ -110,18 +115,6 @@ public class EntityPersisterImpl implements EntityPersister {
         try {
             Object entity = metadata.getEntityClass().getDeclaredConstructor().newInstance();
 
-            // Mapowanie ID z konwersją typu
-            PropertyMetadata idProp = metadata.getIdProperty();
-            Object idValue = rs.getObject(idProp.getColumnName());
-
-            // Konwersja Integer -> Long dla SQLite
-            if (idValue instanceof Integer && idProp.getType() == Long.class) {
-                idValue = ((Integer) idValue).longValue();
-            }
-
-            ReflectionUtils.setFieldValue(entity, idProp.getName(), idValue);
-
-            // Zwykłe właściwości
             for (PropertyMetadata prop : metadata.getProperties()) {
                 Object value = rs.getObject(prop.getColumnName());
 
