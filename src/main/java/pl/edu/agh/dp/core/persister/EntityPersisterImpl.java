@@ -113,12 +113,30 @@ public class EntityPersisterImpl implements EntityPersister {
     private Object mapEntity(ResultSet rs) throws SQLException {
         try {
             Object entity = metadata.getEntityClass().getDeclaredConstructor().newInstance();
-            
+
+            // Mapowanie ID z konwersją typu
+            PropertyMetadata idProp = metadata.getIdProperty();
+            Object idValue = rs.getObject(idProp.getColumnName());
+
+            // Konwersja Integer -> Long dla SQLite
+            if (idValue instanceof Integer && idProp.getType() == Long.class) {
+                idValue = ((Integer) idValue).longValue();
+            }
+
+            ReflectionUtils.setFieldValue(entity, idProp.getName(), idValue);
+
+            // Zwykłe właściwości
             for (PropertyMetadata prop : metadata.getProperties()) {
                 Object value = rs.getObject(prop.getColumnName());
+
+                // Konwersja Integer -> Long dla wszystkich pól Long
+                if (value instanceof Integer && prop.getType() == Long.class) {
+                    value = ((Integer) value).longValue();
+                }
+
                 ReflectionUtils.setFieldValue(entity, prop.getName(), value);
             }
-            
+
             return entity;
         } catch (Exception e) {
             throw new SQLException("Failed to map entity: " + metadata.getEntityClass().getName(), e);

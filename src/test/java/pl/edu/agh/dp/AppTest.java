@@ -39,7 +39,13 @@ public class AppTest {
         if (session != null) {
             session.close();
         }
-        // TODO delete all tables ???
+        // Wyczyść bazę danych
+        try (Connection conn = DriverManager.getConnection("jdbc:sqlite:src/test/resources/test.db");
+             Statement stmt = conn.createStatement()) {
+            stmt.execute("DELETE FROM users");
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
     }
     /**
      * Simple test to create and find
@@ -47,14 +53,28 @@ public class AppTest {
     @Test
     public void testCreateTable() {
         User u = new User();
-        u.setId(1);
+        u.setId(1L);
         u.setName("Jan");
         u.setEmail("konrad@gmail.com");
         session.save(u);
         session.commit();
 
-        User user = session.find(User.class, 1);
-        assertEquals(user.getId(), u.getId());
+        // Sprawdź bezpośrednio w bazie
+        try (Connection conn = DriverManager.getConnection("jdbc:sqlite:src/test/resources/test.db");
+             Statement stmt = conn.createStatement();
+             ResultSet rs = stmt.executeQuery("SELECT * FROM users WHERE id = 1")) {
+            if (rs.next()) {
+                System.out.println("FOUND IN DB: id=" + rs.getLong("id") + ", name=" + rs.getString("name"));
+            } else {
+                System.out.println("NOT FOUND IN DB!");
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+
+
+        User user = session.find(User.class, 1L);
+        assertEquals(u.getId(), user.getId());
         assertEquals(user.getEmail(), u.getEmail());
         assertEquals(user.getName(), u.getName());
     }

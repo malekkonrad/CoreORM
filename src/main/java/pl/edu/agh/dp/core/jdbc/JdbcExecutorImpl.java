@@ -23,9 +23,9 @@ public class JdbcExecutorImpl implements JdbcExecutor {
             setParameters(ps, params);
             
             try (ResultSet rs = ps.executeQuery()) {
-                // ✅ Mapujemy OD RAZU, w środku try-with-resources
+                // mapping
                 while (rs.next()) {
-                    T mapped = mapper.mapRow(rs); // Tworzymy NOWY obiekt
+                    T mapped = mapper.mapRow(rs);
                     results.add(mapped);
                 }
             }
@@ -33,7 +33,7 @@ public class JdbcExecutorImpl implements JdbcExecutor {
             throw new RuntimeException("Query failed: " + sql, e);
         }
         
-        return results; // Zwracamy listę OBIEKTÓW, nie ResultSet
+        return results;
     }
 
     @Override
