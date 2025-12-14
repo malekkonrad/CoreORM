@@ -1,5 +1,6 @@
 package pl.edu.agh.dp.api;
 
+import pl.edu.agh.dp.core.jdbc.JdbcExecutor;
 import pl.edu.agh.dp.core.persister.EntityPersister;
 
 import java.sql.Connection;
@@ -22,4 +23,6 @@ public interface Session extends AutoCloseable {
     EntityPersister getEntityPersister(Class<?> clazz);
     Connection getConnection();
 
+
+    JdbcExecutor getJdbcExecutor();
 }

@@ -31,7 +31,7 @@ public class App {
 
         try (Session session = sf.openSession()) {
             User u = new User();
-            u.setId(1);
+            u.setId(1L);
             u.setName("Jan");
             u.setEmail("konrad@gmail.com");
             session.save(u);

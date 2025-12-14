@@ -1,6 +1,8 @@
 package pl.edu.agh.dp.core.api;
 
 import pl.edu.agh.dp.api.Session;
+import pl.edu.agh.dp.core.jdbc.JdbcExecutor;
+import pl.edu.agh.dp.core.jdbc.JdbcExecutorImpl;
 import pl.edu.agh.dp.core.persister.EntityPersister;
 
 import java.sql.Connection;
@@ -18,10 +20,13 @@ public class SessionImpl implements Session {
     private final Set<Object> dirtyEntities = new HashSet<>();
     private final Set<Object> removedEntities = new HashSet<>();
 
+    private final JdbcExecutor jdbcExecutor;
+
     public SessionImpl(Connection connection,
                        Map<Class<?>, EntityPersister> entityPersisters) {
         this.connection = connection;
         this.entityPersisters = entityPersisters;
+        this.jdbcExecutor = new JdbcExecutorImpl(connection);
     }
 
     @Override
@@ -107,7 +112,7 @@ public class SessionImpl implements Session {
 
     }
 
-    // TODO I think it's useless now ?
+    // TODO I think it's useless now ? - yeah useless
     @Override
     public EntityPersister getEntityPersister(Class<?> clazz) {
         return entityPersisters.get(clazz);
@@ -116,5 +121,10 @@ public class SessionImpl implements Session {
     @Override
     public Connection getConnection() {
         return connection;
+    }
+
+    @Override
+    public JdbcExecutor getJdbcExecutor() {
+        return jdbcExecutor;
     }
 }

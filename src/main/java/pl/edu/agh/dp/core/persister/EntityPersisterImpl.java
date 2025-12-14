@@ -2,14 +2,12 @@ package pl.edu.agh.dp.core.persister;
 
 import lombok.NoArgsConstructor;
 import pl.edu.agh.dp.api.Session;
+import pl.edu.agh.dp.core.jdbc.JdbcExecutor;
 import pl.edu.agh.dp.core.mapping.EntityMetadata;
 import pl.edu.agh.dp.core.mapping.PropertyMetadata;
 import pl.edu.agh.dp.core.util.ReflectionUtils;
 
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import java.sql.Statement;
+import java.sql.*;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -26,7 +24,7 @@ public class EntityPersisterImpl implements EntityPersister {
     @Override
     public Object findById(Object id, Session session) {
         try {
-            Connection con = session.getConnection();
+            JdbcExecutor jdbc = session.getJdbcExecutor();
 
             PropertyMetadata idMeta = metadata.getIdProperty();
             String idColumnName = idMeta.getColumnName();
@@ -49,14 +47,9 @@ public class EntityPersisterImpl implements EntityPersister {
                     .append(idColumnName)
                     .append(" = ?");
 
-            try (PreparedStatement ps = con.prepareStatement(sql.toString(),
-                    Statement.RETURN_GENERATED_KEYS)) {
+        return jdbc.queryOne(sql.toString(), this::mapEntity, id)
+            .orElse(null);
 
-                ps.setObject(1, id);
-
-                ResultSet entity = ps.executeQuery();
-                return ResultMapper.mapRow(metadata, entity);
-            }
         } catch (Exception e) {
             throw new RuntimeException("Error finding entity with id = " + id, e);
         }
@@ -65,8 +58,7 @@ public class EntityPersisterImpl implements EntityPersister {
     @Override
     public void insert(Object entity, Session session) {
         try {
-//            SessionImpl sess = (SessionImpl) session;
-            Connection con = session.getConnection();
+            JdbcExecutor jdbc = session.getJdbcExecutor();
 
             PropertyMetadata idMeta = metadata.getIdProperty();
             Object idValue = ReflectionUtils.getFieldValue(entity, idMeta.getName());
@@ -98,26 +90,11 @@ public class EntityPersisterImpl implements EntityPersister {
             sql.deleteCharAt(sql.length() - 1);
             sql.append(")");
 
-            // Chcemy dostać wygenerowane klucze
-            try (PreparedStatement ps = con.prepareStatement(sql.toString(),
-                    Statement.RETURN_GENERATED_KEYS)) {
+            Long generatedId = jdbc.insert(sql.toString(), values.toArray());
+            PropertyMetadata idProp = metadata.getIdProperty();
+            ReflectionUtils.setFieldValue(entity, idProp.getName(), generatedId);
 
-                for (int i = 0; i < values.size(); i++) {
-                    ps.setObject(i + 1, values.get(i));
-                }
 
-                ps.executeUpdate();
-
-                // Jeżeli ID nie było ustawione – odczytaj je z DB i wpisz do obiektu
-                if (!idProvided) {
-                    try (ResultSet keys = ps.getGeneratedKeys()) {
-                        if (keys.next()) {
-                            Object generatedId = keys.getObject(1);
-                            ReflectionUtils.setFieldValue(entity, idMeta.getName(), generatedId);
-                        }
-                    }
-                }
-            }
         } catch (Exception e) {
             throw new RuntimeException("Error inserting entity " + entity, e);
         }
@@ -133,32 +110,18 @@ public class EntityPersisterImpl implements EntityPersister {
 
     }
 
-
-
-//    private String createTableSql(EntityMetadata meta) {
-//        StringBuilder sb = new StringBuilder();
-//        sb.append("CREATE TABLE IF NOT EXISTS ")
-//                .append(meta.getTableName())
-//                .append(" (");
-//
-//        // kolumna ID
-//        PropertyMetadata id = meta.getIdProperty();
-//        sb.append(id.getColumnName())
-//                .append(" ")
-//                .append(sqlType(id.getType()))
-//                .append(" PRIMARY KEY");
-//
-//        // zwykłe kolumny
-//        for (PropertyMetadata pm : meta.getProperties()) {
-//            sb.append(", ")
-//                    .append(pm.getColumnName())
-//                    .append(" ")
-//                    .append(sqlType(pm.getType()));
-//        }
-//
-//        // TODO: klucze obce dla relacji OneToMany / ManyToOne jeśli chcesz
-//
-//        sb.append(");");
-//        return sb.toString();
-//    }
+    private Object mapEntity(ResultSet rs) throws SQLException {
+        try {
+            Object entity = metadata.getEntityClass().getDeclaredConstructor().newInstance();
+            
+            for (PropertyMetadata prop : metadata.getProperties()) {
+                Object value = rs.getObject(prop.getColumnName());
+                ReflectionUtils.setFieldValue(entity, prop.getName(), value);
+            }
+            
+            return entity;
+        } catch (Exception e) {
+            throw new SQLException("Failed to map entity: " + metadata.getEntityClass().getName(), e);
+        }
+    }
 }
