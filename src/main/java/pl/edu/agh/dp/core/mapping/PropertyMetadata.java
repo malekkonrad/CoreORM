@@ -17,7 +17,7 @@ public class PropertyMetadata {
     boolean isUnique = false;       // false
     boolean isNullable = false;     // false
     boolean isIndex = false;        // false
-    Object defaultValue = null;     // default to 0
+    Object defaultValue = null;     // default to null
 
     public String toString(){
         StringBuffer sb = new StringBuffer();

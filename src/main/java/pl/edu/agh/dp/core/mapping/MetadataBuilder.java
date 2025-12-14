@@ -51,7 +51,10 @@ public class MetadataBuilder {
                 isUnique = column.unique();
                 isNullable = column.nullable();
                 isIndex = column.index();
-                defaultValue = Objects.equals(column.defaultValue(), "") ? null : column.defaultValue();
+                if (Objects.equals(column.defaultValue(), "__UNSET__")) {
+                    // try to cast default value to the corresponding type
+                    defaultValue = f.getType().cast(column.defaultValue());
+                }
             }
             PropertyMetadata pm =
                     new PropertyMetadata(
@@ -101,7 +104,11 @@ public class MetadataBuilder {
         }
 
         if (type == short.class || type == Short.class) {
-            return "SMALLINT";
+            return autoIncrement ? "SMALLSERIAL" : "SMALLINT";
+        }
+        // other auto increments are not supported
+        if (autoIncrement) {
+            throw new IntegrityException("Auto increment is supported only for int, long, and short. Not for: " + type);
         }
 
         // Floating point types
@@ -154,7 +161,6 @@ public class MetadataBuilder {
             return "BYTEA";
         }
 
-        // Fallback
-        return "TEXT";
+        throw new IntegrityException("Unsupported type: " + type);
     }
 }
