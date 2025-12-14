@@ -12,7 +12,7 @@ public @interface Column {
     boolean nullable() default false;
     boolean unique() default false;
     boolean index() default false;
-    String defaultValue() default "";
+    String defaultValue() default ""; // TODO how to make it unset?
 
     int length() default 0;
     int scale() default 0;

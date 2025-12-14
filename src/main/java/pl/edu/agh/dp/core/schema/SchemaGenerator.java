@@ -60,24 +60,27 @@ public class SchemaGenerator {
                 .append(meta.getTableName())
                 .append(" (");
 
-        // kolumna ID
-        PropertyMetadata id = meta.getIdProperty();
-        sb.append(id.getColumnName())
-                .append(" ")
-                .append(sqlTypeForId(id.getType()))
-                .append(" PRIMARY KEY");
-
-        // zwykłe kolumny
+        StringBuilder primary_keys = new StringBuilder();
         for (PropertyMetadata pm : meta.getProperties()) {
-            sb.append(", ")
-                    .append(pm.getColumnName())
-                    .append(" ")
-                    .append(sqlType(pm.getType()));
+            sb.append(pm.getColumnName()).append(" ")
+                    .append(pm.getSqlType()).append(" ");
+            if (pm.isNullable()) sb.append("NULL ");
+            else sb.append("NOT NULL ");
+            if (pm.isUnique()) sb.append("UNIQUE ");
+            if (pm.getDefaultValue() != null) sb.append("DEFAULT ").append(pm.getDefaultValue().toString()); // TODO check if works correctly
+            sb.append(", ");
+            // append to primary keys separately
+            if (pm.isId()) primary_keys.append(pm.getColumnName()).append(", ");
         }
+        sb.append("PRIMARY KEY (").append(primary_keys);
+        sb.delete(sb.length() - 2, sb.length()); // delete last ", " from primary keys
+        sb.append(")");
 
+        // TODO: set index on table
         // TODO: klucze obce dla relacji OneToMany / ManyToOne jeśli chcesz
 
         sb.append(");");
+//        System.out.println(sb);
         return sb.toString();
     }
 
@@ -102,20 +105,5 @@ public class SchemaGenerator {
                 .append(");");
 
         return sb.toString();
-    }
-
-    private String sqlType(Class<?> type) {
-        if (type == String.class) return "VARCHAR(255)";
-        if (type == int.class || type == Integer.class) return "INT";
-        if (type == long.class || type == Long.class) return "BIGINT";
-        if (type == boolean.class || type == Boolean.class) return "BOOLEAN";
-        // itd. – według potrzeb
-        return "VARCHAR(255)";
-    }
-
-    private String sqlTypeForId(Class<?> type) {
-        if (type == Long.class || type == long.class) return "BIGSERIAL";
-        // inne typy według potrzeb
-        return sqlType(type); // fallback
     }
 }

@@ -26,14 +26,16 @@ public class EntityPersisterImpl implements EntityPersister {
         try {
             JdbcExecutor jdbc = session.getJdbcExecutor();
 
-            PropertyMetadata idMeta = metadata.getIdProperty();
-            String idColumnName = idMeta.getColumnName();
+            List<String> idColumns = metadata.getIdColumns();
+
+            if (idColumns.size() != 1) {
+                throw new RuntimeException("Multiple id columns have not been implemented yet!");
+            }
+            // FIXME
+            String idColumn = idColumns.get(0);
 
             List<String> columns = new ArrayList<>();
-            // id column
-            columns.add(idColumnName);
 
-            // Zwykłe kolumny
             for (PropertyMetadata pm : metadata.getProperties()) {
                 columns.add(pm.getColumnName());
             }
@@ -44,7 +46,7 @@ public class EntityPersisterImpl implements EntityPersister {
                     .append(" FROM ")
                     .append(metadata.getTableName())
                     .append(" WHERE ")
-                    .append(idColumnName)
+                    .append(idColumn)
                     .append(" = ?");
 
         return jdbc.queryOne(sql.toString(), this::mapEntity, id)
@@ -60,24 +62,18 @@ public class EntityPersisterImpl implements EntityPersister {
         try {
             JdbcExecutor jdbc = session.getJdbcExecutor();
 
-            PropertyMetadata idMeta = metadata.getIdProperty();
-            Object idValue = ReflectionUtils.getFieldValue(entity, idMeta.getName());
-            boolean idProvided = idValue != null;
-
             List<String> columns = new ArrayList<>();
             List<Object> values = new ArrayList<>();
 
-            // ID tylko jeśli nie jest null
-            if (idProvided) {
-                columns.add(idMeta.getColumnName());
-                values.add(idValue);
-            }
+            // FIXME for multiple id columns
+            String idColumn = metadata.getIdColumns().get(0);
 
-            // Zwykłe kolumny
+            boolean idProvided = false;
             for (PropertyMetadata pm : metadata.getProperties()) {
                 columns.add(pm.getColumnName());
                 Object value = ReflectionUtils.getFieldValue(entity, pm.getName());
                 values.add(value);
+                if (pm.isId()) idProvided = true;
             }
 
             StringBuilder sql = new StringBuilder();

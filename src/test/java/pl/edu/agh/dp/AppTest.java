@@ -23,7 +23,7 @@ import java.sql.*;
 public class AppTest {
     Configuration config = Orm.configure()
             .setProperty("db.url", "jdbc:sqlite:src/test/resources/test.db")
-            .setProperty("orm.schema.auto", "dropTable-create");
+            .setProperty("orm.schema.auto", "drop-create");
 
     SessionFactory sessionFactory;
     Session session;

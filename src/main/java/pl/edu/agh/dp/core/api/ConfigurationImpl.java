@@ -48,9 +48,6 @@ public class ConfigurationImpl implements Configuration {
             new SchemaGenerator(registry, cp).generate();
         } else if ("create".equalsIgnoreCase(schemaAuto)) {
             new SchemaGenerator(registry, cp).generate();
-        } else if ("dropTable-create".equalsIgnoreCase(schemaAuto)) {
-            new SchemaDropper(cp).dropTables();
-            new SchemaGenerator(registry, cp).generate();
         }
 
         // 5. SessionFactory -> creation of EntityPersisters inside
