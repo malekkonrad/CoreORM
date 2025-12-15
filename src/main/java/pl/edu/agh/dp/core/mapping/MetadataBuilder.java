@@ -1,15 +1,14 @@
 package pl.edu.agh.dp.core.mapping;
 
-import pl.edu.agh.dp.api.annotations.Column;
-import pl.edu.agh.dp.api.annotations.Id;
-import pl.edu.agh.dp.api.annotations.Table;
+import pl.edu.agh.dp.api.annotations.*;
 import pl.edu.agh.dp.core.exceptions.IntegrityException;
 import pl.edu.agh.dp.core.util.StringUtils;
 
+import java.beans.Transient;
 import java.lang.reflect.Field;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Objects;
+import java.lang.reflect.ParameterizedType;
+import java.lang.reflect.Type;
+import java.util.*;
 
 public class MetadataBuilder {
     public static EntityMetadata buildEntityMetadata(Class<?> clazz) {
@@ -33,55 +32,26 @@ public class MetadataBuilder {
         List<PropertyMetadata> idProperties = new ArrayList<>();
 
         for (Field f : clazz.getDeclaredFields()) {
-            boolean isId = false;
-            boolean autoIncrement = false;
-            if (f.isAnnotationPresent(Id.class)) {
-                Id id = f.getAnnotation(Id.class);
-                isId = true;
-                autoIncrement = id.autoIncrement();
-            }
-            String columnName = StringUtils.convertCamelCaseToSnake(f.getName());
-            int length = 0;
-            int scale = 0;
-            int precision = 0;
-            boolean isUnique = false;
-            boolean isNullable = false;
-            boolean isIndex = false;
-            Object defaultValue = null;
-            if (f.isAnnotationPresent(Column.class)) {
-                Column column = f.getAnnotation(Column.class);
-                if (!Objects.equals(column.columnName(), "")) columnName = column.columnName();
-                isUnique = column.unique();
-                isNullable = column.nullable();
-                isIndex = column.index();
-                if (Objects.equals(column.defaultValue(), "__UNSET__")) {
-                    // try to cast default value to the corresponding type
-                    defaultValue = f.getType().cast(column.defaultValue());
-                }
-            }
-            PropertyMetadata pm =
-                    new PropertyMetadata(
-                            f.getName(),
-                            columnName,
-                            f.getType(),
-                            getSqlType(f.getType(), length, scale, precision, autoIncrement),
-                            isId,
-                            autoIncrement,
-                            isUnique,
-                            isNullable,
-                            isIndex,
-                            defaultValue
-                            );
-            meta.addProperty(pm);
+            // foreign keys and relationships
+            if (f.isAnnotationPresent(OneToOne.class)) {
+                mapOneToOneColumns(meta, f);
+            } else if (f.isAnnotationPresent(OneToMany.class)) {
 
-            if (isId) idProperties.add(pm);
+            } else if (f.isAnnotationPresent(ManyToOne.class)) {
+
+            } else if (f.isAnnotationPresent(ManyToMany.class)) {
+
+            } else {
+                // default column properties
+                mapDefaultColumns(meta, f, idProperties);
+            }
         }
-
+        // Error checking for id
         if (idProperties.isEmpty()) {
             throw new IntegrityException("Every table must have an Id." +
                     "Unable to determine id in entity: " + clazz.getName());
         }
-
+        // Error checking for composite keys
         if (idProperties.size() > 1) {
             List<PropertyMetadata> idIncremented = new ArrayList<>();
             for (PropertyMetadata pm : idProperties) {
@@ -106,6 +76,67 @@ public class MetadataBuilder {
         }
 
         return meta;
+    }
+
+    private static void mapOneToOneColumns(EntityMetadata meta, Field f) {
+        OneToOne annotation = f.getAnnotation(OneToOne.class);
+        Type genericFieldType = f.getGenericType();
+        if(genericFieldType instanceof ParameterizedType){
+            throw new IntegrityException("Invalid type: '" + f.getType().getSimpleName() + "' in one to one relationship.\n" +
+                    "One to one expects only a table class not parameterized type.");
+        }
+        AssociationMetadata am = new AssociationMetadata(
+                AssociationMetadata.Type.ONE_TO_ONE,
+                f.getType(),
+                annotation.mappedBy(),
+                "",
+                ""
+        );
+        meta.addAssociationMetadata(am);
+    }
+
+    private static void mapDefaultColumns(EntityMetadata meta, Field f, List<PropertyMetadata> idProperties) {
+        boolean isId = false;
+        boolean autoIncrement = false;
+        if (f.isAnnotationPresent(Id.class)) {
+            Id id = f.getAnnotation(Id.class);
+            isId = true;
+            autoIncrement = id.autoIncrement();
+        }
+        String columnName = StringUtils.convertCamelCaseToSnake(f.getName());
+        int length = 0;
+        int scale = 0;
+        int precision = 0;
+        boolean isUnique = false;
+        boolean isNullable = false;
+        boolean isIndex = false;
+        Object defaultValue = null;
+        if (f.isAnnotationPresent(Column.class)) {
+            Column column = f.getAnnotation(Column.class);
+            if (!Objects.equals(column.columnName(), "")) columnName = column.columnName();
+            isUnique = column.unique();
+            isNullable = column.nullable();
+            isIndex = column.index();
+            if (Objects.equals(column.defaultValue(), "__UNSET__")) {
+                // try to cast default value to the corresponding type
+                defaultValue = f.getType().cast(column.defaultValue());
+            }
+        }
+        PropertyMetadata pm =
+                new PropertyMetadata(
+                        f.getName(),
+                        columnName,
+                        f.getType(),
+                        getSqlType(f.getType(), length, scale, precision, autoIncrement),
+                        isId,
+                        autoIncrement,
+                        isUnique,
+                        isNullable,
+                        isIndex,
+                        defaultValue
+                );
+        meta.addProperty(pm);
+        if (isId) idProperties.add(pm);
     }
 
     public static <T> String getSqlType(

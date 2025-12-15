@@ -25,6 +25,10 @@ public class EntityMetadata {
         if (pm.isId) idColumns.add(pm);
     }
 
+    public void addAssociationMetadata(AssociationMetadata am) {
+        associationMetadata.add(am);
+    }
+
     // for testing purposes
     public String toString() {
         StringBuilder sb = new StringBuilder();
@@ -33,6 +37,7 @@ public class EntityMetadata {
         sb.append("  tableName: ").append(tableName).append("\n");
         sb.append("  idColumns: ").append(idColumns).append("\n");
         sb.append("  properties: ").append(properties).append("\n");
+        sb.append("  associations: ").append(associationMetadata).append("\n");
         sb.append("}");
         return sb.toString();
     }

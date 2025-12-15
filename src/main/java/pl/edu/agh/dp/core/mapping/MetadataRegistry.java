@@ -19,6 +19,22 @@ public class MetadataRegistry {
             System.out.println(entity);
             entities.put(clazz, entity);
         }
+
+        // TODO update associations, with table info because now we have that information
+        // Helper code to get argument type from collection
+//        Field field = Test1.class.getField("list");
+//
+//        Type genericFieldType = field.getGenericType();
+//
+//        if(genericFieldType instanceof ParameterizedType){
+//            ParameterizedType aType = (ParameterizedType) genericFieldType;
+//            Type[] fieldArgTypes = aType.getActualTypeArguments();
+//            for(Type fieldArgType : fieldArgTypes){
+//                Class fieldArgClass = (Class) fieldArgType;
+//                System.out.println("fieldArgClass = " + fieldArgClass);
+//            }
+//        }
+
     }
 
     public EntityMetadata getEntityMetadata(Class<?> clazz) {

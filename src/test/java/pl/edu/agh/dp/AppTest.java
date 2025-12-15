@@ -14,6 +14,7 @@ import pl.edu.agh.dp.api.Orm;
 import pl.edu.agh.dp.api.Session;
 import pl.edu.agh.dp.api.SessionFactory;
 import pl.edu.agh.dp.api.annotations.Entity;
+import pl.edu.agh.dp.entities.Employee;
 
 import java.sql.*;
 
@@ -30,7 +31,7 @@ public class AppTest {
 
     @BeforeEach
     public void setUp() {
-        config.register(User.class);
+        config.register(User.class, Employee.class);
         sessionFactory = config.buildSessionFactory();
         session = sessionFactory.openSession();
     }
