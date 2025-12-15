@@ -5,13 +5,15 @@ import lombok.Setter;
 import pl.edu.agh.dp.api.annotations.Column;
 import pl.edu.agh.dp.api.annotations.Entity;
 import pl.edu.agh.dp.api.annotations.Id;
+import pl.edu.agh.dp.api.annotations.Table;
 
 import java.lang.reflect.Field;
 import java.util.List;
 
 @Getter
 @Setter
-@Entity(table = "users")
+@Entity
+@Table(name = "users")
 public class User {
     @Id
     private Long id;

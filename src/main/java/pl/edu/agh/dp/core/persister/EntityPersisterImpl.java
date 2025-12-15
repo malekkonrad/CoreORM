@@ -8,6 +8,7 @@ import pl.edu.agh.dp.core.mapping.EntityMetadata;
 import pl.edu.agh.dp.core.mapping.PropertyMetadata;
 import pl.edu.agh.dp.core.util.ReflectionUtils;
 
+import java.lang.reflect.Field;
 import java.sql.*;
 import java.util.ArrayList;
 import java.util.List;
@@ -27,13 +28,7 @@ public class EntityPersisterImpl implements EntityPersister {
         try {
             JdbcExecutor jdbc = session.getJdbcExecutor();
 
-            List<String> idColumns = metadata.getIdColumns();
-
-            if (idColumns.size() != 1) {
-                throw new RuntimeException("Multiple id columns have not been implemented yet!");
-            }
-            // FIXME
-            String idColumn = idColumns.get(0);
+            List<PropertyMetadata> idColumns = metadata.getIdColumns();
 
             List<String> columns = new ArrayList<>();
 
@@ -46,11 +41,51 @@ public class EntityPersisterImpl implements EntityPersister {
                     .append(String.join(", ", columns))
                     .append(" FROM ")
                     .append(metadata.getTableName())
-                    .append(" WHERE ")
-                    .append(idColumn)
-                    .append(" = ?");
+                    .append(" WHERE ");
 
-        return jdbc.queryOne(sql.toString(), this::mapEntity, id)
+            Object[] params = new Object[idColumns.size()];
+            if (idColumns.size() == 1) {
+                PropertyMetadata pm = idColumns.get(0);
+                try {
+                    params[0] = pm.getType().cast(id);
+                } catch (ClassCastException e) {
+                    throw new IntegrityException("Type mismatch or unable to cast. Field: '" + pm.getName() + "' is: '" + pm.getType() + "', but got: '" + id.getClass() + "'");
+                }
+            }
+            else {
+                for (int i = 0; i < params.length; i++) {
+                    PropertyMetadata pm = idColumns.get(i);
+                    sql.append(pm.getColumnName());
+                    sql.append(" = ?");
+                    try {
+                        ReflectionUtils.findField(id.getClass(), pm.getName());
+                    } catch (NoSuchFieldException e) {
+                        List<String> fields = new ArrayList<>();
+                        List<String> types = new ArrayList<>();
+                        for (PropertyMetadata pmeta : idColumns) {
+                            fields.add(pmeta.getName());
+                            types.add(pmeta.getType().getName() + " " + pmeta.getName() + ";");
+                        }
+                        throw new IntegrityException(
+                                "Composite key for entity: '" + metadata.getEntityClass().getName() + "' should be provided.\n" +
+                                        "Composite key: (" + String.join(", ", fields) + ")\n" +
+                                        "'Id' should have the aforementioned fields to function properly.\n" +
+                                        "Provided: '" + id.toString() + "'\n" +
+                                        "Example:\n" +
+                                        "class " + metadata.getEntityClass().getSimpleName() + "Id {\n\t" +
+                                        String.join("\n\t", fields) + "\n}"
+                        );
+                    }
+                    Object val = ReflectionUtils.getFieldValue(id, pm.getName());
+                    try {
+                        params[i] = pm.getType().cast(val);
+                    } catch (ClassCastException e) {
+                        throw new IntegrityException("Type mismatch or unable to cast. Field: '" + pm.getName() + "' is: '" + pm.getType() + "', but got: '" + id.getClass() + "'");
+                    }
+                }
+            }
+
+        return jdbc.queryOne(sql.toString(), this::mapEntity, params)
             .orElse(null);
 
         } catch (Exception e) {
@@ -67,7 +102,7 @@ public class EntityPersisterImpl implements EntityPersister {
             List<Object> values = new ArrayList<>();
 
             // FIXME for multiple id columns
-            String idColumn = metadata.getIdColumns().get(0);
+            String idColumn = metadata.getIdColumns().get(0).getColumnName();
 
             boolean idProvided = false;
             for (PropertyMetadata pm : metadata.getProperties()) {

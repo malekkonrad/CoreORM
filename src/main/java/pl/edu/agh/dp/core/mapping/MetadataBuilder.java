@@ -2,10 +2,13 @@ package pl.edu.agh.dp.core.mapping;
 
 import pl.edu.agh.dp.api.annotations.Column;
 import pl.edu.agh.dp.api.annotations.Id;
+import pl.edu.agh.dp.api.annotations.Table;
 import pl.edu.agh.dp.core.exceptions.IntegrityException;
 import pl.edu.agh.dp.core.util.StringUtils;
 
 import java.lang.reflect.Field;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Objects;
 
 public class MetadataBuilder {
@@ -13,20 +16,21 @@ public class MetadataBuilder {
         EntityMetadata meta = new EntityMetadata();
         meta.setEntityClass(clazz);
 
-        // TODO: process @Entity, @Table
         // TODO: detect inheritance
         // TODO: detect associations
 
-        // Basic mapping TODO add more complexity
-        // @malekkonrad what do you mean by more complexity
         String name = clazz.getSimpleName();
         if (name.isBlank()) {
             throw new IntegrityException("Unable to identify the table name of: " + clazz.getName());
         }
         String tableName = StringUtils.convertCamelCaseToSnake(name) + "s";
+        if (clazz.isAnnotationPresent(Table.class)) {
+            Table annotation = clazz.getAnnotation(Table.class);
+            tableName = annotation.name();
+        }
         meta.setTableName(tableName);
 
-        boolean hasSeenId = false;
+        List<PropertyMetadata> idProperties = new ArrayList<>();
 
         for (Field f : clazz.getDeclaredFields()) {
             boolean isId = false;
@@ -35,7 +39,6 @@ public class MetadataBuilder {
                 Id id = f.getAnnotation(Id.class);
                 isId = true;
                 autoIncrement = id.autoIncrement();
-                hasSeenId = true;
             }
             String columnName = StringUtils.convertCamelCaseToSnake(f.getName());
             int length = 0;
@@ -70,10 +73,36 @@ public class MetadataBuilder {
                             defaultValue
                             );
             meta.addProperty(pm);
+
+            if (isId) idProperties.add(pm);
         }
 
-        if (!hasSeenId) {
-            throw new IntegrityException("Every table must have an Id, unable to determine id in: " + clazz.getName());
+        if (idProperties.isEmpty()) {
+            throw new IntegrityException("Every table must have an Id." +
+                    "Unable to determine id in entity: " + clazz.getName());
+        }
+
+        if (idProperties.size() > 1) {
+            List<PropertyMetadata> idIncremented = new ArrayList<>();
+            for (PropertyMetadata pm : idProperties) {
+                if (pm.isAutoIncrement()) {
+                    idIncremented.add(pm);
+                }
+            }
+            if (!idIncremented.isEmpty()) {
+                List<String> fields = new ArrayList<>();
+                for (PropertyMetadata pm : idIncremented) {
+                    fields.add(pm.getName());
+                }
+                List<String> incrementedFields = new ArrayList<>();
+                for (PropertyMetadata pm : idIncremented) {
+                    incrementedFields.add(pm.getName());
+                }
+                throw new IntegrityException("Auto increment is not supported for composite keys.\n" +
+                        "Composite keys: (" + String.join(", ", fields) + ")\n" +
+                        "Auto incremented: (" + String.join(", ", incrementedFields) + ")\n" +
+                        "Entity: " + clazz.getName());
+            }
         }
 
         return meta;

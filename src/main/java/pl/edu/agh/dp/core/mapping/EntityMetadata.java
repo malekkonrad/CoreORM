@@ -15,14 +15,14 @@ import java.util.List;
 public class EntityMetadata {
     Class<?> entityClass;
     String tableName;
-    List<String> idColumns = new ArrayList<>();
+    List<PropertyMetadata> idColumns = new ArrayList<>();
     List<PropertyMetadata> properties = new ArrayList<>();
     List<AssociationMetadata> associationMetadata =  new ArrayList<>();
     InheritanceMetadata inheritanceMetadata;
 
     public void addProperty(PropertyMetadata pm) {
         properties.add(pm);
-        if (pm.isId) idColumns.add(pm.getColumnName());
+        if (pm.isId) idColumns.add(pm);
     }
 
     // for testing purposes

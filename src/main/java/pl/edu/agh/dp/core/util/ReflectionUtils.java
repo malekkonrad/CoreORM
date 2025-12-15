@@ -32,7 +32,7 @@ public final class ReflectionUtils {
     /**
      * Szuka pola w klasie oraz jej nadklasach.
      */
-    private static Field findField(Class<?> type, String fieldName) throws NoSuchFieldException {
+    public static Field findField(Class<?> type, String fieldName) throws NoSuchFieldException {
         Class<?> current = type;
         while (current != null && current != Object.class) {
             try {
