@@ -36,11 +36,11 @@ public class MetadataBuilder {
             if (f.isAnnotationPresent(OneToOne.class)) {
                 mapOneToOneColumns(meta, f);
             } else if (f.isAnnotationPresent(OneToMany.class)) {
-
+                mapOneToManyColumns(meta, f);
             } else if (f.isAnnotationPresent(ManyToOne.class)) {
-
+                mapManyToOneColumns(meta, f);
             } else if (f.isAnnotationPresent(ManyToMany.class)) {
-
+                mapManyToManyColumns(meta, f);
             } else {
                 // default column properties
                 mapDefaultColumns(meta, f, idProperties);
@@ -87,6 +87,57 @@ public class MetadataBuilder {
         }
         AssociationMetadata am = new AssociationMetadata(
                 AssociationMetadata.Type.ONE_TO_ONE,
+                f.getType(),
+                annotation.mappedBy(),
+                "",
+                ""
+        );
+        meta.addAssociationMetadata(am);
+    }
+
+    private static void mapOneToManyColumns(EntityMetadata meta, Field f) {
+        OneToMany annotation = f.getAnnotation(OneToMany.class);
+        Type genericFieldType = f.getGenericType();
+        if(!(genericFieldType instanceof ParameterizedType)){
+            throw new IntegrityException("Invalid type: '" + f.getType().getSimpleName() + "' in one to many relationship.\n" +
+                    "One to many expects parameterized collection type.");
+        }
+        AssociationMetadata am = new AssociationMetadata(
+                AssociationMetadata.Type.ONE_TO_MANY,
+                f.getType(),
+                annotation.mappedBy(),
+                "",
+                ""
+        );
+        meta.addAssociationMetadata(am);
+    }
+
+    private static void mapManyToOneColumns(EntityMetadata meta, Field f) {
+        ManyToOne annotation = f.getAnnotation(ManyToOne.class);
+        Type genericFieldType = f.getGenericType();
+        if(genericFieldType instanceof ParameterizedType){
+            throw new IntegrityException("Invalid type: '" + f.getType().getSimpleName() + "' in many to one relationship.\n" +
+                    "Many to one expects only a table class not parameterized type.");
+        }
+        AssociationMetadata am = new AssociationMetadata(
+                AssociationMetadata.Type.MANY_TO_MANY,
+                f.getType(),
+                annotation.mappedBy(),
+                "",
+                ""
+        );
+        meta.addAssociationMetadata(am);
+    }
+
+    private static void mapManyToManyColumns(EntityMetadata meta, Field f) {
+        ManyToMany annotation = f.getAnnotation(ManyToMany.class);
+        Type genericFieldType = f.getGenericType();
+        if(genericFieldType instanceof ParameterizedType){
+            throw new IntegrityException("Invalid type: '" + f.getType().getSimpleName() + "' in many to Many relationship.\n" +
+                    "Many to many expects only a table class not parameterized type.");
+        }
+        AssociationMetadata am = new AssociationMetadata(
+                AssociationMetadata.Type.MANY_TO_MANY,
                 f.getType(),
                 annotation.mappedBy(),
                 "",
