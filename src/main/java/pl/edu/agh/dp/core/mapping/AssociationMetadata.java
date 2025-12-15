@@ -21,6 +21,7 @@ public class AssociationMetadata {
 
     private Type type;
     private Class<?> targetEntity;
+    private String field;
     private String mappedBy;
     private String joinTable; // TODO maybe change to EntityMetadata or skip
     private List<PropertyMetadata> joinColumns;

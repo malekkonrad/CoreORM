@@ -32,6 +32,7 @@ public class MetadataBuilder {
 
         for (Field f : clazz.getDeclaredFields()) {
             // foreign keys and relationships
+            boolean isForeignColumn = true;
             if (f.isAnnotationPresent(OneToOne.class)) {
                 mapOneToOneColumns(meta, f);
             } else if (f.isAnnotationPresent(OneToMany.class)) {
@@ -43,6 +44,11 @@ public class MetadataBuilder {
             } else {
                 // default column properties
                 mapDefaultColumns(meta, f, idProperties);
+                isForeignColumn = false;
+            }
+            // add foreign column, by default add everything, fix later
+            if (isForeignColumn) {
+                mapForeignColumn(meta, f, idProperties);
             }
         }
         // FIXME
@@ -78,8 +84,71 @@ public class MetadataBuilder {
         return meta;
     }
 
-    private static void mapForeignColumn(EntityMetadata meta, Field f) {
+    private static void mapForeignColumn(EntityMetadata meta, Field f, List<PropertyMetadata> idProperties) {
+        boolean isId = false;
+        if (f.isAnnotationPresent(Id.class)) {
+            Id id = f.getAnnotation(Id.class);
+            isId = true;
+            if (id.autoIncrement()) {
+                throw new IntegrityException("Relationship's id cannot be set to autoincrement: " + meta.getEntityClass().getName() + "." + f.getName());
+            }
+        }
 
+        if (f.isAnnotationPresent(Column.class)) {
+            throw new IntegrityException("Relationship cannot be annotated with column, annotate it with 'JoinColumn', at: " + meta.getEntityClass().getName() + "." + f.getName());
+        }
+
+        boolean isNullable = false;
+        if (f.isAnnotationPresent(JoinColumn.class)) {
+            JoinColumn join = f.getAnnotation(JoinColumn.class);
+            isNullable = join.nullable();
+        }
+        String columnName = StringUtils.convertCamelCaseToSnake(f.getName());
+        // foreign key, removed later if unnecessary
+        PropertyMetadata pm =
+                new PropertyMetadata(
+                        f.getName(),
+                        columnName,
+                        f.getType(),
+                        "INTEGER",
+                        isId,
+                        false,
+                        false,
+                        isNullable,
+                        false,
+                        false
+                );
+        meta.addProperty(pm);
+        if (isId) idProperties.add(pm);
+    }
+
+    private static List<PropertyMetadata> determineJoinColumns(EntityMetadata meta, Field f) {
+        List<PropertyMetadata> joinColumns = new ArrayList<>();
+        String[] columnNames;
+        if (f.isAnnotationPresent(JoinColumn.class)) {
+            JoinColumn join = f.getAnnotation(JoinColumn.class);
+            columnNames = join.joinColumns();
+        } else {
+            columnNames = new String[]{f.getName()};
+        }
+        for (String name : columnNames) {
+            // just a placeholder for later
+            joinColumns.add(
+                    new PropertyMetadata(
+                            name.isBlank() ? f.getName() : name,
+                            null,
+                            null,
+                            null,
+                            false,
+                            false,
+                            false,
+                            false,
+                            false,
+                            null
+                    )
+            );
+        }
+        return joinColumns;
     }
 
     private static void mapOneToOneColumns(EntityMetadata meta, Field f) {
@@ -87,14 +156,17 @@ public class MetadataBuilder {
         Type genericFieldType = f.getGenericType();
         if(genericFieldType instanceof ParameterizedType){
             throw new IntegrityException("Invalid type: '" + f.getType().getSimpleName() + "' in one to one relationship.\n" +
-                    "One to one expects only a table class not parameterized type.");
+                    "One to one expects only a table class not parameterized collection type.");
         }
+        List<PropertyMetadata> joinColumns = determineJoinColumns(meta, f);
+
         AssociationMetadata am = new AssociationMetadata(
                 AssociationMetadata.Type.ONE_TO_ONE,
                 f.getType(),
+                f.getName(),
                 annotation.mappedBy(),
                 "",
-                new ArrayList<>(),
+                joinColumns,
                 new ArrayList<>()
         );
         meta.addAssociationMetadata(am);
@@ -103,16 +175,27 @@ public class MetadataBuilder {
     private static void mapOneToManyColumns(EntityMetadata meta, Field f) {
         OneToMany annotation = f.getAnnotation(OneToMany.class);
         Type genericFieldType = f.getGenericType();
-        if(!(genericFieldType instanceof ParameterizedType)){
+        Class<?> targetEntity;
+        // FIXME check for Collection
+        if(genericFieldType instanceof ParameterizedType aType) {
+            Type[] fieldArgTypes = aType.getActualTypeArguments();
+            if (fieldArgTypes.length != 1) {
+                throw new IntegrityException("Expected only one parameterized type, but got: " + Arrays.toString(fieldArgTypes));
+            }
+            targetEntity = (Class<?>) fieldArgTypes[0];
+        } else {
             throw new IntegrityException("Invalid type: '" + f.getType().getSimpleName() + "' in one to many relationship.\n" +
                     "One to many expects parameterized collection type.");
         }
+        List<PropertyMetadata> joinColumns = determineJoinColumns(meta, f);
+
         AssociationMetadata am = new AssociationMetadata(
                 AssociationMetadata.Type.ONE_TO_MANY,
-                f.getType(),
+                targetEntity,
+                f.getName(),
                 annotation.mappedBy(),
                 "",
-                new ArrayList<>(),
+                joinColumns,
                 new ArrayList<>()
         );
         meta.addAssociationMetadata(am);
@@ -123,14 +206,17 @@ public class MetadataBuilder {
         Type genericFieldType = f.getGenericType();
         if(genericFieldType instanceof ParameterizedType){
             throw new IntegrityException("Invalid type: '" + f.getType().getSimpleName() + "' in many to one relationship.\n" +
-                    "Many to one expects only a table class not parameterized type.");
+                    "Many to one expects only a table class not parameterized collection type.");
         }
+        List<PropertyMetadata> joinColumns = determineJoinColumns(meta, f);
+
         AssociationMetadata am = new AssociationMetadata(
                 AssociationMetadata.Type.MANY_TO_MANY,
                 f.getType(),
+                f.getName(),
                 annotation.mappedBy(),
                 "",
-                new ArrayList<>(),
+                joinColumns,
                 new ArrayList<>()
         );
         meta.addAssociationMetadata(am);
@@ -139,16 +225,27 @@ public class MetadataBuilder {
     private static void mapManyToManyColumns(EntityMetadata meta, Field f) {
         ManyToMany annotation = f.getAnnotation(ManyToMany.class);
         Type genericFieldType = f.getGenericType();
-        if(genericFieldType instanceof ParameterizedType){
+        Class<?> targetEntity;
+        // FIXME check for Collection
+        if(genericFieldType instanceof ParameterizedType aType) {
+            Type[] fieldArgTypes = aType.getActualTypeArguments();
+            if (fieldArgTypes.length != 1) {
+                throw new IntegrityException("Expected only one parameterized type, but got: " + Arrays.toString(fieldArgTypes));
+            }
+            targetEntity = (Class<?>) fieldArgTypes[0];
+        } else {
             throw new IntegrityException("Invalid type: '" + f.getType().getSimpleName() + "' in many to Many relationship.\n" +
-                    "Many to many expects only a table class not parameterized type.");
+                    "Many to many expects parameterized collection type.");
         }
+        List<PropertyMetadata> joinColumns = determineJoinColumns(meta, f);
+
         AssociationMetadata am = new AssociationMetadata(
                 AssociationMetadata.Type.MANY_TO_MANY,
-                f.getType(),
+                targetEntity,
+                f.getName(),
                 annotation.mappedBy(),
                 "",
-                new ArrayList<>(),
+                joinColumns,
                 new ArrayList<>()
         );
         meta.addAssociationMetadata(am);
