@@ -21,4 +21,17 @@ public class AssociationMetadata {
     private String mappedBy;
     private String joinTable;
     private String joinColumn;
+
+    @Override
+    public String toString() {
+        StringBuilder sb = new StringBuilder();
+        sb.append("AssociationMetadata{\n");
+        sb.append("  type: ").append(type).append("\n");
+        sb.append("  targetEntity: ").append(targetEntity.getName()).append("\n");
+        sb.append("  mappedBy: ").append(mappedBy).append("\n");
+        sb.append("  joinTable: ").append(joinTable).append("\n");
+        sb.append("  joinColumn: ").append(joinColumn).append("\n");
+        sb.append("}");
+        return sb.toString();
+    }
 }
