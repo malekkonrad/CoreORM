@@ -48,6 +48,8 @@ public class EntityPersisterImpl implements EntityPersister {
             Object[] params = new Object[idColumns.size()];
             if (idColumns.size() == 1) {
                 PropertyMetadata pm = idColumns.get(0);
+                sql.append(pm.getColumnName());
+                sql.append(" = ?");
                 try {
                     params[0] = pm.getType().cast(id);
                 } catch (ClassCastException e) {
@@ -60,6 +62,9 @@ public class EntityPersisterImpl implements EntityPersister {
                     PropertyMetadata pm = idColumns.get(i);
                     sql.append(pm.getColumnName());
                     sql.append(" = ?");
+                    if (i < params.length - 1) {
+                        sql.append(" AND ");
+                    }
                     try {
                         ReflectionUtils.findField(id.getClass(), pm.getName());
                     } catch (NoSuchFieldException e) {
@@ -99,72 +104,69 @@ public class EntityPersisterImpl implements EntityPersister {
 
     @Override
     public void insert(Object entity, Session session) {
+        List<String> columns = new ArrayList<>();
+        List<Object> values = new ArrayList<>();
+
+        List<PropertyMetadata> idColumns = metadata.getIdColumns();
+        boolean isCompositeKey = idColumns.size() > 1;
+
+        Map<String, Boolean> idProvided = new HashMap<>();
+        for (PropertyMetadata pm : metadata.getProperties()) {
+            columns.add(pm.getColumnName());
+            Object value = ReflectionUtils.getFieldValue(entity, pm.getName());
+            values.add(value);
+            if (pm.isId()) {
+                idProvided.put(pm.getName(), true);
+            }
+        }
+
+        if (isCompositeKey) {
+            if (idProvided.size() != idColumns.size()) {
+                List<String> compositeKey = new ArrayList<>();
+                List<String> missingIds = new ArrayList<>();
+                for (PropertyMetadata pm : idColumns) {
+                    if (!idProvided.containsKey(pm.getName())) {
+                        missingIds.add(pm.getName());
+                    }
+                    compositeKey.add(pm.getName());
+                }
+                throw new IntegrityException(
+                        "Not all identifiers are set. You must set all ids in composite key.\n" +
+                        "Composite key: (" + String.join(", ", compositeKey) + ")\n" +
+                        "Missing/unset fields: (" + String.join(", ", missingIds) + ")"
+                );
+            }
+        } else {
+            if (!idProvided.isEmpty() && idColumns.get(0).isAutoIncrement()) {
+                throw new IntegrityException(
+                        "You cannot set an id that is auto increment.\n" +
+                        "Tried to set: '" + idColumns.get(0).getName() + "' that is an auto incremented id.\n" +
+                        "Remove the auto increment or don't set it.");
+            } else if (idProvided.isEmpty() && !idColumns.get(0).isAutoIncrement()) {
+                throw new IntegrityException(
+                        "You must set an id that is not auto increment.\n" +
+                        "Field: '" + idColumns.get(0).getName() + "' is not set.\n" +
+                        "Add auto increment or set this field.");
+            }
+        }
+
+        StringBuilder sql = new StringBuilder();
+        sql.append("INSERT INTO ")
+                .append(metadata.getTableName())
+                .append(" (")
+                .append(String.join(", ", columns))
+                .append(") VALUES (")
+                .append("?,".repeat(values.size()));
+        sql.deleteCharAt(sql.length() - 1);
+        sql.append(")");
+
         try {
             JdbcExecutor jdbc = session.getJdbcExecutor();
-
-            List<String> columns = new ArrayList<>();
-            List<Object> values = new ArrayList<>();
-
-            List<PropertyMetadata> idColumns = metadata.getIdColumns();
-            boolean isCompositeKey = idColumns.size() > 1;
-
-            Map<String, Boolean> idProvided = new HashMap<>();
-            for (PropertyMetadata pm : metadata.getProperties()) {
-                columns.add(pm.getColumnName());
-                Object value = ReflectionUtils.getFieldValue(entity, pm.getName());
-                values.add(value);
-                if (pm.isId()) {
-                    idProvided.put(pm.getName(), true);
-                }
-            }
-
-            if (isCompositeKey) {
-                if (idProvided.size() != idColumns.size()) {
-                    List<String> compositeKey = new ArrayList<>();
-                    List<String> missingIds = new ArrayList<>();
-                    for (PropertyMetadata pm : idColumns) {
-                        if (!idProvided.containsKey(pm.getName())) {
-                            missingIds.add(pm.getName());
-                        }
-                        compositeKey.add(pm.getName());
-                    }
-                    throw new IntegrityException(
-                            "Not all identifiers are set. You must set all ids in composite key.\n" +
-                            "Composite key: (" + String.join(", ", compositeKey) + ")\n" +
-                            "Missing/unset fields: (" + String.join(", ", missingIds) + ")"
-                    );
-                }
-            } else {
-                if (!idProvided.isEmpty() && idColumns.get(0).isAutoIncrement()) {
-                    throw new IntegrityException(
-                            "You cannot set an id that is auto increment.\n" +
-                            "Tried to set: '" + idColumns.get(0).getName() + "' that is an auto incremented id.\n" +
-                            "Remove the auto increment or don't set it.");
-                } else if (idProvided.isEmpty() && !idColumns.get(0).isAutoIncrement()) {
-                    throw new IntegrityException(
-                            "You must set an id that is not auto increment.\n" +
-                            "Field: '" + idColumns.get(0).getName() + "' is not set.\n" +
-                            "Add auto increment or set this field.");
-                }
-            }
-
-            StringBuilder sql = new StringBuilder();
-            sql.append("INSERT INTO ")
-                    .append(metadata.getTableName())
-                    .append(" (")
-                    .append(String.join(", ", columns))
-                    .append(") VALUES (")
-                    .append("?,".repeat(values.size()));
-            sql.deleteCharAt(sql.length() - 1);
-            sql.append(")");
-
             // FIXME does it work for composite keys?
             Long generatedId = jdbc.insert(sql.toString(), values.toArray());
             if (!isCompositeKey) {
                 ReflectionUtils.setFieldValue(entity, idColumns.get(0).getName(), generatedId);
             }
-
-
         } catch (Exception e) {
             throw new RuntimeException("Error inserting entity " + entity, e);
         }

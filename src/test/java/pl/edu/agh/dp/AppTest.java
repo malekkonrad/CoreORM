@@ -30,6 +30,7 @@ public class AppTest {
 
     @BeforeEach
     public void setUp() {
+        config.register(User.class);
         sessionFactory = config.buildSessionFactory();
         session = sessionFactory.openSession();
     }

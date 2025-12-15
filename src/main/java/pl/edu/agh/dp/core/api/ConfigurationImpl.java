@@ -24,6 +24,12 @@ public class ConfigurationImpl implements Configuration {
         return this;
     }
 
+    @Override
+    public Configuration register(Class<?>... entityClass) {
+        entityClasses.addAll(List.of(entityClass));
+        return this;
+    }
+
     public SessionFactory buildSessionFactory() {
         // 1. Scanning for entities
         ClassLoader cl = Thread.currentThread().getContextClassLoader();

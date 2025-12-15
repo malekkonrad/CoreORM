@@ -12,10 +12,10 @@ import java.util.List;
 
 @Getter
 @Setter
-@Entity
+//@Entity
 @Table(name = "users")
 public class User {
-    @Id
+    @Id(autoIncrement = false)
     private Long id;
     private String name;
     private String email;

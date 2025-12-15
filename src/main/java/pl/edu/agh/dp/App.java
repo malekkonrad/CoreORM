@@ -4,6 +4,7 @@ import pl.edu.agh.dp.api.Configuration;
 import pl.edu.agh.dp.api.Orm;
 import pl.edu.agh.dp.api.Session;
 import pl.edu.agh.dp.api.SessionFactory;
+import pl.edu.agh.dp.entities.Employee;
 
 import java.util.HashMap;
 
@@ -26,6 +27,7 @@ public class App {
                 .setProperty("db.url", dbUrl)
                 .setProperty("db.user", dbUser)
                 .setProperty("db.password", dbPassword)
+                .register(User.class, Employee.class)
                 .setProperty("orm.schema.auto", "drop-create") // <-- WŁĄCZA SchemaGenerator
                 .buildSessionFactory();
 
