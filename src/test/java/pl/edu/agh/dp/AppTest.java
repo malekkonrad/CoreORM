@@ -3,18 +3,15 @@ package pl.edu.agh.dp;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import lombok.Getter;
-import lombok.Setter;
 import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import pl.edu.agh.dp.api.Configuration;
 import pl.edu.agh.dp.api.Orm;
 import pl.edu.agh.dp.api.Session;
 import pl.edu.agh.dp.api.SessionFactory;
-import pl.edu.agh.dp.api.annotations.Entity;
 import pl.edu.agh.dp.entities.Employee;
+import pl.edu.agh.dp.entities.User;
 
 import java.sql.*;
 

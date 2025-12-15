@@ -1,18 +1,13 @@
-package pl.edu.agh.dp;
+package pl.edu.agh.dp.entities;
 
 import lombok.Getter;
 import lombok.Setter;
-import pl.edu.agh.dp.api.annotations.Column;
-import pl.edu.agh.dp.api.annotations.Entity;
-import pl.edu.agh.dp.api.annotations.Id;
-import pl.edu.agh.dp.api.annotations.Table;
-
-import java.lang.reflect.Field;
-import java.util.List;
+import pl.edu.agh.dp.api.annotations.*;
+import pl.edu.agh.dp.core.mapping.InheritanceType;
 
 @Getter
 @Setter
-//@Entity
+@Entity
 @Table(name = "users")
 public class User {
     @Id(autoIncrement = false)

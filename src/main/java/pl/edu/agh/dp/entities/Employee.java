@@ -3,7 +3,7 @@ package pl.edu.agh.dp.entities;
 import pl.edu.agh.dp.api.annotations.*;
 
 import java.util.List;
-
+//@Entity
 public class Employee {
     @Id
     private int id;

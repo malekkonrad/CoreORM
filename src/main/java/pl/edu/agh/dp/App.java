@@ -1,12 +1,10 @@
 package pl.edu.agh.dp;
 
-import pl.edu.agh.dp.api.Configuration;
 import pl.edu.agh.dp.api.Orm;
 import pl.edu.agh.dp.api.Session;
 import pl.edu.agh.dp.api.SessionFactory;
 import pl.edu.agh.dp.entities.Employee;
-
-import java.util.HashMap;
+import pl.edu.agh.dp.entities.User;
 
 public class App {
     public static void main(String[] args) {
