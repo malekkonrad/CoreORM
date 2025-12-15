@@ -4,6 +4,9 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.Setter;
 
+import java.util.ArrayList;
+import java.util.List;
+
 @Getter
 @Setter
 @AllArgsConstructor
@@ -19,8 +22,9 @@ public class AssociationMetadata {
     private Type type;
     private Class<?> targetEntity;
     private String mappedBy;
-    private String joinTable;
-    private String joinColumn;
+    private String joinTable; // TODO maybe change to EntityMetadata or skip
+    private List<PropertyMetadata> joinColumns;
+    private List<PropertyMetadata> targetJoinColumns;
 
     @Override
     public String toString() {
@@ -30,7 +34,8 @@ public class AssociationMetadata {
         sb.append("  targetEntity: ").append(targetEntity.getName()).append("\n");
         sb.append("  mappedBy: ").append(mappedBy).append("\n");
         sb.append("  joinTable: ").append(joinTable).append("\n");
-        sb.append("  joinColumn: ").append(joinColumn).append("\n");
+        sb.append("  joinColumns: ").append(joinColumns).append("\n");
+        sb.append("  targetJoinColumns: ").append(targetJoinColumns).append("\n");
         sb.append("}");
         return sb.toString();
     }

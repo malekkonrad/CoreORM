@@ -17,7 +17,8 @@ public class EntityMetadata {
     String tableName;
     List<PropertyMetadata> idColumns = new ArrayList<>();
     List<PropertyMetadata> properties = new ArrayList<>();
-    List<AssociationMetadata> associationMetadata =  new ArrayList<>();
+    List<PropertyMetadata> fkColumns = new ArrayList<>();
+    List<AssociationMetadata> associationMetadata =  new ArrayList<>(); // change to hashset?
     InheritanceMetadata inheritanceMetadata;
 
     public void addProperty(PropertyMetadata pm) {

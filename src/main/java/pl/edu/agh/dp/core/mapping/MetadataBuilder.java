@@ -78,6 +78,10 @@ public class MetadataBuilder {
         return meta;
     }
 
+    private static void mapForeignColumn(EntityMetadata meta, Field f) {
+
+    }
+
     private static void mapOneToOneColumns(EntityMetadata meta, Field f) {
         OneToOne annotation = f.getAnnotation(OneToOne.class);
         Type genericFieldType = f.getGenericType();
@@ -90,7 +94,8 @@ public class MetadataBuilder {
                 f.getType(),
                 annotation.mappedBy(),
                 "",
-                ""
+                new ArrayList<>(),
+                new ArrayList<>()
         );
         meta.addAssociationMetadata(am);
     }
@@ -107,7 +112,8 @@ public class MetadataBuilder {
                 f.getType(),
                 annotation.mappedBy(),
                 "",
-                ""
+                new ArrayList<>(),
+                new ArrayList<>()
         );
         meta.addAssociationMetadata(am);
     }
@@ -124,7 +130,8 @@ public class MetadataBuilder {
                 f.getType(),
                 annotation.mappedBy(),
                 "",
-                ""
+                new ArrayList<>(),
+                new ArrayList<>()
         );
         meta.addAssociationMetadata(am);
     }
@@ -141,7 +148,8 @@ public class MetadataBuilder {
                 f.getType(),
                 annotation.mappedBy(),
                 "",
-                ""
+                new ArrayList<>(),
+                new ArrayList<>()
         );
         meta.addAssociationMetadata(am);
     }

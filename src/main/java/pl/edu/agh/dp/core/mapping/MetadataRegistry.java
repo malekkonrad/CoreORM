@@ -21,6 +21,10 @@ public class MetadataRegistry {
         }
 
         // TODO update associations, with table info because now we have that information
+        for (Class<?> clazz : entitiesClasses){
+            fillAssociationData(clazz);
+        }
+
         // Helper code to get argument type from collection
 //        Field field = Test1.class.getField("list");
 //
@@ -39,5 +43,9 @@ public class MetadataRegistry {
 
     public EntityMetadata getEntityMetadata(Class<?> clazz) {
         return entities.get(clazz);
+    }
+
+    private void fillAssociationData(Class<?> clazz) {
+        EntityMetadata meta = entities.get(clazz);
     }
 }
