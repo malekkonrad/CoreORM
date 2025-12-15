@@ -19,7 +19,15 @@ public class EntityMetadata {
     List<PropertyMetadata> properties = new ArrayList<>();
     List<PropertyMetadata> fkColumns = new ArrayList<>();
     List<AssociationMetadata> associationMetadata =  new ArrayList<>(); // change to hashset?
-    InheritanceMetadata inheritanceMetadata;
+
+
+    // inheritance
+    Class<?> rootMetadata;
+    InheritanceMetadata inheritanceMetadata;    // only root classes will have
+
+    public boolean isRoot(){
+        return rootMetadata == null;
+    }
 
     public void addProperty(PropertyMetadata pm) {
         properties.add(pm);
@@ -39,6 +47,7 @@ public class EntityMetadata {
         sb.append("  idColumns: ").append(idColumns).append("\n");
         sb.append("  properties: ").append(properties).append("\n");
         sb.append("  associations: ").append(associationMetadata).append("\n");
+        sb.append("  inheritanceMetadata: ").append(inheritanceMetadata).append("\n");
         sb.append("}");
         return sb.toString();
     }

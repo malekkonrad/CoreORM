@@ -2,14 +2,13 @@ package pl.edu.agh.dp.core.schema;
 
 
 import pl.edu.agh.dp.core.jdbc.ConnectionProvider;
-import pl.edu.agh.dp.core.mapping.MetadataRegistry;
-import pl.edu.agh.dp.core.mapping.AssociationMetadata;
-import pl.edu.agh.dp.core.mapping.EntityMetadata;
-import pl.edu.agh.dp.core.mapping.PropertyMetadata;
+import pl.edu.agh.dp.core.mapping.*;
 
 import java.sql.Connection;
 import java.sql.Statement;
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.List;
 
 public class SchemaGenerator {
 
@@ -35,9 +34,30 @@ public class SchemaGenerator {
 
             // 1. Tworzymy tabele encji
             for (EntityMetadata meta : entities) {
-                String sql = createTableSql(meta);
-                st.executeUpdate(sql);
+                if (!meta.isRoot()) {
+                    // root zajmuje się generacją odpowiednich tabel
+                    continue;
+                }
+
+                InheritanceMetadata inh = meta.getInheritanceMetadata();
+                if (inh == null) {
+                    String sql = createTableSql(meta);
+                    st.executeUpdate(sql);
+                } else {
+                    switch (inh.getType()) {
+                        case SINGLE_TABLE -> {
+                            String sql = generateSingleTable(meta, inh);
+                            System.out.println(sql);
+                            st.executeUpdate(sql);
+                        }
+                        case TABLE_PER_CLASS -> {
+
+                        }
+
+                    }
+                }
             }
+
 
             // 2.  tabele pośrednie ManyToMany
 //            for (EntityMetadata meta : entities) {
@@ -52,6 +72,45 @@ public class SchemaGenerator {
         } catch (Exception e) {
             throw new RuntimeException("Error while generating schema", e);
         }
+    }
+
+    private String generateSingleTable(EntityMetadata root,
+                                             InheritanceMetadata inh) {
+        StringBuilder sb = new StringBuilder();
+
+        sb.append("CREATE TABLE ").append(root.getTableName()).append(" (\n");
+
+        List<String> columnDefs = new ArrayList<>();
+
+        /// FIXME cały ten shit wtf
+        for (PropertyMetadata col : root.getProperties()) {
+            // TODO FIXME motherfucker
+//            if (col.isDiscriminator()) {
+//                continue; // dodamy osobno niżej
+//            }
+            columnDefs.add("    " + col.getColumnName() + " " + col.getSqlType());
+        }
+
+        for (var clazz : inh.getSubclasses()) {
+            var entity = registry.getEntityMetadata(clazz);
+            for (var col: entity.getProperties()) {
+                columnDefs.add("    " + col.getColumnName() + " " + col.getSqlType());
+            }
+        }
+
+        // kolumna discriminatora
+        String discCol = inh.getDiscriminatorColumnName();
+        String discType = inh.getDiscriminatorColumnName(); // np. varchar(31)
+        columnDefs.add("    " + discCol + " " + discType + " NOT NULL");
+
+        // primary key
+//        String idColumn = root.getIdColumns().getFirst().getColumnName();
+//        columnDefs.add("    PRIMARY KEY (" + idColumn + ")");
+
+        sb.append(String.join(",\n", columnDefs));
+        sb.append("\n);");
+
+        return sb.toString();
     }
 
     private String createTableSql(EntityMetadata meta) {

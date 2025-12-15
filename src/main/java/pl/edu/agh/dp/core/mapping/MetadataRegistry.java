@@ -16,9 +16,17 @@ public class MetadataRegistry {
 
         for (Class<?> clazz : entitiesClasses){
             EntityMetadata entity =  MetadataBuilder.buildEntityMetadata(clazz);
-            System.out.println(entity);
             entities.put(clazz, entity);
         }
+
+        // inheritance
+        entities = MetadataBuilder.buildInheritanceMetadataMap(entities);
+
+        for (Class<?> clazz : entitiesClasses){
+            EntityMetadata entity =  entities.get(clazz);
+            System.out.println(entity);
+        }
+
 
         // TODO update associations, with table info because now we have that information
         for (Class<?> clazz : entitiesClasses){
