@@ -11,7 +11,9 @@ import pl.edu.agh.dp.core.util.ReflectionUtils;
 import java.lang.reflect.Field;
 import java.sql.*;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @NoArgsConstructor
 public class EntityPersisterImpl implements EntityPersister {
@@ -49,7 +51,8 @@ public class EntityPersisterImpl implements EntityPersister {
                 try {
                     params[0] = pm.getType().cast(id);
                 } catch (ClassCastException e) {
-                    throw new IntegrityException("Type mismatch or unable to cast. Field: '" + pm.getName() + "' is: '" + pm.getType() + "', but got: '" + id.getClass() + "'");
+                    throw new IntegrityException(
+                            "Type mismatch or unable to cast. Field: '" + pm.getName() + "' is: '" + pm.getType() + "', but got: '" + id.getClass() + "'");
                 }
             }
             else {
@@ -68,19 +71,20 @@ public class EntityPersisterImpl implements EntityPersister {
                         }
                         throw new IntegrityException(
                                 "Composite key for entity: '" + metadata.getEntityClass().getName() + "' should be provided.\n" +
-                                        "Composite key: (" + String.join(", ", fields) + ")\n" +
-                                        "'Id' should have the aforementioned fields to function properly.\n" +
-                                        "Provided: '" + id.toString() + "'\n" +
-                                        "Example:\n" +
-                                        "class " + metadata.getEntityClass().getSimpleName() + "Id {\n\t" +
-                                        String.join("\n\t", fields) + "\n}"
+                                "Composite key: (" + String.join(", ", fields) + ")\n" +
+                                "'Id' should have the aforementioned fields to function properly.\n" +
+                                "Provided: '" + id.toString() + "'\n" +
+                                "Example:\n" +
+                                "class " + metadata.getEntityClass().getSimpleName() + "Id {\n\t" +
+                                String.join("\n\t", fields) + "\n}"
                         );
                     }
                     Object val = ReflectionUtils.getFieldValue(id, pm.getName());
                     try {
                         params[i] = pm.getType().cast(val);
                     } catch (ClassCastException e) {
-                        throw new IntegrityException("Type mismatch or unable to cast. Field: '" + pm.getName() + "' is: '" + pm.getType() + "', but got: '" + id.getClass() + "'");
+                        throw new IntegrityException(
+                                "Type mismatch or unable to cast. Field: '" + pm.getName() + "' is: '" + pm.getType() + "', but got: '" + id.getClass() + "'");
                     }
                 }
             }
@@ -101,15 +105,47 @@ public class EntityPersisterImpl implements EntityPersister {
             List<String> columns = new ArrayList<>();
             List<Object> values = new ArrayList<>();
 
-            // FIXME for multiple id columns
-            String idColumn = metadata.getIdColumns().get(0).getColumnName();
+            List<PropertyMetadata> idColumns = metadata.getIdColumns();
+            boolean isCompositeKey = idColumns.size() > 1;
 
-            boolean idProvided = false;
+            Map<String, Boolean> idProvided = new HashMap<>();
             for (PropertyMetadata pm : metadata.getProperties()) {
                 columns.add(pm.getColumnName());
                 Object value = ReflectionUtils.getFieldValue(entity, pm.getName());
                 values.add(value);
-                if (pm.isId()) idProvided = true;
+                if (pm.isId()) {
+                    idProvided.put(pm.getName(), true);
+                }
+            }
+
+            if (isCompositeKey) {
+                if (idProvided.size() != idColumns.size()) {
+                    List<String> compositeKey = new ArrayList<>();
+                    List<String> missingIds = new ArrayList<>();
+                    for (PropertyMetadata pm : idColumns) {
+                        if (!idProvided.containsKey(pm.getName())) {
+                            missingIds.add(pm.getName());
+                        }
+                        compositeKey.add(pm.getName());
+                    }
+                    throw new IntegrityException(
+                            "Not all identifiers are set. You must set all ids in composite key.\n" +
+                            "Composite key: (" + String.join(", ", compositeKey) + ")\n" +
+                            "Missing/unset fields: (" + String.join(", ", missingIds) + ")"
+                    );
+                }
+            } else {
+                if (!idProvided.isEmpty() && idColumns.get(0).isAutoIncrement()) {
+                    throw new IntegrityException(
+                            "You cannot set an id that is auto increment.\n" +
+                            "Tried to set: '" + idColumns.get(0).getName() + "' that is an auto incremented id.\n" +
+                            "Remove the auto increment or don't set it.");
+                } else if (idProvided.isEmpty() && !idColumns.get(0).isAutoIncrement()) {
+                    throw new IntegrityException(
+                            "You must set an id that is not auto increment.\n" +
+                            "Field: '" + idColumns.get(0).getName() + "' is not set.\n" +
+                            "Add auto increment or set this field.");
+                }
             }
 
             StringBuilder sql = new StringBuilder();
@@ -122,13 +158,11 @@ public class EntityPersisterImpl implements EntityPersister {
             sql.deleteCharAt(sql.length() - 1);
             sql.append(")");
 
-            if (!idProvided) {
-                throw new IntegrityException("You must provide an id column for: " + metadata.getEntityClass().getName());
-            }
-
+            // FIXME does it work for composite keys?
             Long generatedId = jdbc.insert(sql.toString(), values.toArray());
-            // FIXME for multiple id columns
-            ReflectionUtils.setFieldValue(entity, idColumn, generatedId);
+            if (!isCompositeKey) {
+                ReflectionUtils.setFieldValue(entity, idColumns.get(0).getName(), generatedId);
+            }
 
 
         } catch (Exception e) {
