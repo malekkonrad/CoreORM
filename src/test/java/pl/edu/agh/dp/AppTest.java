@@ -28,7 +28,7 @@ public class AppTest {
 
     @BeforeEach
     public void setUp() {
-        config.register(User.class, Employee.class);
+//        config.register(User.class, Employee.class);
         sessionFactory = config.buildSessionFactory();
         session = sessionFactory.openSession();
     }
@@ -41,7 +41,7 @@ public class AppTest {
         // Wyczyść bazę danych
         try (Connection conn = DriverManager.getConnection("jdbc:sqlite:src/test/resources/test.db");
              Statement stmt = conn.createStatement()) {
-            stmt.execute("DELETE FROM users");
+//            stmt.execute("DELETE FROM users");
         } catch (SQLException e) {
             e.printStackTrace();
         }
