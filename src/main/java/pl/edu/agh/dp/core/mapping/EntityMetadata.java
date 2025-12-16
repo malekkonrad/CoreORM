@@ -5,7 +5,9 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
+import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Deque;
 import java.util.List;
 
 @Getter
@@ -51,4 +53,43 @@ public class EntityMetadata {
         sb.append("}");
         return sb.toString();
     }
+
+
+    public List<PropertyMetadata> getColumnsForSingleTable() {
+        EntityMetadata root = getInheritanceMetadata().getRootClass();
+        List<PropertyMetadata> cols = new ArrayList<>();
+
+        // FIXME - not sure it's right
+        cols.addAll(root.getProperties());
+
+        // traverse through tree
+        Deque<EntityMetadata> stack = new ArrayDeque<>(root.getInheritanceMetadata().getChildren());
+        while (!stack.isEmpty()) {
+            EntityMetadata m = stack.pop();
+            cols.addAll(m.getProperties());     // FIXME same question - how to get all columns
+            stack.addAll(m.getInheritanceMetadata().getChildren());
+        }
+        return cols;
+    }
+
+    public List<PropertyMetadata> getColumnsForConcreteTable() {
+        List<PropertyMetadata> cols = new ArrayList<>();
+
+        // id + pola z całego łańcucha rodziców
+        Deque<EntityMetadata> chain = new ArrayDeque<>();
+        EntityMetadata cur = this;
+        while (cur != null) {
+            chain.push(cur);
+            cur = cur.getInheritanceMetadata().getParent();
+        }
+
+        while (!chain.isEmpty()) {
+            cols.addAll(chain.pop().getProperties());       // FIXME same earlier
+        }
+
+        return cols;
+    }
+
+
+
 }
