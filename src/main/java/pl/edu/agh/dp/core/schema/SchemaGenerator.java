@@ -145,10 +145,6 @@ public class SchemaGenerator {
 
 
     private String generateTablePerClassTables(EntityMetadata root, InheritanceMetadata inh) {
-
-//        var cols = root.getColumnsForConcreteTable();
-
-
         StringBuilder sb = new StringBuilder();
 
         sb.append("CREATE TABLE ").append(root.getTableName()).append(" (\n");

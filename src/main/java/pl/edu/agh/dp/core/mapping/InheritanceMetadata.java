@@ -50,7 +50,5 @@ public class InheritanceMetadata {
         else{
             return type.toString() + " root: " + rootClass.getTableName();
         }
-
-//        return "inh";
     }
 }

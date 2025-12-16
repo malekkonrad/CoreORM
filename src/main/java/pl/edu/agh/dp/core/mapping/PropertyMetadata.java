@@ -2,11 +2,13 @@ package pl.edu.agh.dp.core.mapping;
 
 import lombok.AllArgsConstructor;
 import lombok.Getter;
+import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 @Getter
 @AllArgsConstructor
 @Setter
+@NoArgsConstructor
 public class PropertyMetadata {
     String name;                    // "firstName"
     String columnName;              // "first_name"
@@ -32,5 +34,9 @@ public class PropertyMetadata {
         sb.append("is index=").append(isIndex).append(", ");
         sb.append("default value=").append(defaultValue);
         return sb.toString();
+    }
+
+    public void setIsId(boolean b) {
+        isId = b;
     }
 }
