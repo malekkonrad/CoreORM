@@ -51,6 +51,7 @@ public class SchemaGenerator {
                             if (meta.getInheritanceMetadata().isRoot()){
                                 String sql = generateSingleTable(meta, inh);
                                 System.out.println(sql);
+                                st.executeUpdate(sql);
                             }
 
 //                            st.executeUpdate(sql);
