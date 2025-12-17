@@ -112,12 +112,6 @@ public class SessionImpl implements Session {
 
     }
 
-    // TODO I think it's useless now ? - yeah useless
-    @Override
-    public EntityPersister getEntityPersister(Class<?> clazz) {
-        return entityPersisters.get(clazz);
-    }
-
     @Override
     public Connection getConnection() {
         return connection;

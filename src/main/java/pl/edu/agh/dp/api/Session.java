@@ -20,9 +20,6 @@ public interface Session extends AutoCloseable {
     void begin();
     void close();
 
-    EntityPersister getEntityPersister(Class<?> clazz);
     Connection getConnection();
-
-
     JdbcExecutor getJdbcExecutor();
 }

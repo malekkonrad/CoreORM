@@ -27,6 +27,8 @@ public class EntityPersisterImpl implements EntityPersister {
 
     @Override
     public Object findById(Object id, Session session) {
+        // strategia
+
         try {
             JdbcExecutor jdbc = session.getJdbcExecutor();
 
