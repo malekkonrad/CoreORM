@@ -20,9 +20,8 @@ public class MetadataRegistry {
             entities.put(clazz, entity);
         }
 
-        // inheritance
-//        entities = MetadataBuilder.buildInheritanceMetadataMap(entities);
-        shittyBuissness();
+        // FIXME: better function call or move this part to MetadataBuilder - (change name for MetadataFactory)?
+        handleInheritance();
 
         for (Class<?> clazz : entitiesClasses){
             EntityMetadata entity =  entities.get(clazz);
@@ -59,17 +58,11 @@ public class MetadataRegistry {
         EntityMetadata meta = entities.get(clazz);
     }
 
-    private void shittyBuissness(){
-
-
-
-        for (EntityMetadata entity : entities.values()) {
-            entity.setInheritanceMetadata(new InheritanceMetadata());
-        }
-
-        // FIXME change to one for loop
+    private void handleInheritance(){
+        // get entity - add Inheritance Metadata and set type TODO maybe create special constructor for only type?
         for (Class<?> clazz : entities.keySet()) {
             EntityMetadata entity = entities.get(clazz);
+            entity.setInheritanceMetadata(new InheritanceMetadata());
             InheritanceType type = getStrategy(clazz);
             entity.getInheritanceMetadata().setType(type);
         }
@@ -124,23 +117,21 @@ public class MetadataRegistry {
         return InheritanceType.SINGLE_TABLE; // FIXME: zastanawiam się co w przypadku braku dziedziczenia - NoInheritance???
     }
 
-
     private boolean isEntity(Class<?> clazz) {
         return clazz.isAnnotationPresent(Entity.class);
     }
-
 
     private void handleDiscriminator(EntityMetadata root) {
         Class<?> rootClass = root.getEntityClass();
         InheritanceMetadata inhMetadata = root.getInheritanceMetadata();
 
-        // 1. Ustal nazwę kolumny (Domyślnie "DTYPE" lub z adnotacji)
+        // 1. column name
         String discriminatorColName = "DTYPE";
         if (rootClass.isAnnotationPresent(DiscriminatorValue.class)) {
             discriminatorColName = rootClass.getAnnotation(DiscriminatorValue.class).value();
         }
 
-        // Zapisz w metadanych
+        // save in metadata
         inhMetadata.setDiscriminatorColumnName(discriminatorColName);
 
         // 2. Stwórz "Wirtualną" kolumnę w metadanych Roota
@@ -185,7 +176,6 @@ public class MetadataRegistry {
         System.out.println("\ndisc to class " + inhMetadata.getDiscriminatorToClass());
     }
 
-    // Metoda pomocnicza do BFS/DFS po drzewie, żeby zebrać wszystkie dzieci
     private List<EntityMetadata> getAllSubclasses(EntityMetadata root) {
         List<EntityMetadata> result = new ArrayList<>();
         Deque<EntityMetadata> stack = new ArrayDeque<>(root.getInheritanceMetadata().getChildren());
