@@ -29,11 +29,15 @@ public class SchemaGenerator {
     public void generate() {
         Collection<EntityMetadata> entities = registry.getEntities().values();
 
+
+        // TODO replace with jdbcExecutor!
         try (Connection con = connectionProvider.getConnection();
              Statement st = con.createStatement()) {
 
             // 1. Tworzymy tabele encji
             for (EntityMetadata meta : entities) {
+
+
 
                 InheritanceMetadata inh = meta.getInheritanceMetadata();
                 if (inh == null) {      // TODO change na isRoot() - probably -

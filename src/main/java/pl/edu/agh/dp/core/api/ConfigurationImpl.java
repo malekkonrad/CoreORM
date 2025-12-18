@@ -6,18 +6,18 @@ import pl.edu.agh.dp.core.jdbc.ConnectionProvider;
 import pl.edu.agh.dp.core.jdbc.JdbcConnectionProvider;
 import pl.edu.agh.dp.core.mapping.MetadataRegistry;
 import pl.edu.agh.dp.core.mapping.ClassPathScanner;
+import pl.edu.agh.dp.core.persister.EntityPersister;
+import pl.edu.agh.dp.core.persister.EntityPersisterImpl;
 import pl.edu.agh.dp.core.schema.SchemaDropper;
 import pl.edu.agh.dp.core.schema.SchemaGenerator;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Properties;
-import java.util.Set;
+import java.util.*;
 
 public class ConfigurationImpl implements Configuration {
 
     private final Properties properties = new Properties();
     private final List<Class<?>> entityClasses = new ArrayList<>();
+    private final Map< Class<?>, EntityPersister> entityPersisters = new HashMap<>();
 
     public Configuration setProperty(String key, String value) {
         properties.setProperty(key, value);
@@ -56,8 +56,19 @@ public class ConfigurationImpl implements Configuration {
             new SchemaGenerator(registry, cp).generate();
         }
 
+        // creating persisters
+        registry.getEntities().forEach((meta, val) -> {
+            entityPersisters.put(meta, new EntityPersisterImpl(val));
+        });
+        // TODO creating entityPersiters
+        // auto tworzą inheritence
+        // wywołowanie stworznie
+
+
+
+
         // 5. SessionFactory -> creation of EntityPersisters inside
-        return new SessionFactoryImpl(registry, cp, properties);
+        return new SessionFactoryImpl(registry, entityPersisters, cp, properties);
     }
 
 }

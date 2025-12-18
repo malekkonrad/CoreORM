@@ -19,19 +19,19 @@ public class SessionFactoryImpl  implements SessionFactory {
     ConnectionProvider connectionProvider;
     Properties properties;
 
-    Map< Class<?>, EntityPersister> entityPersisters = new HashMap<>();
+    Map< Class<?>, EntityPersister> entityPersisters;
 
     public SessionFactoryImpl(MetadataRegistry registry,
+                              Map< Class<?>, EntityPersister> entityPersisters,
                               ConnectionProvider connectionProvider,
                               Properties properties) {
 
         this.metadataRegistry = registry;
+        this.entityPersisters = entityPersisters;
         this.connectionProvider = connectionProvider;
         this.properties = properties;
 
-        this.metadataRegistry.getEntities().forEach((meta, val) -> {
-            entityPersisters.put(meta, new EntityPersisterImpl(val));
-        });
+
 
     }
 

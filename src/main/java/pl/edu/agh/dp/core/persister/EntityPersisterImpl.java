@@ -19,11 +19,21 @@ import java.util.Map;
 public class EntityPersisterImpl implements EntityPersister {
 
     private EntityMetadata metadata;
+    // fabryka tworznie inhertiance strateg
+
+    private InheritanceStrategy inheritanceStrategy;
 
     public EntityPersisterImpl(EntityMetadata metadata) {
         this.metadata = metadata;
+
+        this.inheritanceStrategy = InheritanceStrategyFactory.build();
     }
 
+
+    @Override
+    public void create(Session session) {
+
+    }
 
     @Override
     public Object findById(Object id, Session session) {
