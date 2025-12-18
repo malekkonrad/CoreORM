@@ -53,7 +53,7 @@ public class SchemaGenerator {
                         case TABLE_PER_CLASS -> {
                             String ddl = generateTablePerClassTables(meta, inh);
                             System.out.println(ddl);
-                            st.executeUpdate(ddl);
+//                            st.executeUpdate(ddl);
 
                         }
 

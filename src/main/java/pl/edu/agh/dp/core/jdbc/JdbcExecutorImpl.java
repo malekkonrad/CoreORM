@@ -15,6 +15,24 @@ public class JdbcExecutorImpl implements JdbcExecutor {
         this.connection = connection;
     }
 
+
+    public void commit() throws SQLException {
+        connection.commit();
+    }
+    public void rollback() throws SQLException {
+        connection.rollback();
+    }
+
+    public void setAutoCommit(boolean autoCommit) throws SQLException {
+        connection.setAutoCommit(autoCommit);
+    }
+
+    @Override
+    public void close() throws SQLException {
+        connection.close();
+    }
+
+
     @Override
     public <T> List<T> query(String sql, RowMapper<T> mapper, Object... params) {
         List<T> results = new ArrayList<>();

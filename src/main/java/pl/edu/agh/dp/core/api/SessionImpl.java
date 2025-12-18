@@ -13,7 +13,6 @@ import java.util.Set;
 
 public class SessionImpl implements Session {
 
-    private final Connection connection;
     private final Map<Class<?>, EntityPersister> entityPersisters;
 
     private final Set<Object> newEntities = new HashSet<>();
@@ -22,11 +21,9 @@ public class SessionImpl implements Session {
 
     private final JdbcExecutor jdbcExecutor;
 
-    public SessionImpl(Connection connection,
-                       Map<Class<?>, EntityPersister> entityPersisters) {
-        this.connection = connection;
+    public SessionImpl(JdbcExecutor jdbcExecutor,  Map<Class<?>, EntityPersister> entityPersisters) {
         this.entityPersisters = entityPersisters;
-        this.jdbcExecutor = new JdbcExecutorImpl(connection);
+        this.jdbcExecutor = jdbcExecutor;
     }
 
     @Override
@@ -54,12 +51,12 @@ public class SessionImpl implements Session {
     public void commit() {
         flush();
         try {
-            connection.commit(); // commit
+            jdbcExecutor.commit();  // commit
             newEntities.clear(); // clear after successful rollback
             dirtyEntities.clear();
             removedEntities.clear();
-            connection.setAutoCommit(true); // end transaction
-            connection.setAutoCommit(false); // begin transaction
+            jdbcExecutor.setAutoCommit(true); // end transaction
+            jdbcExecutor.setAutoCommit(false); // begin transaction
         } catch (SQLException e) {
             throw new RuntimeException(e); // TODO handle Exception
         }
@@ -68,12 +65,12 @@ public class SessionImpl implements Session {
     @Override
     public void rollback() {
         try {
-            connection.rollback(); // rollback
+            jdbcExecutor.rollback(); // rollback
             newEntities.clear(); // clear after successful rollback
             dirtyEntities.clear();
             removedEntities.clear();
-            connection.setAutoCommit(true); // end transaction
-            connection.setAutoCommit(false); // begin transaction
+            jdbcExecutor.setAutoCommit(true); // end transaction
+            jdbcExecutor.setAutoCommit(false); // begin transaction
         } catch (SQLException e) {
             throw new RuntimeException(e); // TODO handle Exception
         }
@@ -90,7 +87,7 @@ public class SessionImpl implements Session {
     @Override
     public void begin() {
         try {
-            connection.setAutoCommit(false);
+            jdbcExecutor.setAutoCommit(false);
         } catch (SQLException e) {
             throw new RuntimeException(e); // TODO handle the Exception
         }
@@ -100,22 +97,18 @@ public class SessionImpl implements Session {
     public void close() {
         System.out.println("Closing session");
         try{
-            connection.rollback(); // default rollback on closing
+            jdbcExecutor.rollback(); // default rollback on closing
             newEntities.clear(); // clear after successful rollback
             dirtyEntities.clear();
             removedEntities.clear();
-            connection.setAutoCommit(true); // end transactions
-            connection.close();
+            jdbcExecutor.setAutoCommit(true); // end transactions
+            jdbcExecutor.close();
         }catch(Exception e){
             System.err.println("Error closing connection");
         }
 
     }
 
-    @Override
-    public Connection getConnection() {
-        return connection;
-    }
 
     @Override
     public JdbcExecutor getJdbcExecutor() {

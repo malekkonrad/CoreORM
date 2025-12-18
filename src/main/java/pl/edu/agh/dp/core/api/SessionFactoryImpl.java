@@ -3,6 +3,8 @@ package pl.edu.agh.dp.core.api;
 import pl.edu.agh.dp.api.Session;
 import pl.edu.agh.dp.api.SessionFactory;
 import pl.edu.agh.dp.core.jdbc.ConnectionProvider;
+import pl.edu.agh.dp.core.jdbc.JdbcExecutor;
+import pl.edu.agh.dp.core.jdbc.JdbcExecutorImpl;
 import pl.edu.agh.dp.core.mapping.MetadataRegistry;
 import pl.edu.agh.dp.core.persister.EntityPersister;
 import pl.edu.agh.dp.core.persister.EntityPersisterImpl;
@@ -34,7 +36,8 @@ public class SessionFactoryImpl  implements SessionFactory {
     }
 
     public Session openSession() {
-        Session session = new SessionImpl(connectionProvider.getConnection(), entityPersisters);
+        JdbcExecutor jdbcExecutor = new JdbcExecutorImpl(connectionProvider.getConnection());
+        Session session = new SessionImpl(jdbcExecutor, entityPersisters);
         session.begin();
         return session;
     }

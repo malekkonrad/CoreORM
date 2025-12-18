@@ -20,6 +20,5 @@ public interface Session extends AutoCloseable {
     void begin();
     void close();
 
-    Connection getConnection();
     JdbcExecutor getJdbcExecutor();
 }

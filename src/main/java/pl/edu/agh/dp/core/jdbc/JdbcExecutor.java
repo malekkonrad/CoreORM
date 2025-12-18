@@ -4,6 +4,7 @@ import pl.edu.agh.dp.core.persister.RowMapper;
 
 import java.sql.Connection;
 import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.util.List;
 import java.util.Optional;
 
@@ -16,4 +17,14 @@ public interface JdbcExecutor {
     int update(String sql, Object... params);
 
     Long insert(String sql, Object... params);
+
+
+    void commit() throws SQLException;
+
+    void rollback() throws SQLException;
+
+    void setAutoCommit(boolean autoCommit) throws SQLException;
+
+    void close() throws SQLException;
+
 }
