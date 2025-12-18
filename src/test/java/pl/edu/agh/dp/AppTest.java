@@ -33,6 +33,13 @@ public class AppTest {
 //            stmt.execute("DELETE FROM users");
             stmt.execute("DROP SCHEMA public CASCADE;");
             stmt.execute("CREATE SCHEMA public;");
+            ResultSet rs = stmt.executeQuery("SELECT * FROM sqlite_master WHERE type='table';");
+            while (rs.next()) {
+                String tableName = rs.getString("TABLE_NAME");
+                stmt.execute("DROP TABLE IF EXISTS " + tableName + ";");
+            }
+            rs.close();
+
         } catch (SQLException e) {
             e.printStackTrace();
         }
