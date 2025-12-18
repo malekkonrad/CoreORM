@@ -19,21 +19,15 @@ public class InheritanceStrategyFactory {
 //        this.metadataRegistry = metadataRegistry;
 //    }
 //
-//    public InheritanceStrategy build(InheritanceType type) {
-//        return switch (type) {
-//            case SINGLE_TABLE ->
-//                    new SingleTableInheritanceStrategy(jdbcExecutor, dialect, metadataRegistry);
-//            case JOINED -> {}
-////                    new JoinedInheritanceStrategy(jdbcExecutor, dialect, metadataRegistry);
-//            case TABLE_PER_CLASS -> {}
-////                    new TablePerClassInheritanceStrategy(jdbcExecutor, dialect, metadataRegistry);
-//            case NONE -> {}
-////                    new NoInheritanceStrategy(jdbcExecutor, dialect, metadataRegistry);
-//        };
-//    }
 
-    public static InheritanceStrategy build(){
-        return new SingleTableInheritanceStrategy();
+    public static InheritanceStrategy build(InheritanceType type){
+        return switch (type){
+            case NONE -> null;
+            case SINGLE_TABLE -> new SingleTableInheritanceStrategy();
+            case JOINED -> null;
+            case TABLE_PER_CLASS -> new TablePerClassInheritanceStrategy();
+        };
+
     }
 
 

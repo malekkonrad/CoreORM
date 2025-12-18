@@ -4,7 +4,6 @@ import pl.edu.agh.dp.api.Session;
 import pl.edu.agh.dp.core.mapping.EntityMetadata;
 
 public interface EntityPersister {
-    void create(Session session);
     Object findById(Object id, Session session);
     void insert(Object entity, Session session);
     void update(Object entity, Session session);

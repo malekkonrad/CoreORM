@@ -25,14 +25,7 @@ public class EntityPersisterImpl implements EntityPersister {
 
     public EntityPersisterImpl(EntityMetadata metadata) {
         this.metadata = metadata;
-
-        this.inheritanceStrategy = InheritanceStrategyFactory.build();
-    }
-
-
-    @Override
-    public void create(Session session) {
-
+        this.inheritanceStrategy = InheritanceStrategyFactory.build(metadata.getInheritanceMetadata().getType());
     }
 
     @Override
