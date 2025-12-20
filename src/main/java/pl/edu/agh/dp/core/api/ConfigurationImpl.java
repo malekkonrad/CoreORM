@@ -47,25 +47,20 @@ public class ConfigurationImpl implements Configuration {
                 properties.getProperty("db.password")
         );
 
+        // 3.5. creating persisters
+        registry.getEntities().forEach((meta, val) -> {
+            entityPersisters.put(meta, new EntityPersisterImpl(val));
+        });
+
+
         // 4. Creating schema - TODO add option to not create new db if there is no changes
         String schemaAuto = properties.getProperty("orm.schema.auto", "none");
         if ("drop-create".equalsIgnoreCase(schemaAuto)) {
             new SchemaDropper(cp).drop();   // np. DROP TABLE / DROP SCHEMA
-            new SchemaGenerator(registry, cp).generate();
+            new SchemaGenerator(registry, cp, entityPersisters).generate();
         } else if ("create".equalsIgnoreCase(schemaAuto)) {
-            new SchemaGenerator(registry, cp).generate();
+            new SchemaGenerator(registry, cp, entityPersisters).generate();
         }
-
-        // creating persisters
-        registry.getEntities().forEach((meta, val) -> {
-            entityPersisters.put(meta, new EntityPersisterImpl(val));
-        });
-        // TODO creating entityPersiters
-        // auto tworzą inheritence
-        // wywołowanie stworznie
-
-
-
 
         // 5. SessionFactory -> creation of EntityPersisters inside
         return new SessionFactoryImpl(registry, entityPersisters, cp, properties);

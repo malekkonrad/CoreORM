@@ -2,69 +2,46 @@ package pl.edu.agh.dp.core.schema;
 
 
 import pl.edu.agh.dp.core.jdbc.ConnectionProvider;
+import pl.edu.agh.dp.core.jdbc.JdbcExecutor;
+import pl.edu.agh.dp.core.jdbc.JdbcExecutorImpl;
 import pl.edu.agh.dp.core.mapping.*;
+import pl.edu.agh.dp.core.persister.EntityPersister;
+import pl.edu.agh.dp.core.persister.EntityPersisterImpl;
 
 import java.sql.Connection;
 import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 
 public class SchemaGenerator {
 
     private final MetadataRegistry registry;
     private final ConnectionProvider connectionProvider;
+    private final JdbcExecutor jdbcExecutor;
+    private final Map<Class<?>, EntityPersister> entityPersisters;
 
     public SchemaGenerator(MetadataRegistry registry,
-                           ConnectionProvider connectionProvider) {
+                           ConnectionProvider connectionProvider,
+                           Map<Class<?>, EntityPersister> entityPersisters) {
         this.registry = registry;
         this.connectionProvider = connectionProvider;
+
+        // FIXME - zastanowić się gdzie to przenieść
+        this.jdbcExecutor = new JdbcExecutorImpl(connectionProvider.getConnection());
+        this.entityPersisters = entityPersisters;
     }
 
-    /**
-     * Generuje schemat bazy na podstawie metadanych encji:
-     *  - CREATE TABLE dla każdej encji
-     *  - CREATE TABLE dla tabel pośrednich (ManyToMany) – opcjonalnie
-     */
     public void generate() {
-        Collection<EntityMetadata> entities = registry.getEntities().values();
 
+        // creation of tables
+        for (EntityPersister entityPersister : entityPersisters.values()) {
+            String sql = entityPersister.getInheritanceStrategy().create(jdbcExecutor);
+            System.out.println(sql);
+            jdbcExecutor.createTable(sql);
 
-        // TODO replace with jdbcExecutor!
-        try (Connection con = connectionProvider.getConnection();
-             Statement st = con.createStatement()) {
-
-            // 1. Tworzymy tabele encji
-            for (EntityMetadata meta : entities) {
-
-
-
-                InheritanceMetadata inh = meta.getInheritanceMetadata();
-                if (inh == null) {      // TODO change na isRoot() - probably -
-                    String sql = createTableSql(meta);
-//                    System.out.println(sql);
-//                    st.executeUpdate(sql);
-                } else {
-                    switch (inh.getType()) {
-                        case SINGLE_TABLE -> {
-                            if (meta.getInheritanceMetadata().isRoot()){
-                                String sql = generateSingleTable(meta, inh);
-                                System.out.println(sql);
-                                st.executeUpdate(sql);
-                            }
-
-                        }
-                        case TABLE_PER_CLASS -> {
-                            String ddl = generateTablePerClassTables(meta, inh);
-                            System.out.println(ddl);
-//                            st.executeUpdate(ddl);
-
-                        }
-
-                    }
-                }
-            }
-
+        }
 
             // 2.  tabele pośrednie ManyToMany
 //            for (EntityMetadata meta : entities) {
@@ -76,47 +53,9 @@ public class SchemaGenerator {
 //                }
 //            }
 
-        } catch (Exception e) {
-            throw new RuntimeException("Error while generating schema", e);
-        }
-    }
-
-    private String generateSingleTable(EntityMetadata root, InheritanceMetadata inh) {
-        StringBuilder sb = new StringBuilder();
-
-        sb.append("CREATE TABLE ").append(root.getTableName()).append(" (\n");
-
-        List<String> columnDefs = new ArrayList<>();
-
-        for (PropertyMetadata col : root.getColumnsForSingleTable()) {
-            columnDefs.add("    " + col.getColumnName() + " " + col.getSqlType());
-        }
-
-        // TODO primary key!
-
-        sb.append(String.join(",\n", columnDefs));
-        sb.append("\n);");
-
-        return sb.toString();
-    }
-
-    private String generateTablePerClassTables(EntityMetadata root, InheritanceMetadata inh) {
-        StringBuilder sb = new StringBuilder();
-
-        sb.append("CREATE TABLE ").append(root.getTableName()).append(" (\n");
-
-        List<String> columnDefs = new ArrayList<>();
-
-        for (PropertyMetadata col : root.getColumnsForConcreteTable()) {
-            columnDefs.add("    " + col.getColumnName() + " " + col.getSqlType());
-        }
-
-        // TODO primary key!
-
-        sb.append(String.join(",\n", columnDefs));
-        sb.append("\n);");
-
-        return sb.toString();
+//        } catch (Exception e) {
+//            throw new RuntimeException("Error while generating schema", e);
+//        }
     }
 
     private String createTableSql(EntityMetadata meta) {

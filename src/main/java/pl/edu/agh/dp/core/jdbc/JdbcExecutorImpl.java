@@ -32,6 +32,26 @@ public class JdbcExecutorImpl implements JdbcExecutor {
         connection.close();
     }
 
+    @Override
+    public void createTable(String sql) {
+        if (sql == null) {
+            System.err.println("sql is null");
+            return;
+        }
+        try(Statement statement = connection.createStatement()) {
+            statement.executeUpdate(sql);
+        }catch(SQLException e){
+//            throw new SQLException(e.getMessage());
+            System.out.println("Sth in jdbcExecutorImpl.createTable");
+            System.err.println(e.getMessage());
+        }
+    }
+
+    @Override
+    public void dropTable(String sql) throws SQLException {
+
+    }
+
 
     @Override
     public <T> List<T> query(String sql, RowMapper<T> mapper, Object... params) {

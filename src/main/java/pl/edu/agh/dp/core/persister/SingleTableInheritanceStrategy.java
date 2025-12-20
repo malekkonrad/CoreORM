@@ -15,15 +15,23 @@ import java.util.List;
 @NoArgsConstructor
 public class SingleTableInheritanceStrategy extends AbstractInheritanceStrategy {
 
+    public SingleTableInheritanceStrategy(EntityMetadata metadata) {
+        super(metadata);
+    }
+
+
     @Override
-    public void create(EntityMetadata rootMetadata, JdbcExecutor jdbcExecutor) {
+    public String create(JdbcExecutor jdbcExecutor) {
+        if (!this.entityMetadata.getInheritanceMetadata().isRoot()){
+            return null;
+        }
         StringBuilder sb = new StringBuilder();
 
-        sb.append("CREATE TABLE ").append(rootMetadata.getTableName()).append(" (\n");
+        sb.append("CREATE TABLE ").append(this.entityMetadata.getTableName()).append(" (\n");
 
         List<String> columnDefs = new ArrayList<>();
 
-        for (PropertyMetadata col : rootMetadata.getColumnsForSingleTable()) {
+        for (PropertyMetadata col : this.entityMetadata.getColumnsForSingleTable()) {
             columnDefs.add("    " + col.getColumnName() + " " + col.getSqlType());
         }
 
@@ -32,7 +40,7 @@ public class SingleTableInheritanceStrategy extends AbstractInheritanceStrategy 
         sb.append(String.join(",\n", columnDefs));
         sb.append("\n);");
 
-//        return sb.toString();
+        return sb.toString();
     }
 
     @Override

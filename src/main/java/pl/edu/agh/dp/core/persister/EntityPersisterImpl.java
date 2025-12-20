@@ -1,6 +1,8 @@
 package pl.edu.agh.dp.core.persister;
 
+import lombok.Getter;
 import lombok.NoArgsConstructor;
+import lombok.Setter;
 import pl.edu.agh.dp.api.Session;
 import pl.edu.agh.dp.core.exceptions.IntegrityException;
 import pl.edu.agh.dp.core.jdbc.JdbcExecutor;
@@ -15,22 +17,23 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+@Getter
+@Setter
 @NoArgsConstructor
 public class EntityPersisterImpl implements EntityPersister {
 
     private EntityMetadata metadata;
-    // fabryka tworznie inhertiance strateg
 
     private InheritanceStrategy inheritanceStrategy;
 
     public EntityPersisterImpl(EntityMetadata metadata) {
         this.metadata = metadata;
-        this.inheritanceStrategy = InheritanceStrategyFactory.build(metadata.getInheritanceMetadata().getType());
+        this.inheritanceStrategy = InheritanceStrategyFactory.build(metadata.getInheritanceMetadata().getType(), metadata);
     }
 
     @Override
     public Object findById(Object id, Session session) {
-        // strategia
+
 
         try {
             JdbcExecutor jdbc = session.getJdbcExecutor();

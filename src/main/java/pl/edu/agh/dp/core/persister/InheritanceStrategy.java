@@ -7,7 +7,7 @@ import pl.edu.agh.dp.core.mapping.EntityMetadata;
 import java.util.List;
 
 public interface InheritanceStrategy {
-    void create(EntityMetadata rootMetadata, JdbcExecutor jdbcExecutor);
+    String create(JdbcExecutor jdbcExecutor);
     Object insert(EntityMetadata rootMetadata, Object entity, Session session);
     void update(EntityMetadata rootMetadata, Object entity, Session session);
     void delete(EntityMetadata rootMetadata, Object entity, Session session);

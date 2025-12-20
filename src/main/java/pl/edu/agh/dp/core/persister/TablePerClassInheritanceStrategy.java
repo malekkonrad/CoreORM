@@ -3,21 +3,28 @@ package pl.edu.agh.dp.core.persister;
 import pl.edu.agh.dp.api.Session;
 import pl.edu.agh.dp.core.jdbc.JdbcExecutor;
 import pl.edu.agh.dp.core.mapping.EntityMetadata;
+import pl.edu.agh.dp.core.mapping.MetadataRegistry;
 import pl.edu.agh.dp.core.mapping.PropertyMetadata;
 
 import java.util.ArrayList;
 import java.util.List;
 
 public class TablePerClassInheritanceStrategy extends AbstractInheritanceStrategy{
+
+    public TablePerClassInheritanceStrategy(EntityMetadata metadata) {
+        super(metadata);
+    }
+
+
     @Override
-    public void create(EntityMetadata rootMetadata, JdbcExecutor jdbcExecutor) {
+    public String create(JdbcExecutor jdbcExecutor) {
         StringBuilder sb = new StringBuilder();
 
-        sb.append("CREATE TABLE ").append(rootMetadata.getTableName()).append(" (\n");
+        sb.append("CREATE TABLE ").append(this.entityMetadata.getTableName()).append(" (\n");
 
         List<String> columnDefs = new ArrayList<>();
 
-        for (PropertyMetadata col : rootMetadata.getColumnsForConcreteTable()) {
+        for (PropertyMetadata col : this.entityMetadata.getColumnsForConcreteTable()) {
             columnDefs.add("    " + col.getColumnName() + " " + col.getSqlType());
         }
 
@@ -26,7 +33,7 @@ public class TablePerClassInheritanceStrategy extends AbstractInheritanceStrateg
         sb.append(String.join(",\n", columnDefs));
         sb.append("\n);");
 
-//        return sb.toString();
+        return sb.toString();
     }
 
     @Override
