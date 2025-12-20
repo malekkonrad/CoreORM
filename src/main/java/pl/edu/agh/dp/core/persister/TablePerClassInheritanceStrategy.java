@@ -10,10 +10,7 @@ import pl.edu.agh.dp.core.util.ReflectionUtils;
 
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 public class TablePerClassInheritanceStrategy extends AbstractInheritanceStrategy{
 
@@ -48,7 +45,8 @@ public class TablePerClassInheritanceStrategy extends AbstractInheritanceStrateg
         List<String> columns = new ArrayList<>();
         List<Object> values = new ArrayList<>();
 
-        List<PropertyMetadata> idColumns = entityMetadata.getIdColumns();
+        assert entityMetadata != null;
+        Collection<PropertyMetadata> idColumns = entityMetadata.getIdColumns().values();
         boolean isCompositeKey = idColumns.size() > 1;
 
         Map<String, Boolean> idProvided = new HashMap<>();
@@ -134,11 +132,12 @@ public class TablePerClassInheritanceStrategy extends AbstractInheritanceStrateg
         try {
             JdbcExecutor jdbc = session.getJdbcExecutor();
 
-            List<PropertyMetadata> idColumns = entityMetadata.getIdColumns();
+            assert entityMetadata != null;
+            Collection<PropertyMetadata> idColumns = entityMetadata.getIdColumns().values();
 
             List<String> columns = new ArrayList<>();
 
-            for (PropertyMetadata pm : entityMetadata.getProperties()) {
+            for (PropertyMetadata pm : entityMetadata.getProperties().values()) {
                 columns.add(pm.getColumnName());
             }
 
@@ -151,7 +150,7 @@ public class TablePerClassInheritanceStrategy extends AbstractInheritanceStrateg
 
             Object[] params = new Object[idColumns.size()];
             if (idColumns.size() == 1) {
-                PropertyMetadata pm = idColumns.get(0);
+                PropertyMetadata pm = idColumns.iterator().next();
                 sql.append(pm.getColumnName());
                 sql.append(" = ?");
                 try {
@@ -163,7 +162,7 @@ public class TablePerClassInheritanceStrategy extends AbstractInheritanceStrateg
             }
             else {
                 for (int i = 0; i < params.length; i++) {
-                    PropertyMetadata pm = idColumns.get(i);
+                    PropertyMetadata pm = idColumns.iterator().next();
                     sql.append(pm.getColumnName());
                     sql.append(" = ?");
                     if (i < params.length - 1) {
@@ -213,9 +212,10 @@ public class TablePerClassInheritanceStrategy extends AbstractInheritanceStrateg
 
     private Object mapEntity(ResultSet rs) throws SQLException {
         try {
+            assert entityMetadata != null;
             Object entity = entityMetadata.getEntityClass().getDeclaredConstructor().newInstance();
 
-            for (PropertyMetadata prop : entityMetadata.getProperties()) {
+            for (PropertyMetadata prop : entityMetadata.getProperties().values()) {
                 Object value = rs.getObject(prop.getColumnName());
 
                 // Konwersja Integer -> Long dla wszystkich pól Long
