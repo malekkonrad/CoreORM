@@ -376,7 +376,7 @@ public class MetadataBuilder {
         if (type == byte[].class) {
             return "BYTEA";
         }
-
+        // FIXME detect Collection and suggest relationship
         throw new IntegrityException("Unsupported type: " + type);
     }
 }

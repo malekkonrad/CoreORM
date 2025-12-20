@@ -5,8 +5,10 @@ import pl.edu.agh.dp.api.annotations.DiscriminatorValue;
 import pl.edu.agh.dp.api.annotations.Entity;
 import pl.edu.agh.dp.api.annotations.Inheritance;
 import pl.edu.agh.dp.core.exceptions.IntegrityException;
+import pl.edu.agh.dp.core.util.ReflectionUtils;
 
 import java.util.*;
+import java.lang.reflect.Field;
 
 @Getter
 public class MetadataRegistry {
@@ -52,22 +54,23 @@ public class MetadataRegistry {
         // remember to remove or change the idColumns if necessary
         // process associations:
         // check if target entity is in registry
-        // check if the opposite association exists
         // check if the opposite association is unambiguous (mappedBy, only one exists)
+        // check if all the join columns exist
+        // check if one of join columns is it's own relationship (field)
         // check if join columns are the same
-        // check if one of join columns has it's own relationship
         // check if all the join columns are actually in the class
         // check if relationship has correct reverse type
         // check if not both of them are marked as Id
         // check if join could be determined or do we need join columns
-        for (AssociationMetadata am : entityMetadata.getAssociationMetadata()) {
+        // TODO check other join columns for foreign keys
+        for (AssociationMetadata currentAm : entityMetadata.getAssociationMetadata()) {
             // skip if the association is filled in (check target columns)
-            if (!am.getTargetJoinColumns().isEmpty()) {
+            if (!currentAm.getTargetJoinColumns().isEmpty()) {
                 continue;
             }
 
             // determine the target entity
-            Class<?> targetEntity = am.getTargetEntity();
+            Class<?> targetEntity = currentAm.getTargetEntity();
 
             // target does not exist
             if (!entities.containsKey(targetEntity)) {
@@ -75,7 +78,7 @@ public class MetadataRegistry {
                         "Missing entity in the registry.\n" +
                         "Relationship could not find the targeted entity in the registry.\n" +
                         "Source Class: " + clazz.getName() + "\n" +
-                        "Source Field: " + am.getField() + "\n" +
+                        "Source Field: " + currentAm.getField() + "\n" +
                         "Target entity: " + targetEntity.getName() + "\n" +
                         "Current registry: " + entities
                 );
@@ -95,32 +98,45 @@ public class MetadataRegistry {
                         "Missing backward reference in the target entity.\n" +
                         "Relationship could not find the backwards reference in target entity.\n" +
                         "Source Class: " + clazz.getName() + "\n" +
-                        "Source Field: " + am.getField() + "\n" +
+                        "Source Field: " + currentAm.getField() + "\n" +
                         "Target entity: " + targetEntity.getName() + "\n" +
                         "Add backward relationship to the target entity or remove the relationship in the source class."
                 );
             }
-            AssociationMetadata targetAm;
+            AssociationMetadata targetAm = null;
             // try to use mapped by
-            if (!am.getMappedBy().isBlank()) {
-                for (AssociationMetadata am2 : targetAms) {
-                    if (am2.getField().equals(am.getMappedBy())) {
-                        targetAm = am2;
+            if (!currentAm.getMappedBy().isBlank()) {
+                for (AssociationMetadata am : targetAms) {
+                    if (am.getField().equals(currentAm.getMappedBy())) {
+                        targetAm = am;
                         break;
                     }
                 }
-            }
-            // check if relationship is ambiguous
-            else if (targetAms.size() > 1) {
+                if (targetAm == null) {
+                    List<String> fieldNames = new ArrayList<>();
+                    for (Field f : targetEntity.getDeclaredFields()) {
+                        fieldNames.add(f.getName());
+                    }
+                    throw new IntegrityException(
+                            "Mapped by column not found.\n" +
+                            "Source Class: " + clazz.getName() + "\n" +
+                            "Source mapped by: " + currentAm.getMappedBy() + "\n" +
+                            "Target entity: " + targetEntity.getName() + "\n" +
+                            "Found fields: " + String.join(", ", fieldNames) + "\n" +
+                            "Change mappedBy in source class to one of those fields."
+                    );
+                }
+            } else if (targetAms.size() > 1) {
+                // check if relationship is ambiguous
                 List<String> fieldNames = new ArrayList<>();
-                for (AssociationMetadata am2 : targetAms) {
-                    fieldNames.add(am2.getField());
+                for (AssociationMetadata am : targetAms) {
+                    fieldNames.add(am.getField());
                 }
                 throw new IntegrityException(
                         "Ambiguous backward reference.\n" +
                         "Relationship could not determine the correct backward reference.\n" +
                         "Source Class: " + clazz.getName() + "\n" +
-                        "Source Field: " + am.getField() + "\n" +
+                        "Source Field: " + currentAm.getField() + "\n" +
                         "Target entity: " + targetEntity.getName() + "\n" +
                         "Found backward references: " + String.join(", ", fieldNames) + "\n" +
                         "Add 'mappedBy' parameter to the relationship with one of those found backward references."
@@ -129,15 +145,105 @@ public class MetadataRegistry {
                 // size is 1, unambiguous
                 targetAm = targetAms.get(0);
             }
+
+            // check if all the join columns exist
+            // check if one of join columns is it's own relationship (field)
+            Set<String> currentJoinColumns = checkJoinColumns(clazz, currentAm);
+            Set<String> targetJoinColumns = checkJoinColumns(targetEntity, targetAm);
+
             // check if join columns are the same
-            // check if one of join columns has it's own relationship
-            // check if all the join columns are actually in the class
+            if (!currentJoinColumns.containsAll(targetJoinColumns) || !targetJoinColumns.containsAll(currentJoinColumns)) {
+                throw new IntegrityException(
+                        "Join columns must be the same.\n" +
+                        "Join columns of both classes should match.\n" +
+                        "Source Class: " + clazz.getName() + "\n" +
+                        "Relationship: " + currentAm.getField() + "\n" +
+                        "Join columns: " + String.join(", ", currentJoinColumns) + "\n" +
+                        "Target Class: " + targetEntity.getName() + "\n" +
+                        "Relationship: " + targetAm.getField() + "\n" +
+                        "Join columns: " + String.join(", ", targetJoinColumns)
+                );
+            }
+
             // check if relationship has correct reverse type
-            // check if not both of them are marked as Id
-            // check if join could be determined or do we need join columns
-            //
+            // checked for not (list of correct types)
+            if (!(currentAm.getType() == AssociationMetadata.Type.ONE_TO_ONE && targetAm.getType() == AssociationMetadata.Type.ONE_TO_ONE
+               || currentAm.getType() == AssociationMetadata.Type.ONE_TO_MANY && targetAm.getType() == AssociationMetadata.Type.MANY_TO_ONE
+               || currentAm.getType() == AssociationMetadata.Type.MANY_TO_ONE && targetAm.getType() == AssociationMetadata.Type.ONE_TO_MANY
+               || currentAm.getType() == AssociationMetadata.Type.MANY_TO_MANY && targetAm.getType() == AssociationMetadata.Type.MANY_TO_MANY) ) {
+                throw new IntegrityException(
+                        "Relationships do not match.\n" +
+                        "Source Class: " + clazz.getName() + "\n" +
+                        "Relationship: " + currentAm.getField() + "\n" +
+                        "Type of relationship: " + currentAm.getType() + "\n" +
+                        "Target Class: " + targetEntity.getName() + "\n" +
+                        "Relationship: " + targetAm.getField() + "\n" +
+                        "Type of relationship: " + targetAm.getType() + "\n" +
+                        "Valid relationships: ONE_TO_ONE <-> ONE_TO_ONE\n" +
+                        "                    ONE_TO_MANY <-> MANY_TO_ONE\n" +
+                        "                    MANY_TO_ONE <-> ONE_TO_MANY\n" +
+                        "                   MANY_TO_MANY <-> MANY_TO_MANY"
+                );
+            }
+
             // determine where to put foreign keys
+            boolean isForeignKeyOnCurrent;
+            boolean isForeignKeyOnTarget;
+            boolean isPrimaryKeyOnCurrent = currentAm.getFieldProperty().isId;
+            boolean isPrimaryKeyOnTarget = targetAm.getFieldProperty().isId;
+
+            if (currentAm.getType() == AssociationMetadata.Type.ONE_TO_ONE) {
+                isForeignKeyOnCurrent = isPrimaryKeyOnCurrent;
+                isForeignKeyOnTarget = isPrimaryKeyOnTarget;
+                if (isForeignKeyOnCurrent && isForeignKeyOnTarget) {
+                    throw new IntegrityException(
+                            "Invalid field annotated with @Id.\n" +
+                            "Source Class: " + clazz.getName() + "\n" +
+                            "Relationship: " + currentAm.getField() + "\n" +
+                            "Target Class: " + targetEntity.getName() + "\n" +
+                            "Relationship: " + targetAm.getField() + "\n" +
+                            "In one to one relationship at most one of them could be annotated with @Id."
+                    );
+                }
+            } else if (currentAm.getType() == AssociationMetadata.Type.ONE_TO_MANY) {
+                isForeignKeyOnCurrent = false;
+                isForeignKeyOnTarget = true;
+                if (isPrimaryKeyOnCurrent) {
+                    throw new IntegrityException(
+                            "Invalid field annotated with @Id.\n" +
+                            "Source Class: " + clazz.getName() + "\n" +
+                            "Relationship: " + currentAm.getField() + "\n" +
+                            "Target Class: " + targetEntity.getName() + "\n" +
+                            "Relationship: " + targetAm.getField() + "\n" +
+                            "In one to many relationship only 'MANY' side could be annotated with @Id."
+                    );
+                }
+            } else if (currentAm.getType() == AssociationMetadata.Type.MANY_TO_ONE) {
+                isForeignKeyOnCurrent = true;
+                isForeignKeyOnTarget = false;
+                if (isPrimaryKeyOnTarget) {
+                    throw new IntegrityException(
+                            "Invalid field annotated with @Id.\n" +
+                            "Source Class: " + clazz.getName() + "\n" +
+                            "Relationship: " + currentAm.getField() + "\n" +
+                            "Target Class: " + targetEntity.getName() + "\n" +
+                            "Relationship: " + targetAm.getField() + "\n" +
+                            "In many to one relationship only 'MANY' side could be annotated with @Id."
+                    );
+                }
+            } else { // many to many relationship
+                isForeignKeyOnCurrent = true;
+                isForeignKeyOnTarget = true;
+            }
+
+            // check if join could be determined or do we need join columns
+            // TODO idk what I meant ^
+
+            // Everything is checked now and is correct
+
             // fix foreign keys (remove, change name, remove id)
+
+
             // add constraints fk to SQL table
             // add NOT NULL constraint if necessary
             //
@@ -146,9 +252,45 @@ public class MetadataRegistry {
 
 
             // determine where to put foreign keys (source, target or both)
-            AssociationMetadata.Type type = am.getType();
+            AssociationMetadata.Type type = currentAm.getType();
 
         }
+    }
+
+    private static Set<String> checkJoinColumns(Class<?> clazz, AssociationMetadata am) {
+        // check if all the join columns exist
+        // check if one of join columns is it's own relationship (field)
+        Set<String> joinColumns = new HashSet<>();
+        boolean hasItselfInJoin = false;
+        for (PropertyMetadata joinColumn : am.getJoinColumns()) {
+            if (!Objects.equals(joinColumn.getName(), am.getField())) {
+                joinColumns.add(joinColumn.getName());
+                hasItselfInJoin = true;
+            }
+            if (!ReflectionUtils.doesObjectContainField(clazz, joinColumn.getName())) {
+                List<String> fieldNames = new ArrayList<>();
+                for (Field f : clazz.getDeclaredFields()) {
+                    fieldNames.add(f.getName());
+                }
+                throw new IntegrityException(
+                        "Join column not found.\n" +
+                                "All join columns should be name of the fields of the class.\n" +
+                                "Source Class: " + clazz.getName() + "\n" +
+                                "Found Fields: " + String.join(", ", fieldNames) + "\n" +
+                                "Requested field: " + joinColumn.getName() + "\n" +
+                                "Requested by relationship: " + am.getField()
+                );
+            }
+        }
+        if (!hasItselfInJoin) {
+            throw new IntegrityException(
+                    "Join columns should reference the field it's annotating.\n" +
+                            "Source Class: " + clazz.getName() + "\n" +
+                            "Join columns: " + String.join(", ", joinColumns) + "\n" +
+                            "Relationship: " + am.getField()
+            );
+        }
+        return joinColumns;
     }
 
     private void handleInheritance(){

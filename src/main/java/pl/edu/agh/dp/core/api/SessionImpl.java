@@ -8,6 +8,7 @@ import pl.edu.agh.dp.core.persister.EntityPersister;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -35,6 +36,11 @@ public class SessionImpl implements Session {
     public <T> T find(Class<T> entityClass, Object id) {
         Object entity = entityPersisters.get(entityClass).findById(id, this);
         return entityClass.cast(entity);
+    }
+
+    @Override
+    public <T> List<T> findAll(Class<T> entityClass) {
+        return List.of(); // TODO
     }
 
     @Override

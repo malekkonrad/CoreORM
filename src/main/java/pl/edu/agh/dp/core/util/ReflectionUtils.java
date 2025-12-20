@@ -1,11 +1,18 @@
 package pl.edu.agh.dp.core.util;
 
 import java.lang.reflect.Field;
+import java.util.Arrays;
 
 public final class ReflectionUtils {
 
     private ReflectionUtils() {
     }
+
+    public static boolean doesObjectContainField(Object object, String fieldName) {
+        return Arrays.stream(object.getClass().getFields())
+                .anyMatch(f -> f.getName().equals(fieldName));
+    }
+
 
     public static Object getFieldValue(Object target, String fieldName) {
         try {

@@ -8,6 +8,7 @@ import java.util.Set;
 
 @Retention(RetentionPolicy.RUNTIME)
 public @interface JoinColumn {
+    // TODO add ondelete policy
     boolean nullable() default false;
     String[] joinColumns() default {""};
 }

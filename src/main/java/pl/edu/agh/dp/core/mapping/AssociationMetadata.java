@@ -3,6 +3,7 @@ package pl.edu.agh.dp.core.mapping;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.Setter;
+import pl.edu.agh.dp.core.exceptions.IntegrityException;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -26,6 +27,19 @@ public class AssociationMetadata {
     private String joinTable; // TODO maybe change to EntityMetadata or skip
     private List<PropertyMetadata> joinColumns;
     private List<PropertyMetadata> targetJoinColumns;
+
+    public PropertyMetadata getFieldProperty() {
+        PropertyMetadata fieldMeta = null;
+        for (PropertyMetadata pm : joinColumns) {
+            if (pm.getName().equals(field)) {
+                fieldMeta = pm;
+            }
+        }
+        if (fieldMeta == null) {
+            throw new IntegrityException("Field '" + field + "' not found.");
+        }
+        return fieldMeta;
+    }
 
     @Override
     public String toString() {

@@ -10,10 +10,10 @@ import lombok.Setter;
 @Setter
 @NoArgsConstructor
 public class PropertyMetadata {
-    String name;                    // "firstName"
-    String columnName;              // "first_name"
-    Class<?> type;                  // String.class
-    String sqlType;                 // VARCHAR(255)
+    private String name;                    // "firstName"
+    private String columnName;              // "first_name"
+    private Class<?> type;                  // String.class
+    private String sqlType;                 // VARCHAR(255)
     boolean isId = false;           // false
     boolean autoIncrement = false;  // false
     boolean isUnique = false;       // false

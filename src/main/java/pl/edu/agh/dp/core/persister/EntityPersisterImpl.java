@@ -108,6 +108,11 @@ public class EntityPersisterImpl implements EntityPersister {
     }
 
     @Override
+    public List<Object> findAll(Class<?> entityClass, Session session) {
+        return List.of();
+    }
+
+    @Override
     public void insert(Object entity, Session session) {
         List<String> columns = new ArrayList<>();
         List<Object> values = new ArrayList<>();
