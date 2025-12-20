@@ -28,21 +28,7 @@ public class AppTest {
 
     @BeforeEach
     public void setUp() {
-        try (Connection conn = DriverManager.getConnection("jdbc:sqlite:src/test/resources/test.db");
-             Statement stmt = conn.createStatement()) {
-//            stmt.execute("DELETE FROM users");
-            stmt.execute("DROP SCHEMA public CASCADE;");
-            stmt.execute("CREATE SCHEMA public;");
-            ResultSet rs = stmt.executeQuery("SELECT * FROM sqlite_master WHERE type='table';");
-            while (rs.next()) {
-                String tableName = rs.getString("TABLE_NAME");
-                stmt.execute("DROP TABLE IF EXISTS " + tableName + ";");
-            }
-            rs.close();
 
-        } catch (SQLException e) {
-            e.printStackTrace();
-        }
         config.register(User.class, Employee.class);
         sessionFactory = config.buildSessionFactory();
         session = sessionFactory.openSession();
@@ -56,7 +42,7 @@ public class AppTest {
         // Wyczyść bazę danych
         try (Connection conn = DriverManager.getConnection("jdbc:sqlite:src/test/resources/test.db");
              Statement stmt = conn.createStatement()) {
-            stmt.execute("DELETE FROM users");
+//            stmt.execute("DELETE FROM users");
 //            stmt.execute("DROP SCHEMA public CASCADE;");
 //            stmt.execute("CREATE SCHEMA public;");
         } catch (SQLException e) {
@@ -73,7 +59,16 @@ public class AppTest {
         u.setName("Jan");
         u.setEmail("konrad@gmail.com");
         session.save(u);
+
+        Employee e = new Employee();
+        e.setId(2L);
+        e.setName("Konrad");
+        e.setSalary(1000.0);
+        session.save(e);
         session.commit();
+        User user = session.find(User.class, 1L);
+        session.close();
+
 
         // Sprawdź bezpośrednio w bazie
 //        try (Connection conn = DriverManager.getConnection("jdbc:sqlite:src/test/resources/test.db");
@@ -89,7 +84,7 @@ public class AppTest {
 //        }
 
 
-        User user = session.find(User.class, 1L);
+
         assertEquals(u.getId(), user.getId());
         assertEquals(u.getEmail(), user.getEmail());
         assertEquals(u.getName(), user.getName());

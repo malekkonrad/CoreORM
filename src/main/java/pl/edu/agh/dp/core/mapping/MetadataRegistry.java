@@ -139,6 +139,7 @@ public class MetadataRegistry {
         PropertyMetadata discriminatorProperty = new PropertyMetadata();
         discriminatorProperty.setColumnName(discriminatorColName);
         discriminatorProperty.setType(String.class); // Zakładamy String
+        discriminatorProperty.setSqlType("VARCHAR");
         discriminatorProperty.setIsId(false);
         // Ważne: to pole nie ma Field w Javie, więc generator SQL musi to obsłużyć
         // (nie próbować robić field.get() przy insertach w ciemno)

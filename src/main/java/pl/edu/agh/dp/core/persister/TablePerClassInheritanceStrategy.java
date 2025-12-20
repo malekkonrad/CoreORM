@@ -37,27 +37,27 @@ public class TablePerClassInheritanceStrategy extends AbstractInheritanceStrateg
     }
 
     @Override
-    public Object insert(EntityMetadata rootMetadata, Object entity, Session session) {
+    public Object insert(Object entity, Session session) {
         return null;
     }
 
     @Override
-    public void update(EntityMetadata rootMetadata, Object entity, Session session) {
+    public void update(Object entity, Session session) {
 
     }
 
     @Override
-    public void delete(EntityMetadata rootMetadata, Object entity, Session session) {
+    public void delete(Object entity, Session session) {
 
     }
 
     @Override
-    public <T> T findById(EntityMetadata rootMetadata, Class<T> type, Object id, Session session) {
+    public Object findById(Object id, Session session) {
         return null;
     }
 
     @Override
-    public <T> List<T> findAll(EntityMetadata rootMetadata, Class<T> type, Session session) {
+    public <T> List<T> findAll(Class<T> type, Session session) {
         return List.of();
     }
 }
