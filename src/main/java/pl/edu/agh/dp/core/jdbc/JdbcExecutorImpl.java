@@ -32,6 +32,26 @@ public class JdbcExecutorImpl implements JdbcExecutor {
         connection.close();
     }
 
+    @Override
+    public void createTable(String sql) {
+        if (sql == null) {
+            System.err.println("sql is null");
+            return;
+        }
+        try(Statement statement = connection.createStatement()) {
+            statement.executeUpdate(sql);
+        }catch(SQLException e){
+//            throw new SQLException(e.getMessage());
+            System.out.println("Sth in jdbcExecutorImpl.createTable");
+            System.err.println(e.getMessage());
+        }
+    }
+
+    @Override
+    public void dropTable(String sql) throws SQLException {
+
+    }
+
 
     @Override
     public <T> List<T> query(String sql, RowMapper<T> mapper, Object... params) {
@@ -84,7 +104,13 @@ public class JdbcExecutorImpl implements JdbcExecutor {
     public Long insert(String sql, Object... params) {
         try (PreparedStatement ps = connection.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
             setParameters(ps, params);
-            ps.executeUpdate();
+//            ps.executeUpdate();
+//            System.out.println(sql + " executed successfully");
+//            System.out.println("teoricotal success");
+            int rows = ps.executeUpdate();
+            System.out.println("→ Rows affected: " + rows);
+            System.out.println("→ SQL: " + sql);
+            System.out.println("→ AutoCommit: " + connection.getAutoCommit());
             
             try (ResultSet keys = ps.getGeneratedKeys()) {
                 if (keys.next()) {

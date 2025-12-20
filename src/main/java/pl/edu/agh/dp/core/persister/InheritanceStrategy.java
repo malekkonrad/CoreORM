@@ -7,10 +7,10 @@ import pl.edu.agh.dp.core.mapping.EntityMetadata;
 import java.util.List;
 
 public interface InheritanceStrategy {
-    void create(EntityMetadata rootMetadata, JdbcExecutor jdbcExecutor);
-    Object insert(EntityMetadata rootMetadata, Object entity, Session session);
-    void update(EntityMetadata rootMetadata, Object entity, Session session);
-    void delete(EntityMetadata rootMetadata, Object entity, Session session);
-    <T> T findById(EntityMetadata rootMetadata, Class<T> type, Object id, Session session);
-    <T> List<T> findAll(EntityMetadata rootMetadata, Class<T> type, Session session);
+    String create(JdbcExecutor jdbcExecutor);
+    Object insert(Object entity, Session session);
+    void update(Object entity, Session session);
+    void delete(Object entity, Session session);
+    Object findById(Object id, Session session);
+    <T> List<T> findAll(Class<T> type, Session session);
 }

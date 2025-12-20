@@ -11,4 +11,6 @@ public interface EntityPersister {
     void insert(Object entity, Session session);
     void update(Object entity, Session session);
     void delete(Object entity, Session session);
+
+    InheritanceStrategy getInheritanceStrategy();
 }

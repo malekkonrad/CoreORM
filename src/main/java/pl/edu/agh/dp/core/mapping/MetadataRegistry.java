@@ -357,9 +357,9 @@ public class MetadataRegistry {
         }
         // Default SINGLE_TABLE
         if (clazz.getSuperclass() != Object.class && clazz.getSuperclass().isAnnotationPresent(Entity.class)) {
-            return InheritanceType.SINGLE_TABLE;
+            return InheritanceType.TABLE_PER_CLASS;
         }
-        return InheritanceType.SINGLE_TABLE; // FIXME: zastanawiam się co w przypadku braku dziedziczenia - NoInheritance???
+        return InheritanceType.TABLE_PER_CLASS; // FIXME: zastanawiam się co w przypadku braku dziedziczenia - NoInheritance???
     }
 
     private boolean isEntity(Class<?> clazz) {
@@ -384,6 +384,7 @@ public class MetadataRegistry {
         PropertyMetadata discriminatorProperty = new PropertyMetadata();
         discriminatorProperty.setColumnName(discriminatorColName);
         discriminatorProperty.setType(String.class); // Zakładamy String
+        discriminatorProperty.setSqlType("VARCHAR");
         discriminatorProperty.setId(false);
         // Ważne: to pole nie ma Field w Javie, więc generator SQL musi to obsłużyć
         // (nie próbować robić field.get() przy insertach w ciemno)
