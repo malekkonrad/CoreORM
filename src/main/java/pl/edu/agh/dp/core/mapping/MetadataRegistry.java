@@ -49,6 +49,12 @@ public class MetadataRegistry {
         if (entityMetadata.getAssociationMetadata().isEmpty()) {
             return;
         }
+        // TODO nullable fkey when the fkey is in the other table
+        // TODO default factory
+        // TODO load strategy (lazy, eager)
+        // TODO load strategy (join, selectin)
+        // TODO passive deletes
+        // TODO on delete, on update, on insert
         // foreign keys are fkColumns - they are just field names, with some default keys settings
         // association columns are just placeholders with field names
         // remember to remove or change the idColumns if necessary
@@ -63,7 +69,7 @@ public class MetadataRegistry {
         // check if not both of them are marked as Id
         // check if join could be determined or do we need join columns
         // TODO check other join columns for foreign keys
-        for (AssociationMetadata currentAm : entityMetadata.getAssociationMetadata()) {
+        for (AssociationMetadata currentAm : entityMetadata.getAssociationMetadata().values()) {
             // skip if the association is filled in (check target columns)
             if (!currentAm.getTargetJoinColumns().isEmpty()) {
                 continue;
@@ -87,7 +93,7 @@ public class MetadataRegistry {
             // get the opposite association
             EntityMetadata targetEntityMetadata = entities.get(targetEntity);
             List<AssociationMetadata> targetAms = new ArrayList<>();
-            for (AssociationMetadata am2 : targetEntityMetadata.getAssociationMetadata()) {
+            for (AssociationMetadata am2 : targetEntityMetadata.getAssociationMetadata().values()) {
                 if (am2.getTargetEntity().equals(clazz)) {
                     targetAms.add(am2);
                 }
@@ -242,18 +248,22 @@ public class MetadataRegistry {
             // Everything is checked now and is correct
 
             // fix foreign keys (remove, change name, remove id)
+            for (PropertyMetadata pm : currentAm.getJoinColumns()) {
+                if (pm.getName().equals(currentAm.getField())) {
+                    if (isForeignKeyOnCurrent) {
+                        // TODO handle multiple primary keys in target entity
+                        pm.setReferences(targetEntityMetadata.tableName + " (" + targetEntityMetadata.idColumns.get(0) + ")");
+                    } else {
 
+                    }
+                }
+            }
 
             // add constraints fk to SQL table
             // add NOT NULL constraint if necessary
             //
             // create association table for ManyToMany
             //
-
-
-            // determine where to put foreign keys (source, target or both)
-            AssociationMetadata.Type type = currentAm.getType();
-
         }
     }
 
@@ -374,11 +384,11 @@ public class MetadataRegistry {
         PropertyMetadata discriminatorProperty = new PropertyMetadata();
         discriminatorProperty.setColumnName(discriminatorColName);
         discriminatorProperty.setType(String.class); // Zakładamy String
-        discriminatorProperty.setIsId(false);
+        discriminatorProperty.setId(false);
         // Ważne: to pole nie ma Field w Javie, więc generator SQL musi to obsłużyć
         // (nie próbować robić field.get() przy insertach w ciemno)
 
-        root.getProperties().add(discriminatorProperty);
+        root.getProperties().put(discriminatorColName, discriminatorProperty); // FIXME idk if it works
 
         // 3. Mapowanie Klasa <-> Wartość (dla roota i wszystkich dzieci)
         Map<Class<?>, String> classToDisc = new HashMap<>();

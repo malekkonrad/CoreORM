@@ -10,10 +10,7 @@ import pl.edu.agh.dp.core.util.ReflectionUtils;
 
 import java.lang.reflect.Field;
 import java.sql.*;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 @NoArgsConstructor
 public class EntityPersisterImpl implements EntityPersister {
@@ -35,11 +32,11 @@ public class EntityPersisterImpl implements EntityPersister {
         try {
             JdbcExecutor jdbc = session.getJdbcExecutor();
 
-            List<PropertyMetadata> idColumns = metadata.getIdColumns();
+            Collection<PropertyMetadata> idColumns = metadata.getIdColumns().values();
 
             List<String> columns = new ArrayList<>();
 
-            for (PropertyMetadata pm : metadata.getProperties()) {
+            for (PropertyMetadata pm : metadata.getProperties().values()) {
                 columns.add(pm.getColumnName());
             }
 
@@ -52,7 +49,7 @@ public class EntityPersisterImpl implements EntityPersister {
 
             Object[] params = new Object[idColumns.size()];
             if (idColumns.size() == 1) {
-                PropertyMetadata pm = idColumns.get(0);
+                PropertyMetadata pm = idColumns.iterator().next();
                 sql.append(pm.getColumnName());
                 sql.append(" = ?");
                 try {
@@ -64,7 +61,7 @@ public class EntityPersisterImpl implements EntityPersister {
             }
             else {
                 for (int i = 0; i < params.length; i++) {
-                    PropertyMetadata pm = idColumns.get(i);
+                    PropertyMetadata pm = idColumns.iterator().next();
                     sql.append(pm.getColumnName());
                     sql.append(" = ?");
                     if (i < params.length - 1) {
@@ -117,11 +114,11 @@ public class EntityPersisterImpl implements EntityPersister {
         List<String> columns = new ArrayList<>();
         List<Object> values = new ArrayList<>();
 
-        List<PropertyMetadata> idColumns = metadata.getIdColumns();
+        Collection<PropertyMetadata> idColumns = metadata.getIdColumns().values();
         boolean isCompositeKey = idColumns.size() > 1;
 
         Map<String, Boolean> idProvided = new HashMap<>();
-        for (PropertyMetadata pm : metadata.getProperties()) {
+        for (PropertyMetadata pm : metadata.getProperties().values()) {
             columns.add(pm.getColumnName());
             Object value = ReflectionUtils.getFieldValue(entity, pm.getName());
             values.add(value);
@@ -129,6 +126,8 @@ public class EntityPersisterImpl implements EntityPersister {
                 idProvided.put(pm.getName(), true);
             }
         }
+
+        PropertyMetadata idColumn = null; // used for single primary key
 
         if (isCompositeKey) {
             if (idProvided.size() != idColumns.size()) {
@@ -147,15 +146,16 @@ public class EntityPersisterImpl implements EntityPersister {
                 );
             }
         } else {
-            if (!idProvided.isEmpty() && idColumns.get(0).isAutoIncrement()) {
+            idColumn = idColumns.iterator().next();
+            if (!idProvided.isEmpty() && idColumn.isAutoIncrement()) {
                 throw new IntegrityException(
                         "You cannot set an id that is auto increment.\n" +
-                        "Tried to set: '" + idColumns.get(0).getName() + "' that is an auto incremented id.\n" +
+                        "Tried to set: '" + idColumn.getName() + "' that is an auto incremented id.\n" +
                         "Remove the auto increment or don't set it.");
-            } else if (idProvided.isEmpty() && !idColumns.get(0).isAutoIncrement()) {
+            } else if (idProvided.isEmpty() && !idColumn.isAutoIncrement()) {
                 throw new IntegrityException(
                         "You must set an id that is not auto increment.\n" +
-                        "Field: '" + idColumns.get(0).getName() + "' is not set.\n" +
+                        "Field: '" + idColumn.getName() + "' is not set.\n" +
                         "Add auto increment or set this field.");
             }
         }
@@ -175,7 +175,7 @@ public class EntityPersisterImpl implements EntityPersister {
             // FIXME does it work for composite keys?
             Long generatedId = jdbc.insert(sql.toString(), values.toArray());
             if (!isCompositeKey) {
-                ReflectionUtils.setFieldValue(entity, idColumns.get(0).getName(), generatedId);
+                ReflectionUtils.setFieldValue(entity, idColumn.getName(), generatedId);
             }
         } catch (Exception e) {
             throw new RuntimeException("Error inserting entity " + entity, e);
@@ -196,7 +196,7 @@ public class EntityPersisterImpl implements EntityPersister {
         try {
             Object entity = metadata.getEntityClass().getDeclaredConstructor().newInstance();
 
-            for (PropertyMetadata prop : metadata.getProperties()) {
+            for (PropertyMetadata prop : metadata.getProperties().values()) {
                 Object value = rs.getObject(prop.getColumnName());
 
                 // Konwersja Integer -> Long dla wszystkich pól Long

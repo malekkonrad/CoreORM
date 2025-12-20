@@ -15,8 +15,7 @@ public class Employee {
 
     // FIXME handle id on the foreign key
     // FIXME error on column annotation
-    // id on foreign key
-    @Id
+    // FIXME id on foreign key
     @OneToOne(mappedBy = "employer")
     @JoinColumn(nullable = true)
     private Employee employer;

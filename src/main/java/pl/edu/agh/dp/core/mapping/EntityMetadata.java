@@ -5,10 +5,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
-import java.util.ArrayDeque;
-import java.util.ArrayList;
-import java.util.Deque;
-import java.util.List;
+import java.util.*;
 
 @Getter
 @Setter
@@ -17,10 +14,11 @@ import java.util.List;
 public class EntityMetadata {
     Class<?> entityClass;
     String tableName;
-    List<PropertyMetadata> idColumns = new ArrayList<>();
-    List<PropertyMetadata> properties = new ArrayList<>();
-    List<PropertyMetadata> fkColumns = new ArrayList<>();
-    List<AssociationMetadata> associationMetadata =  new ArrayList<>(); // change to hashset?
+    // maps field name to metadata
+    Map<String, PropertyMetadata> idColumns = new HashMap<>();
+    Map<String, PropertyMetadata> properties = new HashMap<>();
+    Map<String, PropertyMetadata> fkColumns = new HashMap<>();
+    Map<String, AssociationMetadata> associationMetadata =  new HashMap<>();
 
 
     // inheritance
@@ -32,12 +30,12 @@ public class EntityMetadata {
     }
 
     public void addProperty(PropertyMetadata pm) {
-        properties.add(pm);
-        if (pm.isId) idColumns.add(pm);
+        properties.put(pm.getName(), pm);
+        if (pm.isId) idColumns.put(pm.getName(), pm);
     }
 
     public void addAssociationMetadata(AssociationMetadata am) {
-        associationMetadata.add(am);
+        associationMetadata.put(am.getField(), am);
     }
 
     // for testing purposes
@@ -57,16 +55,15 @@ public class EntityMetadata {
 
     public List<PropertyMetadata> getColumnsForSingleTable() {
         EntityMetadata root = getInheritanceMetadata().getRootClass();
-        List<PropertyMetadata> cols = new ArrayList<>();
 
         // FIXME - not sure it's right
-        cols.addAll(root.getProperties());
+        List<PropertyMetadata> cols = new ArrayList<>(root.getProperties().values());
 
         // traverse through tree
         Deque<EntityMetadata> stack = new ArrayDeque<>(root.getInheritanceMetadata().getChildren());
         while (!stack.isEmpty()) {
             EntityMetadata m = stack.pop();
-            cols.addAll(m.getProperties());     // FIXME same question - how to get all columns
+            cols.addAll(m.getProperties().values());     // FIXME same question - how to get all columns
             stack.addAll(m.getInheritanceMetadata().getChildren());
         }
         return cols;
@@ -84,7 +81,7 @@ public class EntityMetadata {
         }
 
         while (!chain.isEmpty()) {
-            cols.addAll(chain.pop().getProperties());       // FIXME same earlier
+            cols.addAll(chain.pop().getProperties().values());       // FIXME same earlier
         }
 
         return cols;

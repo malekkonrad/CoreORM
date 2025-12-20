@@ -116,7 +116,8 @@ public class MetadataBuilder {
                         false,
                         isNullable,
                         false,
-                        false
+                        false,
+                        null
                 );
         meta.addProperty(pm);
         if (isId) idProperties.add(pm);
@@ -144,6 +145,7 @@ public class MetadataBuilder {
                             false,
                             false,
                             false,
+                            null,
                             null
                     )
             );
@@ -289,7 +291,8 @@ public class MetadataBuilder {
                         isUnique,
                         isNullable,
                         isIndex,
-                        defaultValue
+                        defaultValue,
+                        null
                 );
         meta.addProperty(pm);
         if (isId) idProperties.add(pm);

@@ -126,7 +126,7 @@ public class SchemaGenerator {
                 .append(" (");
 
         StringBuilder primary_keys = new StringBuilder();
-        for (PropertyMetadata pm : meta.getProperties()) {
+        for (PropertyMetadata pm : meta.getProperties().values()) {
             sb.append(pm.getColumnName()).append(" ")
                     .append(pm.getSqlType()).append(" ");
             if (pm.isNullable()) sb.append("NULL ");
