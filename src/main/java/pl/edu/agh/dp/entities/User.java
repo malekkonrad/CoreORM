@@ -9,7 +9,7 @@ import pl.edu.agh.dp.core.mapping.InheritanceType;
 @Setter
 @Entity
 @Table(name = "users")
-@Inheritance(strategy = InheritanceType.SINGLE_TABLE)
+@Inheritance(strategy = InheritanceType.TABLE_PER_CLASS)
 public class User {
     @Id(autoIncrement = false)
     private Long id;

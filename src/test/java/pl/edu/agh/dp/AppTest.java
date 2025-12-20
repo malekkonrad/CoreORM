@@ -67,7 +67,7 @@ public class AppTest {
         session.save(e);
         session.commit();
         User user = session.find(User.class, 1L);
-        session.close();
+//        session.close();
 
 
         // Sprawdź bezpośrednio w bazie
