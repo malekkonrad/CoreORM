@@ -33,7 +33,7 @@ public class EntityPersisterImpl implements EntityPersister {
 
     @Override
     public Object findById(Object id, Session session) {
-        return  inheritanceStrategy.findById(id, session );
+        return  inheritanceStrategy.findById(id, session);
 
 //        try {
 //            JdbcExecutor jdbc = session.getJdbcExecutor();

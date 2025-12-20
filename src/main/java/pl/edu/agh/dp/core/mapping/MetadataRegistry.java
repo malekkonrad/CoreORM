@@ -112,9 +112,9 @@ public class MetadataRegistry {
         }
         // Default SINGLE_TABLE
         if (clazz.getSuperclass() != Object.class && clazz.getSuperclass().isAnnotationPresent(Entity.class)) {
-            return InheritanceType.SINGLE_TABLE;
+            return InheritanceType.TABLE_PER_CLASS;
         }
-        return InheritanceType.SINGLE_TABLE; // FIXME: zastanawiam się co w przypadku braku dziedziczenia - NoInheritance???
+        return InheritanceType.TABLE_PER_CLASS; // FIXME: zastanawiam się co w przypadku braku dziedziczenia - NoInheritance???
     }
 
     private boolean isEntity(Class<?> clazz) {

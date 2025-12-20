@@ -4,13 +4,14 @@ import lombok.Getter;
 import lombok.Setter;
 import pl.edu.agh.dp.api.annotations.*;
 
+
 import java.util.List;
 //@Entity
 @Getter
 @Setter
-public class Employee extends User {
-//    @Id
-//    private int id;
+public class Employee {
+    @Id
+    private Long id;
     private double salary;
 
     private int departmentId;

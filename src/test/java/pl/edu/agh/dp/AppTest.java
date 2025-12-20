@@ -62,7 +62,7 @@ public class AppTest {
 
         Employee e = new Employee();
         e.setId(2L);
-        e.setName("Konrad");
+//        e.setName("Konrad");
         e.setSalary(1000.0);
         session.save(e);
         session.commit();

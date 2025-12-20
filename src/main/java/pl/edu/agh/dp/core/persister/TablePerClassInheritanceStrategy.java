@@ -61,6 +61,8 @@ public class TablePerClassInheritanceStrategy extends AbstractInheritanceStrateg
             }
         }
 
+
+        // FIXME nie działa @Mateusz
 //        if (isCompositeKey) {
 //            if (idProvided.size() != idColumns.size()) {
 //                List<String> compositeKey = new ArrayList<>();
