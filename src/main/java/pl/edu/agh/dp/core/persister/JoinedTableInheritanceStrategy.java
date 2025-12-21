@@ -7,10 +7,9 @@ import pl.edu.agh.dp.core.mapping.InheritanceMetadata;
 import pl.edu.agh.dp.core.mapping.PropertyMetadata;
 import pl.edu.agh.dp.core.util.ReflectionUtils;
 
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.List;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.util.*;
 
 public class JoinedTableInheritanceStrategy extends AbstractInheritanceStrategy {
 
@@ -90,26 +89,30 @@ public class JoinedTableInheritanceStrategy extends AbstractInheritanceStrategy 
         return sb.toString();
     }
 
+    private List<EntityMetadata> buildInheritanceChain() {
+        List<EntityMetadata> visitingChain =  new ArrayList<>();
+        visitingChain.add(entityMetadata);
+
+        EntityMetadata current = entityMetadata;
+        while(current.getInheritanceMetadata().getParent() != null) {
+            visitingChain.add(current.getInheritanceMetadata().getParent());
+            current = current.getInheritanceMetadata().getParent();
+        }
+        Collections.reverse(visitingChain);
+
+        return visitingChain;
+    }
+
     @Override
     public Object insert(Object entity, Session session) {
         try {
             JdbcExecutor jdbc = session.getJdbcExecutor();
 
             Long generatedId = null;
-            List<EntityMetadata> visitingChain =  new ArrayList<>();
-            visitingChain.add(entityMetadata);
+            List<EntityMetadata> visitingChain =  buildInheritanceChain();
 
-            EntityMetadata current = entityMetadata;
-            while(current.getInheritanceMetadata().getParent() != null) {
-                visitingChain.add(current.getInheritanceMetadata().getParent());
-                current = current.getInheritanceMetadata().getParent();
-            }
+            EntityMetadata root = entityMetadata.getInheritanceMetadata().getRootClass();
 
-            EntityMetadata root = current.getInheritanceMetadata().getRootClass();
-
-
-            // reversed because we have to start in the root
-            Collections.reverse(visitingChain);
             for (EntityMetadata meta : visitingChain) {
                 List<String> columns = new ArrayList<>();
                 List<Object> values = new ArrayList<>();
@@ -190,7 +193,25 @@ public class JoinedTableInheritanceStrategy extends AbstractInheritanceStrategy 
 
     @Override
     public Object findById(Object id, Session session) {
-        return null;
+        try {
+            JdbcExecutor jdbc = session.getJdbcExecutor();
+//
+            // Build JOIN query across all tables in hierarchy
+            String sql = buildJoinQuery();
+
+            // Get ID column name from root
+            EntityMetadata root = entityMetadata.getInheritanceMetadata().getRootClass();
+            PropertyMetadata idColumn = root.getIdColumns().values().iterator().next();
+
+            sql += " WHERE " + root.getTableName() + "." + idColumn.getColumnName() + " = ?";
+
+            System.out.println("Joined FindById SQL: " + sql);
+
+            return jdbc.queryOne(sql, this::mapEntity, id).orElse(null);
+//            return null;
+        } catch (Exception e) {
+            throw new RuntimeException("Error finding entity with id = " + id, e);
+        }
     }
 
     @Override
@@ -207,4 +228,163 @@ public class JoinedTableInheritanceStrategy extends AbstractInheritanceStrategy 
             return false;
         }
     }
+
+    private String buildJoinQuery() {
+        EntityMetadata root = entityMetadata.getInheritanceMetadata().getRootClass();
+        List<EntityMetadata> chain = buildInheritanceChain();
+
+        // SELECT columns from all tables
+        List<String> selectColumns = new ArrayList<>();
+
+        for (EntityMetadata meta : chain) {
+            for (PropertyMetadata prop : meta.getProperties().values()) {
+                if (fieldBelongsToClass(prop, meta.getEntityClass())) {
+                    selectColumns.add(meta.getTableName() + "." + prop.getColumnName() +
+                            " AS " + meta.getTableName() + "_" + prop.getColumnName());
+                }
+            }
+        }
+
+        StringBuilder sql = new StringBuilder();
+        sql.append("SELECT ").append(String.join(", ", selectColumns));
+        sql.append("\nFROM ").append(root.getTableName());
+
+        // Build JOINs from root down to current entity
+        for (int i = 1; i < chain.size(); i++) {
+            EntityMetadata child = chain.get(i);
+            EntityMetadata parent = child.getInheritanceMetadata().getParent();
+
+            PropertyMetadata idProp = parent.getIdColumns().values().iterator().next();
+
+            sql.append("\nLEFT JOIN ").append(child.getTableName())
+                    .append(" ON ").append(parent.getTableName()).append(".").append(idProp.getColumnName())
+                    .append(" = ").append(child.getTableName()).append(".").append(idProp.getColumnName());
+        }
+        return sql.toString();
+    }
+
+    private Object mapEntity(ResultSet rs) throws SQLException {
+        try {
+            // Determine actual class from available data
+            Class<?> actualClass = determineActualClass(rs);
+
+            Object entity = actualClass.getDeclaredConstructor().newInstance();
+
+            // Map fields from all tables in hierarchy
+            List<EntityMetadata> chain = buildInheritanceChainForClass(actualClass);
+
+            for (EntityMetadata meta : chain) {
+                for (PropertyMetadata prop : meta.getProperties().values()) {
+                    if (!fieldBelongsToClass(prop, meta.getEntityClass())) {
+                        continue;
+                    }
+
+                    try {
+                        String columnAlias = meta.getTableName() + "_" + prop.getColumnName();
+                        Object value = getValueFromResultSet(rs, columnAlias, prop.getType());
+
+                        if (value != null) {
+                            ReflectionUtils.setFieldValue(entity, prop.getName(), value);
+                        }
+                    } catch (SQLException e) {
+                        // Column might not exist if LEFT JOIN returned NULL
+                    }
+                }
+            }
+
+            return entity;
+
+        } catch (Exception e) {
+            throw new SQLException("Failed to map entity: " + entityMetadata.getEntityClass().getName(), e);
+        }
+    }
+
+    private Class<?> determineActualClass(ResultSet rs) throws SQLException {
+        // Check which tables have data by checking non-null child columns
+        List<EntityMetadata> chain = buildInheritanceChain();
+
+        // Start from most specific (leaf) and work up
+        for (int i = chain.size() - 1; i >= 0; i--) {
+            EntityMetadata meta = chain.get(i);
+
+            // Check if any non-ID column from this table has data
+            for (PropertyMetadata prop : meta.getProperties().values()) {
+                if (!prop.isId() && fieldBelongsToClass(prop, meta.getEntityClass())) {
+                    try {
+                        String columnAlias = meta.getTableName() + "_" + prop.getColumnName();
+                        Object value = rs.getObject(columnAlias);
+                        if (value != null) {
+                            return meta.getEntityClass();
+                        }
+                    } catch (SQLException e) {
+                        // Continue checking
+                    }
+                }
+            }
+        }
+
+        // Default to root class
+        return entityMetadata.getInheritanceMetadata().getRootClass().getEntityClass();
+    }
+
+
+
+    private Object getValueFromResultSet(ResultSet rs, String columnName, Class<?> type) throws SQLException {
+        if (type == Long.class || type == long.class) {
+            long val = rs.getLong(columnName);
+            return rs.wasNull() ? null : val;
+        } else if (type == Integer.class || type == int.class) {
+            int val = rs.getInt(columnName);
+            return rs.wasNull() ? null : val;
+        } else if (type == String.class) {
+            return rs.getString(columnName);
+        } else if (type == Double.class || type == double.class) {
+            double val = rs.getDouble(columnName);
+            return rs.wasNull() ? null : val;
+        } else if (type == Boolean.class || type == boolean.class) {
+            boolean val = rs.getBoolean(columnName);
+            return rs.wasNull() ? null : val;
+        }
+
+        return rs.getObject(columnName);
+    }
+
+    private List<EntityMetadata> buildInheritanceChainForClass(Class<?> clazz) {
+        // Find metadata for this class and build its chain
+        EntityMetadata meta = findMetadataForClass(clazz);
+        if (meta == null) {
+            return Collections.emptyList();
+        }
+
+        List<EntityMetadata> chain = new ArrayList<>();
+        EntityMetadata current = meta;
+
+        while (current != null) {
+            chain.add(0, current);
+            current = current.getInheritanceMetadata().getParent();
+        }
+
+        return chain;
+    }
+
+    private EntityMetadata findMetadataForClass(Class<?> clazz) {
+        // Search through hierarchy
+        EntityMetadata root = entityMetadata.getInheritanceMetadata().getRootClass();
+        if (root.getEntityClass().equals(clazz)) {
+            return root;
+        }
+
+        Deque<EntityMetadata> queue = new ArrayDeque<>(root.getInheritanceMetadata().getChildren());
+        while (!queue.isEmpty()) {
+            EntityMetadata meta = queue.poll();
+            if (meta.getEntityClass().equals(clazz)) {
+                return meta;
+            }
+            queue.addAll(meta.getInheritanceMetadata().getChildren());
+        }
+
+        return null;
+    }
+
+
 }

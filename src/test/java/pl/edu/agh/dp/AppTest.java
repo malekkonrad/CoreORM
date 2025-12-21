@@ -102,6 +102,8 @@ public class AppTest {
         session.commit();
         User user = session.find(User.class, 1L);
         List<Dog> animals = session.findAll(Dog.class);
+        Dog dog1234 = session.find(Dog.class, 3L);
+        System.out.println("animals size: " + dog1234.getName());
 //        Dog dog123 =  session.find(Dog.class, 1L);
 //        System.out.println(dog123.getId() + " " + dog123.getName());
         System.out.println(animals.toString());
