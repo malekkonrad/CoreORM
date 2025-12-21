@@ -188,7 +188,33 @@ public class JoinedTableInheritanceStrategy extends AbstractInheritanceStrategy 
 
     @Override
     public void delete(Object entity, Session session) {
+        try {
+            JdbcExecutor jdbc = session.getJdbcExecutor();
+            List<EntityMetadata> chain = buildInheritanceChain();
 
+            // DELETE od najdalszego dziecka do roota (żeby nie naruszyć foreign keys)
+            Collections.reverse(chain);
+
+            EntityMetadata root = entityMetadata.getInheritanceMetadata().getRootClass();
+            Object idValue = getIdValue(entity);
+            Object[] idParams = prepareIdParams(idValue);
+
+            for (EntityMetadata meta : chain) {
+                String whereClause = buildWhereClause(root);
+
+                StringBuilder sql = new StringBuilder();
+                sql.append("DELETE FROM ").append(meta.getTableName())
+                        .append(" WHERE ").append(whereClause);
+
+                System.out.println("Joined DELETE SQL (" + meta.getTableName() + "): " + sql);
+                System.out.println("ID: " + idValue);
+
+                jdbc.update(sql.toString(), idParams);
+            }
+
+        } catch (Exception e) {
+            throw new RuntimeException("Error deleting entity with joined table strategy: " + entity, e);
+        }
     }
 
     @Override
