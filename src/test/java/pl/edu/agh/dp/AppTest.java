@@ -101,15 +101,27 @@ public class AppTest {
 
         session.commit();
         User user = session.find(User.class, 1L);
+        System.out.println(user.getName());
         List<Dog> animals = session.findAll(Dog.class);
-        Dog dog1234 = session.find(Dog.class, 3L);
-        System.out.println("animals size: " + dog1234.getName());
-//        Dog dog123 =  session.find(Dog.class, 1L);
-//        System.out.println(dog123.getId() + " " + dog123.getName());
-        System.out.println(animals.toString());
+//        System.out.println(animals.toString());
         for (Dog d : animals) {
             System.out.println(d.getName());
         }
+
+
+
+        Dog dog1234 = session.find(Dog.class, 2L);
+        System.out.println("animal 2l Name: " + dog1234.getName());
+
+
+
+        List<User> users =  session.findAll(User.class);
+        for (User userX : users) {
+            System.out.println(userX.getName());
+        }
+ //        Dog dog123 =  session.find(Dog.class, 1L);
+//        System.out.println(dog123.getId() + " " + dog123.getName());
+
 //        session.close();
 
         // Sprawdź bezpośrednio w bazie

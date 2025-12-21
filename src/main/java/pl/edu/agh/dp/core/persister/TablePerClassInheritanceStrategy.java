@@ -4,6 +4,7 @@ import pl.edu.agh.dp.api.Session;
 import pl.edu.agh.dp.core.exceptions.IntegrityException;
 import pl.edu.agh.dp.core.jdbc.JdbcExecutor;
 import pl.edu.agh.dp.core.mapping.EntityMetadata;
+import pl.edu.agh.dp.core.mapping.InheritanceMetadata;
 import pl.edu.agh.dp.core.mapping.MetadataRegistry;
 import pl.edu.agh.dp.core.mapping.PropertyMetadata;
 import pl.edu.agh.dp.core.util.ReflectionUtils;
@@ -133,11 +134,12 @@ public class TablePerClassInheritanceStrategy extends AbstractInheritanceStrateg
             JdbcExecutor jdbc = session.getJdbcExecutor();
 
             assert entityMetadata != null;
-            Collection<PropertyMetadata> idColumns = entityMetadata.getIdColumns().values();
+            EntityMetadata root = entityMetadata.getInheritanceMetadata().getRootClass();
+            Collection<PropertyMetadata> idColumns = root.getIdColumns().values();
+            System.out.println("ID columns: " + idColumns);
 
             List<String> columns = new ArrayList<>();
-
-            for (PropertyMetadata pm : entityMetadata.getProperties().values()) {
+            for (PropertyMetadata pm : entityMetadata.getColumnsForConcreteTable()) {
                 columns.add(pm.getColumnName());
             }
 
@@ -197,6 +199,9 @@ public class TablePerClassInheritanceStrategy extends AbstractInheritanceStrateg
                 }
             }
 
+            System.out.println("SELECT findById: ");
+            System.out.println(sql.toString());
+
         return jdbc.queryOne(sql.toString(), this::mapEntity, params)
             .orElse(null);
 
@@ -234,15 +239,21 @@ public class TablePerClassInheritanceStrategy extends AbstractInheritanceStrateg
             assert entityMetadata != null;
             Object entity = entityMetadata.getEntityClass().getDeclaredConstructor().newInstance();
 
-            for (PropertyMetadata prop : entityMetadata.getProperties().values()) {
-                Object value = rs.getObject(prop.getColumnName());
+            for (PropertyMetadata prop : entityMetadata.getColumnsForConcreteTable()) {
+                try {
+                    Object value = rs.getObject(prop.getColumnName());
 
-                // Konwersja Integer -> Long dla wszystkich pól Long
-                if (value instanceof Integer && prop.getType() == Long.class) {
-                    value = ((Integer) value).longValue();
+                    // Konwersja Integer -> Long dla wszystkich pól Long
+                    if (value instanceof Integer && prop.getType() == Long.class) {
+                        value = ((Integer) value).longValue();
+                    }
+
+                    if (value != null) {
+                        ReflectionUtils.setFieldValue(entity, prop.getName(), value);
+                    }
+                } catch (SQLException e) {
+                    System.err.println("Failed to get column: " + prop.getColumnName() + " - " + e.getMessage());
                 }
-
-                ReflectionUtils.setFieldValue(entity, prop.getName(), value);
             }
 
             return entity;
