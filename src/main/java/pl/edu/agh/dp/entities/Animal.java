@@ -12,7 +12,7 @@ import pl.edu.agh.dp.core.mapping.InheritanceType;
 @Setter
 @NoArgsConstructor
 @Entity
-@Inheritance(strategy = InheritanceType.SINGLE_TABLE)
+@Inheritance(strategy = InheritanceType.TABLE_PER_CLASS)
 public class Animal {
     @Id(autoIncrement = false)
     Long id;

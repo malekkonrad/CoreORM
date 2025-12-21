@@ -113,10 +113,18 @@ public class AppTest {
         System.out.println("animal 2l Name: " + dog1234.getName());
 
         session.delete(dog1234);
+        session.delete(user);
         session.commit();
 
         Dog dogAfterDelete = session.find(Dog.class, 2L);
         assertNull(dogAfterDelete);
+        User userAfetDelete =session.find(User.class, 1L);
+        assertNull(userAfetDelete);
+
+
+
+
+
 //        System.out.println("animal 2l Name: " + dogAfterDelete.getName());
 
 

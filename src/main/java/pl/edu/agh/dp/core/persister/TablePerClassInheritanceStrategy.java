@@ -122,7 +122,25 @@ public class TablePerClassInheritanceStrategy extends AbstractInheritanceStrateg
 
     @Override
     public void delete(Object entity, Session session) {
+        String tableName = entityMetadata.getTableName();
 
+        EntityMetadata rootMetadata = this.entityMetadata.getInheritanceMetadata().getRootClass();
+
+        Object idValue = getIdValue(entity);
+        String whereClause = buildWhereClause(rootMetadata);
+        Object[] idParams = prepareIdParams(idValue);
+
+        String sql = "DELETE FROM " + tableName + " WHERE " + whereClause;
+
+        System.out.println("TablePerClass DELETE SQL: " + sql);
+        System.out.println("ID: " + idValue);
+
+        try {
+            JdbcExecutor jdbc = session.getJdbcExecutor();
+            jdbc.update(sql, idParams);
+        } catch (Exception e) {
+            throw new RuntimeException("Error deleting entity " + entity, e);
+        }
     }
 
     @Override
