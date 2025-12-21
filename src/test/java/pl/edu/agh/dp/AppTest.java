@@ -10,10 +10,13 @@ import pl.edu.agh.dp.api.Configuration;
 import pl.edu.agh.dp.api.Orm;
 import pl.edu.agh.dp.api.Session;
 import pl.edu.agh.dp.api.SessionFactory;
+import pl.edu.agh.dp.entities.Animal;
+import pl.edu.agh.dp.entities.Dog;
 import pl.edu.agh.dp.entities.Employee;
 import pl.edu.agh.dp.entities.User;
 
 import java.sql.*;
+import java.util.List;
 
 /**
  * Unit test for simple App.
@@ -29,6 +32,18 @@ public class AppTest {
     @BeforeEach
     public void setUp() {
 
+        try (Connection conn = DriverManager.getConnection("jdbc:sqlite:src/test/resources/test.db");
+             Statement stmt = conn.createStatement()) {
+//            stmt.execute("DELETE FROM users");
+            stmt.execute("DELETE FROM animals");
+            stmt.execute("DELETE FROM dogs");
+//            stmt.execute("DROP SCHEMA public CASCADE;");
+//            stmt.execute("CREATE SCHEMA public;");
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+
+
         config.register(User.class, Employee.class);
         sessionFactory = config.buildSessionFactory();
         session = sessionFactory.openSession();
@@ -43,6 +58,7 @@ public class AppTest {
         try (Connection conn = DriverManager.getConnection("jdbc:sqlite:src/test/resources/test.db");
              Statement stmt = conn.createStatement()) {
 //            stmt.execute("DELETE FROM users");
+//            stmt.execute("DELETE FROM animals");
 //            stmt.execute("DROP SCHEMA public CASCADE;");
 //            stmt.execute("CREATE SCHEMA public;");
         } catch (SQLException e) {
@@ -65,8 +81,24 @@ public class AppTest {
 //        e.setName("Konrad");
         e.setSalary(1000.0);
         session.save(e);
+
+        // animals:
+        Animal dog = new Dog();
+        dog.setId(1L);
+        dog.setName("Pies");
+        session.save(dog);
+
+        Animal dog2 =  new Dog();
+        dog2.setId(2L);
+        dog2.setName("Pies2");
+        session.save(dog2);
+
         session.commit();
         User user = session.find(User.class, 1L);
+        List<Dog> animals = session.findAll(Dog.class);
+//        Dog dog123 =  session.find(Dog.class, 1L);
+//        System.out.println(dog123.getId() + " " + dog123.getName());
+        System.out.println(animals.toString());
 //        session.close();
 
 

@@ -5,7 +5,7 @@ import pl.edu.agh.dp.api.annotations.Id;
 
 @Entity
 public class Husky extends Dog {
-    @Id
-    Long huskyId;
+//    @Id
+//    Long huskyId;
     String how;
 }

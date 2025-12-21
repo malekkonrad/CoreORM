@@ -104,7 +104,8 @@ public class SingleTableInheritanceStrategy extends AbstractInheritanceStrategy 
             Long generatedId = jdbc.insert(sql.toString(), values.toArray());
             System.out.println("Generated ID: " + generatedId);
             // Ustaw wygenerowane ID
-            PropertyMetadata idProp = rootMetadata.getIdColumns().get(0);
+            // FIXME important!!!!!!!!!!!!!!!!!!!!!!!!
+            PropertyMetadata idProp = rootMetadata.getIdColumns().get("id");
             if (idProp.isAutoIncrement()) {
                 ReflectionUtils.setFieldValue(entity, idProp.getName(), generatedId);
             }
@@ -130,7 +131,9 @@ public class SingleTableInheritanceStrategy extends AbstractInheritanceStrategy 
         EntityMetadata rootMetadata = this.entityMetadata.getInheritanceMetadata().getRootClass();
         String tableName = rootMetadata.getTableName();
         String discriminatorColumn = rootMetadata.getInheritanceMetadata().getDiscriminatorColumnName();
-        PropertyMetadata idColumn = rootMetadata.getIdColumns().get(0);
+
+        // FIXME
+        PropertyMetadata idColumn = rootMetadata.getIdColumns().get("id");
 
         String sql = "SELECT * FROM " + tableName + " WHERE " + idColumn.getColumnName() + " = ?";
 
@@ -145,21 +148,47 @@ public class SingleTableInheritanceStrategy extends AbstractInheritanceStrategy 
 
     @Override
     public <T> List<T> findAll(Class<T> type, Session session) {
-        return List.of();
+        EntityMetadata rootMetadata = this.entityMetadata.getInheritanceMetadata().getRootClass();
+        String tableName = rootMetadata.getTableName();
+        String discriminatorColumn = rootMetadata.getInheritanceMetadata().getDiscriminatorColumnName();
+
+        String discName = rootMetadata.getInheritanceMetadata().getClassToDiscriminator().get(type);
+        String sql = "SELECT * FROM " + tableName + " WHERE " + discriminatorColumn + " = '" + discName +"'";
+        System.out.println("SQL: " + sql);
+
+        try {
+            JdbcExecutor jdbc = session.getJdbcExecutor();
+            List<Object> results = jdbc.query(sql, this::mapEntity);
+
+            List<T> filtered = new ArrayList<>();
+            for (Object obj : results) {
+                if (type.isInstance(obj)) {
+                    filtered.add(type.cast(obj));
+                }
+            }
+            return filtered;
+        } catch (Exception e) {
+            throw new RuntimeException("Error finding all entities", e);
+        }
     }
 
     private Object mapEntity(ResultSet rs) throws SQLException {
         try {
-            String discriminatorColumn = entityMetadata.getInheritanceMetadata().getDiscriminatorColumnName();
-            String discriminatorValue = rs.getString(discriminatorColumn);
 
-            Class<?> actualClass = entityMetadata.getInheritanceMetadata()
+            EntityMetadata rootMetadata = this.entityMetadata.getInheritanceMetadata().getRootClass();
+            String discriminatorColumn = rootMetadata.getInheritanceMetadata().getDiscriminatorColumnName();
+            if (discriminatorColumn==null){
+                System.out.println("discriminatorColumn is null");
+            }
+            String discriminatorValue = rs.getString("DTYPE");
+
+            Class<?> actualClass = rootMetadata.getInheritanceMetadata()
                     .getDiscriminatorToClass()
-                    .getOrDefault(discriminatorValue, entityMetadata.getEntityClass());
+                    .getOrDefault(discriminatorValue, rootMetadata.getEntityClass());
 
             Object entity = actualClass.getDeclaredConstructor().newInstance();
 
-            List<PropertyMetadata> allColumns = entityMetadata.getColumnsForSingleTable();
+            List<PropertyMetadata> allColumns = rootMetadata.getColumnsForSingleTable();
 
             for (PropertyMetadata pm : allColumns) {
                 if (pm.getColumnName().equals(discriminatorColumn)) {

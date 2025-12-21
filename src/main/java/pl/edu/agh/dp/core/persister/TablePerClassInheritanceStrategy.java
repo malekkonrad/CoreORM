@@ -207,7 +207,26 @@ public class TablePerClassInheritanceStrategy extends AbstractInheritanceStrateg
 
     @Override
     public <T> List<T> findAll(Class<T> type, Session session) {
-        return List.of();
+        String tableName = entityMetadata.getTableName();
+        String sql = "SELECT * FROM " + tableName;
+
+        // FIXME - maybe separate this code to private method in abstractInheritanceStrategy
+        System.out.println("SQL: " + sql);
+
+        try {
+            JdbcExecutor jdbc = session.getJdbcExecutor();
+            List<Object> results = jdbc.query(sql, this::mapEntity);
+
+            List<T> filtered = new ArrayList<>();
+            for (Object obj : results) {
+                if (type.isInstance(obj)) {
+                    filtered.add(type.cast(obj));
+                }
+            }
+            return filtered;
+        } catch (Exception e) {
+            throw new RuntimeException("Error finding all entities", e);
+        }
     }
 
     private Object mapEntity(ResultSet rs) throws SQLException {

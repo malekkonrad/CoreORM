@@ -68,6 +68,7 @@ public class JdbcExecutorImpl implements JdbcExecutor {
                 }
             }
         } catch (SQLException e) {
+            System.out.println(e.getMessage());
             throw new RuntimeException("Query failed: " + sql, e);
         }
         

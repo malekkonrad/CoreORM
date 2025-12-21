@@ -108,8 +108,8 @@ public class EntityPersisterImpl implements EntityPersister {
     }
 
     @Override
-    public List<Object> findAll(Class<?> entityClass, Session session) {
-        return List.of();
+    public  <T> List<T> findAll(Class<T> entityClass, Session session) {
+        return inheritanceStrategy.findAll(entityClass, session);
     }
 
     @Override

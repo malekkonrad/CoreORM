@@ -20,14 +20,9 @@ public class EntityMetadata {
     Map<String, PropertyMetadata> fkColumns = new HashMap<>();
     Map<String, AssociationMetadata> associationMetadata =  new HashMap<>();
 
-
     // inheritance
     Class<?> rootMetadata;
-    InheritanceMetadata inheritanceMetadata;    // only root classes will have
-
-    public boolean isRoot(){
-        return rootMetadata == null;
-    }
+    InheritanceMetadata inheritanceMetadata;
 
     public void addProperty(PropertyMetadata pm) {
         properties.put(pm.getName(), pm);

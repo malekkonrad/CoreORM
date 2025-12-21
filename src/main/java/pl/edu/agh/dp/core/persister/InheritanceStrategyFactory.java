@@ -10,9 +10,8 @@ public class InheritanceStrategyFactory {
 
     public static InheritanceStrategy build(InheritanceType type, EntityMetadata metadata) {
         return switch (type){
-            case NONE -> null;
             case SINGLE_TABLE -> new SingleTableInheritanceStrategy(metadata);
-            case JOINED -> null;
+            case JOINED -> new JoinedTableInheritanceStrategy(metadata);
             case TABLE_PER_CLASS -> new TablePerClassInheritanceStrategy(metadata);
         };
 

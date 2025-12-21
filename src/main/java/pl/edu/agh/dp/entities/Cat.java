@@ -5,7 +5,7 @@ import pl.edu.agh.dp.api.annotations.Id;
 
 @Entity
 public class Cat extends Animal {
-    @Id
-    private String catId;
+//    @Id
+//    private String catId;
     private String catName;
 }

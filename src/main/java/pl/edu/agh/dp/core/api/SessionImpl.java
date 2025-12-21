@@ -40,7 +40,8 @@ public class SessionImpl implements Session {
 
     @Override
     public <T> List<T> findAll(Class<T> entityClass) {
-        return List.of(); // TODO
+        List<T> entity = entityPersisters.get(entityClass).findAll(entityClass, this);
+        return entity;
     }
 
     @Override

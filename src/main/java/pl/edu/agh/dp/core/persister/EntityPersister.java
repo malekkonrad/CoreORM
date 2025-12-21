@@ -7,7 +7,7 @@ import java.util.List;
 
 public interface EntityPersister {
     Object findById(Object id, Session session);
-    List<Object> findAll(Class<?> entityClass, Session session);
+    <T> List<T> findAll(Class<T> entityClass, Session session);
     void insert(Object entity, Session session);
     void update(Object entity, Session session);
     void delete(Object entity, Session session);
