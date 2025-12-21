@@ -107,8 +107,10 @@ public class AppTest {
 //        Dog dog123 =  session.find(Dog.class, 1L);
 //        System.out.println(dog123.getId() + " " + dog123.getName());
         System.out.println(animals.toString());
+        for (Dog d : animals) {
+            System.out.println(d.getName());
+        }
 //        session.close();
-
 
         // Sprawdź bezpośrednio w bazie
 //        try (Connection conn = DriverManager.getConnection("jdbc:sqlite:src/test/resources/test.db");
@@ -122,8 +124,6 @@ public class AppTest {
 //        } catch (SQLException e) {
 //            e.printStackTrace();
 //        }
-
-
 
         assertEquals(u.getId(), user.getId());
         assertEquals(u.getEmail(), user.getEmail());

@@ -216,7 +216,29 @@ public class JoinedTableInheritanceStrategy extends AbstractInheritanceStrategy 
 
     @Override
     public <T> List<T> findAll(Class<T> type, Session session) {
-        return List.of();
+        try {
+            JdbcExecutor jdbc = session.getJdbcExecutor();
+
+            // Build JOIN query
+            String sql = buildJoinQuery();
+
+            System.out.println("Joined FindAll SQL: " + sql);
+
+            List<Object> results = jdbc.query(sql, this::mapEntity);
+
+            // Filter by exact type
+            List<T> filtered = new ArrayList<>();
+            for (Object obj : results) {
+                if (obj.getClass().equals(type)) {
+                    filtered.add(type.cast(obj));
+                }
+            }
+
+            return filtered;
+
+        } catch (Exception e) {
+            throw new RuntimeException("Error finding all entities of type: " + type, e);
+        }
     }
 
 
