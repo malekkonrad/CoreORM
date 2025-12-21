@@ -5,9 +5,11 @@ import pl.edu.agh.dp.core.jdbc.JdbcExecutor;
 import pl.edu.agh.dp.core.mapping.EntityMetadata;
 import pl.edu.agh.dp.core.mapping.InheritanceMetadata;
 import pl.edu.agh.dp.core.mapping.PropertyMetadata;
+import pl.edu.agh.dp.core.util.ReflectionUtils;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 
 public class JoinedTableInheritanceStrategy extends AbstractInheritanceStrategy {
@@ -90,7 +92,90 @@ public class JoinedTableInheritanceStrategy extends AbstractInheritanceStrategy 
 
     @Override
     public Object insert(Object entity, Session session) {
-        return null;
+        try {
+            JdbcExecutor jdbc = session.getJdbcExecutor();
+
+            Long generatedId = null;
+            List<EntityMetadata> visitingChain =  new ArrayList<>();
+            visitingChain.add(entityMetadata);
+
+            EntityMetadata current = entityMetadata;
+            while(current.getInheritanceMetadata().getParent() != null) {
+                visitingChain.add(current.getInheritanceMetadata().getParent());
+                current = current.getInheritanceMetadata().getParent();
+            }
+
+            EntityMetadata root = current.getInheritanceMetadata().getRootClass();
+
+
+            // reversed because we have to start in the root
+            Collections.reverse(visitingChain);
+            for (EntityMetadata meta : visitingChain) {
+                List<String> columns = new ArrayList<>();
+                List<Object> values = new ArrayList<>();
+
+                boolean isRoot = meta.getInheritanceMetadata().isRoot();
+                Collection<PropertyMetadata> idProps = meta.getIdColumns().values();
+
+                for (PropertyMetadata prop : meta.getProperties().values()) {
+                    // Check if field belongs to this specific class (not inherited)
+                    if (!fieldBelongsToClass(prop, meta.getEntityClass())) {
+                        continue;
+                    }
+
+                    columns.add(prop.getColumnName());
+
+                    if (prop.isId() && !isRoot && generatedId != null) {
+                        // Use ID from parent insert
+                        values.add(generatedId);
+                    } else {
+                        Object value = ReflectionUtils.getFieldValue(entity, prop.getName());
+                        values.add(value);
+                    }
+                }
+
+                if (!isRoot) {
+                    columns.add(root.getIdColumns().values().iterator().next().getColumnName());
+                    values.add(generatedId);
+                }
+
+
+                if (columns.isEmpty()) {
+                    continue; // Skip if no columns to insert
+                }
+
+                StringBuilder sql = new StringBuilder();
+                sql.append("INSERT INTO ")
+                        .append(meta.getTableName())
+                        .append(" (")
+                        .append(String.join(", ", columns))
+                        .append(") VALUES (")
+                        .append("?,".repeat(values.size()));
+                sql.deleteCharAt(sql.length() - 1);
+                sql.append(")");
+
+                System.out.println("Joined Insert SQL: " + sql);
+                System.out.println("Values: " + values);
+
+                Long currentId = jdbc.insert(sql.toString(), values.toArray());
+
+                // Store generated ID from root insert
+                if (isRoot) {
+                    generatedId = currentId;
+
+                    // Set ID on entity if auto-increment
+                    for (PropertyMetadata idProp : idProps) {
+                        if (idProp.isAutoIncrement()) {
+                            ReflectionUtils.setFieldValue(entity, idProp.getName(), generatedId);
+                        }
+                    }
+                }
+
+            }
+            return generatedId;
+        } catch (Exception e) {
+            throw new RuntimeException("Error inserting entity with joined table strategy: " + entity, e);
+        }
     }
 
     @Override
@@ -111,5 +196,15 @@ public class JoinedTableInheritanceStrategy extends AbstractInheritanceStrategy 
     @Override
     public <T> List<T> findAll(Class<T> type, Session session) {
         return List.of();
+    }
+
+
+    private boolean fieldBelongsToClass(PropertyMetadata prop, Class<?> targetClass) {
+        try {
+            targetClass.getDeclaredField(prop.getName());
+            return true;
+        } catch (NoSuchFieldException e) {
+            return false;
+        }
     }
 }

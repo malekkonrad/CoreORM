@@ -10,10 +10,7 @@ import pl.edu.agh.dp.api.Configuration;
 import pl.edu.agh.dp.api.Orm;
 import pl.edu.agh.dp.api.Session;
 import pl.edu.agh.dp.api.SessionFactory;
-import pl.edu.agh.dp.entities.Animal;
-import pl.edu.agh.dp.entities.Dog;
-import pl.edu.agh.dp.entities.Employee;
-import pl.edu.agh.dp.entities.User;
+import pl.edu.agh.dp.entities.*;
 
 import java.sql.*;
 import java.util.List;
@@ -92,6 +89,15 @@ public class AppTest {
         dog2.setId(2L);
         dog2.setName("Pies2");
         session.save(dog2);
+
+
+        Husky dog3 =  new Husky();
+        dog3.setId(3L);
+        dog3.setName("Pies3");
+        dog3.setHow("How How");
+
+        session.save(dog3);
+
 
         session.commit();
         User user = session.find(User.class, 1L);
