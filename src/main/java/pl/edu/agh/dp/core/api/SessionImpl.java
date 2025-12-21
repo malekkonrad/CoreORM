@@ -89,6 +89,9 @@ public class SessionImpl implements Session {
         for (Object entity : newEntities) {
             entityPersisters.get(entity.getClass()).insert(entity, this);
         }
+        for (Object entity : removedEntities) {
+            entityPersisters.get(entity.getClass()).delete(entity, this);
+        }
     }
 
     @Override

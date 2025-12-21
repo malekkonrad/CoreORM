@@ -1,8 +1,5 @@
 package pl.edu.agh.dp;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -14,6 +11,8 @@ import pl.edu.agh.dp.entities.*;
 
 import java.sql.*;
 import java.util.List;
+
+import static org.junit.jupiter.api.Assertions.*;
 
 /**
  * Unit test for simple App.
@@ -113,12 +112,18 @@ public class AppTest {
         Dog dog1234 = session.find(Dog.class, 2L);
         System.out.println("animal 2l Name: " + dog1234.getName());
 
+        session.delete(dog1234);
+        session.commit();
+
+        Dog dogAfterDelete = session.find(Dog.class, 2L);
+        assertNull(dogAfterDelete);
+//        System.out.println("animal 2l Name: " + dogAfterDelete.getName());
 
 
-        List<User> users =  session.findAll(User.class);
-        for (User userX : users) {
-            System.out.println(userX.getName());
-        }
+//        List<User> users =  session.findAll(User.class);
+//        for (User userX : users) {
+//            System.out.println(userX.getName());
+//        }
  //        Dog dog123 =  session.find(Dog.class, 1L);
 //        System.out.println(dog123.getId() + " " + dog123.getName());
 

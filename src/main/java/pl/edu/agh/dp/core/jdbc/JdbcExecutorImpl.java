@@ -95,7 +95,11 @@ public class JdbcExecutorImpl implements JdbcExecutor {
     public int update(String sql, Object... params) {
         try (PreparedStatement ps = connection.prepareStatement(sql)) {
             setParameters(ps, params);
-            return ps.executeUpdate();
+            int rows = ps.executeUpdate();
+            System.out.println("→ Rows affected: " + rows);
+            System.out.println("→ SQL: " + sql);
+            System.out.println("→ AutoCommit: " + connection.getAutoCommit());
+            return rows;
         } catch (SQLException e) {
             throw new RuntimeException("Update failed: " + sql, e);
         }

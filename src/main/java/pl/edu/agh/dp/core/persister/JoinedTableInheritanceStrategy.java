@@ -241,16 +241,6 @@ public class JoinedTableInheritanceStrategy extends AbstractInheritanceStrategy 
         }
     }
 
-
-    private boolean fieldBelongsToClass(PropertyMetadata prop, Class<?> targetClass) {
-        try {
-            targetClass.getDeclaredField(prop.getName());
-            return true;
-        } catch (NoSuchFieldException e) {
-            return false;
-        }
-    }
-
     private String buildJoinQuery() {
         EntityMetadata root = entityMetadata.getInheritanceMetadata().getRootClass();
         List<EntityMetadata> chain = buildInheritanceChain();
@@ -347,28 +337,6 @@ public class JoinedTableInheritanceStrategy extends AbstractInheritanceStrategy 
 
         // Default to root class
         return entityMetadata.getInheritanceMetadata().getRootClass().getEntityClass();
-    }
-
-
-
-    private Object getValueFromResultSet(ResultSet rs, String columnName, Class<?> type) throws SQLException {
-        if (type == Long.class || type == long.class) {
-            long val = rs.getLong(columnName);
-            return rs.wasNull() ? null : val;
-        } else if (type == Integer.class || type == int.class) {
-            int val = rs.getInt(columnName);
-            return rs.wasNull() ? null : val;
-        } else if (type == String.class) {
-            return rs.getString(columnName);
-        } else if (type == Double.class || type == double.class) {
-            double val = rs.getDouble(columnName);
-            return rs.wasNull() ? null : val;
-        } else if (type == Boolean.class || type == boolean.class) {
-            boolean val = rs.getBoolean(columnName);
-            return rs.wasNull() ? null : val;
-        }
-
-        return rs.getObject(columnName);
     }
 
     private List<EntityMetadata> buildInheritanceChainForClass(Class<?> clazz) {

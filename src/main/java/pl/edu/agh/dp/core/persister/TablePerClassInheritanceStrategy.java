@@ -4,8 +4,6 @@ import pl.edu.agh.dp.api.Session;
 import pl.edu.agh.dp.core.exceptions.IntegrityException;
 import pl.edu.agh.dp.core.jdbc.JdbcExecutor;
 import pl.edu.agh.dp.core.mapping.EntityMetadata;
-import pl.edu.agh.dp.core.mapping.InheritanceMetadata;
-import pl.edu.agh.dp.core.mapping.MetadataRegistry;
 import pl.edu.agh.dp.core.mapping.PropertyMetadata;
 import pl.edu.agh.dp.core.util.ReflectionUtils;
 

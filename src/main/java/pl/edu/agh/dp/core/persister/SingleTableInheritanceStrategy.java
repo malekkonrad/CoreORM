@@ -123,7 +123,24 @@ public class SingleTableInheritanceStrategy extends AbstractInheritanceStrategy 
 
     @Override
     public void delete(Object entity, Session session) {
+        EntityMetadata rootMetadata = this.entityMetadata.getInheritanceMetadata().getRootClass();
+        String tableName = rootMetadata.getTableName();
 
+        Object idValue = getIdValue(entity);
+        String whereClause = buildWhereClause(rootMetadata);
+        Object[] idParams = prepareIdParams(idValue);
+
+        String sql = "DELETE FROM " + tableName + " WHERE " + whereClause;
+
+        System.out.println("SingleTable DELETE SQL: " + sql);
+        System.out.println("ID: " + idValue);
+
+        try {
+            JdbcExecutor jdbc = session.getJdbcExecutor();
+            jdbc.update(sql, idParams);
+        } catch (Exception e) {
+            throw new RuntimeException("Error deleting entity " + entity, e);
+        }
     }
 
     @Override
@@ -238,7 +255,7 @@ public class SingleTableInheritanceStrategy extends AbstractInheritanceStrategy 
         return rs.getObject(columnName);
     }
 
-    private boolean fieldBelongsToClass(PropertyMetadata prop, Class<?> targetClass) {
+    protected boolean fieldBelongsToClass(PropertyMetadata prop, Class<?> targetClass) {
         try {
             // Sprawdź w aktualnej klasie i wszystkich nadklasach
             Class<?> current = targetClass;

@@ -195,7 +195,7 @@ public class EntityPersisterImpl implements EntityPersister {
 
     @Override
     public void delete(Object entity, Session session) {
-
+        inheritanceStrategy.delete(entity, session);
     }
 
     private Object mapEntity(ResultSet rs) throws SQLException {
