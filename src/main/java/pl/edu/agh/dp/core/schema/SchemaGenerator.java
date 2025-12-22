@@ -34,15 +34,23 @@ public class SchemaGenerator {
     }
 
     public void generate() {
+        List<EntityMetadata> sortedEntities = new ArrayList<>(registry.getEntities().values());
 
-        // creation of tables
-        for (EntityPersister entityPersister : entityPersisters.values()) {
-            String sql = entityPersister.getInheritanceStrategy().create(jdbcExecutor);
-            System.out.println(sql);
-            jdbcExecutor.createTable(sql);
+        sortedEntities.sort((m1, m2) -> {
+            Class<?> c1 = m1.getEntityClass();
+            Class<?> c2 = m2.getEntityClass();
+            return Integer.compare(getInheritanceDepth(c1), getInheritanceDepth(c2));
+        });
 
+        for (EntityMetadata metadata : sortedEntities) {
+            EntityPersister entityPersister = entityPersisters.get(metadata.getEntityClass());
+
+            if (entityPersister != null) {
+                String sql = entityPersister.getInheritanceStrategy().create(jdbcExecutor);
+                System.out.println("Executing SQL for " + metadata.getEntityClass().getSimpleName() + ": " + sql);
+                jdbcExecutor.createTable(sql);
+            }
         }
-
             // 2.  tabele pośrednie ManyToMany
 //            for (EntityMetadata meta : entities) {
 //                for (AssociationMetadata assoc : meta.getAssociationMetadata()) {
@@ -56,6 +64,15 @@ public class SchemaGenerator {
 //        } catch (Exception e) {
 //            throw new RuntimeException("Error while generating schema", e);
 //        }
+    }
+
+    private int getInheritanceDepth(Class<?> clazz) {
+        int depth = 0;
+        while (clazz != null && clazz != Object.class) {
+            depth++;
+            clazz = clazz.getSuperclass();
+        }
+        return depth;
     }
 
     private String createTableSql(EntityMetadata meta) {
@@ -88,23 +105,4 @@ public class SchemaGenerator {
         return sb.toString();
     }
 
-    ///  FIXME może się przyda jeszcze
-    private String createJoinTableSql(EntityMetadata owner,
-                                      AssociationMetadata assoc) {
-        String joinTable = assoc.getJoinTable();
-        // bardzo uproszczone – w realnym kodzie wziąłbyś typy kluczy itp.
-        String ownerFk = owner.getTableName() + "_id";
-        String targetFk = assoc.getTargetEntity().getSimpleName().toLowerCase() + "_id";
-
-        StringBuilder sb = new StringBuilder();
-        sb.append("CREATE TABLE IF NOT EXISTS ")
-                .append(joinTable)
-                .append(" (")
-                .append(ownerFk).append(" BIGINT NOT NULL, ")
-                .append(targetFk).append(" BIGINT NOT NULL")
-                // można dodać PK złożony, klucze obce itd.
-                .append(");");
-
-        return sb.toString();
-    }
 }

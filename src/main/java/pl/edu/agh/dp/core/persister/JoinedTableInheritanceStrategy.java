@@ -27,13 +27,20 @@ public class JoinedTableInheritanceStrategy extends AbstractInheritanceStrategy 
         List<String> columnDefs = new ArrayList<>();
         List<String> primaryKeys = new ArrayList<>();
 
-        // Add columns defined in this class only (not inherited ones)
         for (PropertyMetadata prop : entityMetadata.getProperties().values()) {
-            columnDefs.add("    " + prop.getColumnName() + " " + prop.getSqlType());
-
             if (prop.isId()) {
+                columnDefs.add("    " + prop.getColumnName() + " " + prop.getSqlType());
                 primaryKeys.add(prop.getColumnName());
             }
+        }
+
+
+        // Add columns defined in this class only (not inherited ones)
+        for (PropertyMetadata prop : entityMetadata.getProperties().values()) {
+            if (prop.isId()) {
+                continue;
+            }
+            columnDefs.add("    " + prop.getColumnName() + " " + prop.getSqlType());
         }
 
         sb.append(String.join(",\n", columnDefs));
@@ -109,44 +116,70 @@ public class JoinedTableInheritanceStrategy extends AbstractInheritanceStrategy 
             JdbcExecutor jdbc = session.getJdbcExecutor();
 
             Long generatedId = null;
-            List<EntityMetadata> visitingChain =  buildInheritanceChain();
+            // Zakładam, że visitingChain jest posortowany: Root -> Child -> GrandChild
+            List<EntityMetadata> visitingChain = buildInheritanceChain();
 
+            // Pobieramy metadane korzenia (tam gdzie jest definicja ID)
             EntityMetadata root = entityMetadata.getInheritanceMetadata().getRootClass();
+
+            // Pobieramy nazwę kolumny ID z korzenia (do użycia w podklasach)
+            String rootIdColumnName = root.getIdColumns().values().iterator().next().getColumnName();
 
             for (EntityMetadata meta : visitingChain) {
                 List<String> columns = new ArrayList<>();
                 List<Object> values = new ArrayList<>();
 
                 boolean isRoot = meta.getInheritanceMetadata().isRoot();
-                Collection<PropertyMetadata> idProps = meta.getIdColumns().values();
 
+                // Iterujemy po polach danej klasy
                 for (PropertyMetadata prop : meta.getProperties().values()) {
-                    // Check if field belongs to this specific class (not inherited)
+
+                    // 1. Sprawdzamy czy pole należy do tej konkretnej klasy (żeby nie dublować pól z dziedziczenia)
                     if (!fieldBelongsToClass(prop, meta.getEntityClass())) {
                         continue;
                     }
 
-                    columns.add(prop.getColumnName());
-
-                    if (prop.isId() && !isRoot && generatedId != null) {
-                        // Use ID from parent insert
-                        values.add(generatedId);
-                    } else {
-                        Object value = ReflectionUtils.getFieldValue(entity, prop.getName());
-                        values.add(value);
+                    // 2. Obsługa ID w tabeli ROOT (AutoIncrement)
+                    if (isRoot && prop.isId() && prop.isAutoIncrement()) {
+                        // ZMIANA: Jeśli to ROOT i AutoIncrement -> POMIJAMY w SQL.
+                        // Baza sama nada numer, my go odczytamy po wykonaniu inserta.
+                        continue;
                     }
+
+                    // Dodajemy standardowe pola (nie-ID lub ID nie-automatyczne)
+                    columns.add(prop.getColumnName());
+                    Object value = ReflectionUtils.getFieldValue(entity, prop.getName());
+                    values.add(value);
                 }
 
+                // 3. Obsługa ID w tabelach PODRZĘDNYCH (nie-Root)
                 if (!isRoot) {
-                    columns.add(root.getIdColumns().values().iterator().next().getColumnName());
+                    if (generatedId == null) {
+                        throw new RuntimeException("Generated ID is null but trying to insert into child table! Root insert failed?");
+                    }
+
+                    // WAŻNE: W tabelach podrzędnych (Joined) klucz główny jest też kluczem obcym do Roota.
+                    // Musimy go dodać RĘCZNIE, używając ID wygenerowanego wcześniej.
+
+                    // Używamy nazwy kolumny ID zdefiniowanej w tej tabeli (meta) lub z roota,
+                    // zazwyczaj w JOINED nazwa kolumny ID jest taka sama lub mapowana.
+                    // Tutaj biorę nazwę kolumny ID z bieżącej tabeli:
+//                    String childIdColumnName = meta.getIdColumns().values().iterator().next().getColumnName();
+
+
+                    // FIXME duże uproszczenie - łatwa zmiana chyba wziąć pierwszy element - i guess
+                    String childIdColumnName = root.getIdColumns().get("id").getColumnName();
+                    columns.add(childIdColumnName);
                     values.add(generatedId);
                 }
 
-
                 if (columns.isEmpty()) {
-                    continue; // Skip if no columns to insert
+                    // Może się zdarzyć, że tabela podrzędna nie ma własnych pól poza ID,
+                    // ale i tak musimy zrobić INSERT samego ID, żeby zachować spójność dziedziczenia.
+                    if (isRoot) continue; // Jeśli root jest pusty (dziwne), to skip
                 }
 
+                // Budowanie SQL
                 StringBuilder sql = new StringBuilder();
                 sql.append("INSERT INTO ")
                         .append(meta.getTableName())
@@ -154,28 +187,44 @@ public class JoinedTableInheritanceStrategy extends AbstractInheritanceStrategy 
                         .append(String.join(", ", columns))
                         .append(") VALUES (")
                         .append("?,".repeat(values.size()));
-                sql.deleteCharAt(sql.length() - 1);
+
+                if (values.size() > 0) {
+                    sql.deleteCharAt(sql.length() - 1); // usuń ostatni przecinek
+                }
                 sql.append(")");
 
-                System.out.println("Joined Insert SQL: " + sql);
+                System.out.println("Joined Insert SQL (" + (isRoot ? "ROOT" : "CHILD") + "): " + sql);
                 System.out.println("Values: " + values);
 
-                Long currentId = jdbc.insert(sql.toString(), values.toArray());
+                // Wykonanie SQL
+                Long currentResult = jdbc.insert(sql.toString(), values.toArray());
 
-                // Store generated ID from root insert
+                // 4. Po insercie do ROOT - pobranie i ustawienie wygenerowanego ID
                 if (isRoot) {
-                    generatedId = currentId;
+                    // Jeśli mieliśmy autoincrement, baza zwróciła nam nowe ID
+                    // Jeśli nie, to currentResult może być null lub 0 (zależy od implementacji jdbc),
+                    // ale wtedy ID braliśmy z obiektu.
 
-                    // Set ID on entity if auto-increment
-                    for (PropertyMetadata idProp : idProps) {
-                        if (idProp.isAutoIncrement()) {
+                    boolean hasAutoIncrementId = meta.getIdColumns().values().stream().anyMatch(PropertyMetadata::isAutoIncrement);
+
+                    if (hasAutoIncrementId) {
+                        generatedId = currentResult; // To jest nasze ID z bazy (np. 15)
+
+                        // Ustawiamy to ID w obiekcie Java (Refleksja)
+                        for (PropertyMetadata idProp : meta.getIdColumns().values()) {
                             ReflectionUtils.setFieldValue(entity, idProp.getName(), generatedId);
                         }
+                    } else {
+                        // Jeśli nie było auto-increment, to ID musiał być ustawiony w obiekcie przed insertem
+                        // Musimy go pobrać, żeby użyć w tabelach podrzędnych
+                        String idPropName = meta.getIdColumns().values().iterator().next().getName();
+                        generatedId = (Long) ReflectionUtils.getFieldValue(entity, idPropName);
                     }
                 }
-
             }
+
             return generatedId;
+
         } catch (Exception e) {
             throw new RuntimeException("Error inserting entity with joined table strategy: " + entity, e);
         }

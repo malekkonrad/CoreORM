@@ -12,9 +12,9 @@ import pl.edu.agh.dp.core.mapping.InheritanceType;
 @Setter
 @NoArgsConstructor
 @Entity
-@Inheritance(strategy = InheritanceType.SINGLE_TABLE)
+@Inheritance(strategy = InheritanceType.JOINED)
 public class Animal {
-    @Id(autoIncrement = false)
+    @Id
     Long id;
     String name;
 }

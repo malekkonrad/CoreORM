@@ -53,7 +53,8 @@ public class MetadataBuilder {
         }
         // FIXME
         // Error checking for id
-//        if (idProperties.isEmpty()) {
+
+//        if (idProperties.isEmpty() || meta.getInheritanceMetadata().getRootClass().getIdColumns().isEmpty()) {
 //            throw new IntegrityException("Every table must have an Id." +
 //                    "Unable to determine id in entity: " + clazz.getName());
 //        }
@@ -319,7 +320,7 @@ public class MetadataBuilder {
         }
 
         if (type == long.class || type == Long.class) {
-            return autoIncrement ? "BIGSERIAL" : "BIGINT";
+            return autoIncrement ? "BIGSERIAL" : "BIGINT";      // zamiast BIGSERIAL    INTEGER PRIMARY KEY
         }
 
         if (type == short.class || type == Short.class) {

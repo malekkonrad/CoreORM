@@ -18,8 +18,24 @@ import static org.junit.jupiter.api.Assertions.*;
  * Unit test for simple App.
  */
 public class AppTest {
+
+    // Pobierz z ENV lub użyj domyślnej wartości (H2)
+    String url = System.getenv("DB_URL") != null
+            ? System.getenv("DB_URL")
+            : "jdbc:h2:mem:testdb;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DEFAULT_NULL_ORDERING=HIGH";
+
+    String user = System.getenv("DB_USER") != null
+            ? System.getenv("DB_USER")
+            : "sa";
+
+    String password = System.getenv("DB_PASSWORD") != null
+            ? System.getenv("DB_PASSWORD")
+            : "";
+
     Configuration config = Orm.configure()
-            .setProperty("db.url", "jdbc:sqlite:src/test/resources/test.db")
+            .setProperty("db.url", url)
+            .setProperty("db.user", user)
+            .setProperty("db.password", password)
             .setProperty("orm.schema.auto", "drop-create");
 
     SessionFactory sessionFactory;
@@ -28,16 +44,16 @@ public class AppTest {
     @BeforeEach
     public void setUp() {
 
-        try (Connection conn = DriverManager.getConnection("jdbc:sqlite:src/test/resources/test.db");
-             Statement stmt = conn.createStatement()) {
-//            stmt.execute("DELETE FROM users");
-            stmt.execute("DELETE FROM animals");
-            stmt.execute("DELETE FROM dogs");
-//            stmt.execute("DROP SCHEMA public CASCADE;");
-//            stmt.execute("CREATE SCHEMA public;");
-        } catch (SQLException e) {
-            e.printStackTrace();
-        }
+//        try (Connection conn = DriverManager.getConnection(url, user, password);
+//             Statement stmt = conn.createStatement()) {
+////            stmt.execute("DELETE FROM users");
+//            stmt.execute("DELETE FROM animals");
+//            stmt.execute("DELETE FROM dogs");
+////            stmt.execute("DROP SCHEMA public CASCADE;");
+////            stmt.execute("CREATE SCHEMA public;");
+//        } catch (SQLException e) {
+//            e.printStackTrace();
+//        }
 
 
         config.register(User.class, Employee.class);
@@ -51,15 +67,15 @@ public class AppTest {
             session.close();
         }
         // Wyczyść bazę danych
-        try (Connection conn = DriverManager.getConnection("jdbc:sqlite:src/test/resources/test.db");
-             Statement stmt = conn.createStatement()) {
-//            stmt.execute("DELETE FROM users");
-//            stmt.execute("DELETE FROM animals");
-//            stmt.execute("DROP SCHEMA public CASCADE;");
-//            stmt.execute("CREATE SCHEMA public;");
-        } catch (SQLException e) {
-            e.printStackTrace();
-        }
+//        try (Connection conn = DriverManager.getConnection(url,  user, password);
+//             Statement stmt = conn.createStatement()) {
+////            stmt.execute("DELETE FROM users");
+////            stmt.execute("DELETE FROM animals");
+////            stmt.execute("DROP SCHEMA public CASCADE;");
+////            stmt.execute("CREATE SCHEMA public;");
+//        } catch (SQLException e) {
+//            e.printStackTrace();
+//        }
     }
     /**
      * Simple test to create and find
@@ -160,17 +176,65 @@ public class AppTest {
 //        assertEquals(u.getName(), user.getName());
 //    }
 
-    @Test
+//    @Test
     public void testCreateFindUpdate(){
         Husky dog =  new Husky();
-        dog.setId(1L);
+//        dog.setId(1L);
         dog.setName("Dog1");
         dog.setHow("How How");
 
         session.save(dog);
         session.commit();
 
-        Husky foundDog = session.find(Husky.class, 1L);
+        Husky foundDog = session.find(Husky.class, dog.getId());
+//        assertEquals(dog.getId(), foundDog.getId());
+        assertEquals(dog.getName(), foundDog.getName());
+        assertEquals(dog.getHow(), foundDog.getHow());
+
+        foundDog.setHow("How How How");
+        session.update(foundDog);
+        session.commit();
+
+        Husky found2Time = session.find(Husky.class, dog.getId());
+//        assertEquals(foundDog.getId(), found2Time.getId());
+        assertEquals(foundDog.getName(), found2Time.getName());
+        assertEquals(foundDog.getHow(), found2Time.getHow());
+    }
+
+    @Test
+    public void testAutoIncrement(){
+        Husky dog =  new Husky();
+//        dog.setId(1L);
+        dog.setName("Husky1");
+        dog.setHow("How How");
+        session.save(dog);
+
+        Dog dog2 = new Dog();
+//        dog2.setId(2L);
+        dog2.setName("Dog2");
+        dog2.setAge(10);
+        session.save(dog2);
+
+        session.commit();
+
+
+//        try (Connection conn = DriverManager.getConnection(url, user, password);
+//             Statement stmt = conn.createStatement();
+//             ResultSet rs = stmt.executeQuery("SELECT * FROM huskys WHERE id = " + dog.getId())) {
+//            if (rs.next()) {
+//                System.out.println("FOUND IN DB: id=" + rs.getLong("id") + ", name=" + rs.getString("name") + ", how=" + rs.getString("how"));
+//            } else {
+//                System.out.println("NOT FOUND IN DB!");
+//            }
+//        } catch (SQLException e) {
+//            e.printStackTrace();
+//        }
+
+
+
+        System.out.println("ID dog: " + dog.getId());
+        System.out.println(dog);
+        Husky foundDog = session.find(Husky.class, dog.getId());
         assertEquals(dog.getId(), foundDog.getId());
         assertEquals(dog.getName(), foundDog.getName());
         assertEquals(dog.getHow(), foundDog.getHow());
@@ -179,10 +243,17 @@ public class AppTest {
         session.update(foundDog);
         session.commit();
 
-        Husky found2Time = session.find(Husky.class, 1L);
+        Husky found2Time = session.find(Husky.class, dog.getId());
         assertEquals(foundDog.getId(), found2Time.getId());
         assertEquals(foundDog.getName(), found2Time.getName());
         assertEquals(foundDog.getHow(), found2Time.getHow());
+
+        session.delete(found2Time);
+        session.commit();
+
+        Husky deleted = session.find(Husky.class, dog.getId());
+        assertNull(deleted);
+
     }
 
 

@@ -109,9 +109,6 @@ public class JdbcExecutorImpl implements JdbcExecutor {
     public Long insert(String sql, Object... params) {
         try (PreparedStatement ps = connection.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
             setParameters(ps, params);
-//            ps.executeUpdate();
-//            System.out.println(sql + " executed successfully");
-//            System.out.println("teoricotal success");
             int rows = ps.executeUpdate();
             System.out.println("→ Rows affected: " + rows);
             System.out.println("→ SQL: " + sql);

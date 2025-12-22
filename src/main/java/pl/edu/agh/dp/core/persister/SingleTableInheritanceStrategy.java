@@ -48,6 +48,8 @@ public class SingleTableInheritanceStrategy extends AbstractInheritanceStrategy 
         for (PropertyMetadata idProp : rootIds) {
             idColumns.add(idProp.getColumnName());
         }
+
+        // FIXME comment on tests - fuck sqlite
         sb.append(",\n    PRIMARY KEY (")
                 .append(String.join(", ", idColumns))
                 .append(")");
@@ -82,6 +84,10 @@ public class SingleTableInheritanceStrategy extends AbstractInheritanceStrategy 
                 continue;
             }
 
+            if (prop.isId() && prop.isAutoIncrement()) {
+                continue; // Nie dodawaj tej kolumny do SQL, baza sama ją wypełni
+            }
+
             columns.add(prop.getColumnName());
 
             // Sprawdź czy pole należy do aktualnej klasy lub jej przodków
@@ -114,6 +120,7 @@ public class SingleTableInheritanceStrategy extends AbstractInheritanceStrategy 
             // FIXME important!!!!!!!!!!!!!!!!!!!!!!!!
             PropertyMetadata idProp = rootMetadata.getIdColumns().get("id");
             if (idProp.isAutoIncrement()) {
+                System.out.println("seting id in " + entity.toString()+ " " + idProp.getColumnName());
                 ReflectionUtils.setFieldValue(entity, idProp.getName(), generatedId);
             }
 

@@ -16,7 +16,7 @@ public class PropertyMetadata {
     private String sqlType;                 // VARCHAR(255)
     @Setter
     boolean isId = false;           // false
-    boolean autoIncrement = false;  // false
+    boolean autoIncrement = true;  // false
     boolean isUnique = false;       // false
     boolean isNullable = false;     // false
     boolean isIndex = false;        // false

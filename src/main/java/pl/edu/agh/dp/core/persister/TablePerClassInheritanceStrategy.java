@@ -38,6 +38,7 @@ public class TablePerClassInheritanceStrategy extends AbstractInheritanceStrateg
         for (PropertyMetadata idProp : rootIds) {
             idColumns.add(idProp.getColumnName());
         }
+        // FIXME IN SQLITE it cant be added
         sb.append(",\n    PRIMARY KEY (")
                 .append(String.join(", ", idColumns))
                 .append(")");
@@ -59,6 +60,11 @@ public class TablePerClassInheritanceStrategy extends AbstractInheritanceStrateg
 
         Map<String, Boolean> idProvided = new HashMap<>();
         for (PropertyMetadata pm : entityMetadata.getColumnsForConcreteTable()) {
+
+            if (pm.isId() && pm.isAutoIncrement()) {
+                continue; // Nie dodawaj tej kolumny do SQL, baza sama ją wypełni
+            }
+
             columns.add(pm.getColumnName());
             Object value = ReflectionUtils.getFieldValue(entity, pm.getName());
             values.add(value);
@@ -112,11 +118,15 @@ public class TablePerClassInheritanceStrategy extends AbstractInheritanceStrateg
         Long generatedId;
         try {
             JdbcExecutor jdbc = session.getJdbcExecutor();
-            // FIXME does it work for composite keys?
             generatedId = jdbc.insert(sql.toString(), values.toArray());
-//            if (!isCompositeKey) {
-//                ReflectionUtils.setFieldValue(entity, idColumns.get(0).getName(), generatedId);
-//            }
+            System.out.println("Generated ID: " + generatedId);
+            // Ustaw wygenerowane ID
+            // FIXME important!!!!!!!!!!!!!!!!!!!!!!!!
+            PropertyMetadata idProp = entityMetadata.getInheritanceMetadata().getRootClass().getIdColumns().get("id");
+            if (idProp.isAutoIncrement()) {
+                System.out.println("seting id in " + entity.toString()+ " " + idProp.getColumnName());
+                ReflectionUtils.setFieldValue(entity, idProp.getName(), generatedId);
+            }
         } catch (Exception e) {
             System.out.println(e.getMessage());
             throw new RuntimeException("Error inserting entity " + entity, e);

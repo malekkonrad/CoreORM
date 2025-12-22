@@ -48,38 +48,104 @@ public class EntityMetadata {
     }
 
 
+//    public List<PropertyMetadata> getColumnsForSingleTable() {
+//        EntityMetadata root = getInheritanceMetadata().getRootClass();
+//
+//        // FIXME - not sure it's right
+//
+//        List<PropertyMetadata> cols = new ArrayList<>(root.getProperties().values());
+//
+//
+//        // traverse through tree
+//        Deque<EntityMetadata> stack = new ArrayDeque<>(root.getInheritanceMetadata().getChildren());
+//        while (!stack.isEmpty()) {
+//            EntityMetadata m = stack.pop();
+//            cols.addAll(m.getProperties().values());     // FIXME same question - how to get all columns
+//            stack.addAll(m.getInheritanceMetadata().getChildren());
+//        }
+//        return cols;
+//    }
     public List<PropertyMetadata> getColumnsForSingleTable() {
+        // Listy na oddzielne typy kolumn
+        List<PropertyMetadata> ids = new ArrayList<>();
+        List<PropertyMetadata> others = new ArrayList<>();
+
         EntityMetadata root = getInheritanceMetadata().getRootClass();
 
-        // FIXME - not sure it's right
-        List<PropertyMetadata> cols = new ArrayList<>(root.getProperties().values());
+        // 1. Pobierz kolumny z ROOT (id i zwykłe)
+        collectColumnsFromMetadata(root, ids, others);
 
-        // traverse through tree
+        // 2. Przejdź przez drzewo dzieci
         Deque<EntityMetadata> stack = new ArrayDeque<>(root.getInheritanceMetadata().getChildren());
         while (!stack.isEmpty()) {
             EntityMetadata m = stack.pop();
-            cols.addAll(m.getProperties().values());     // FIXME same question - how to get all columns
+
+            // Pobieramy kolumny z dziecka
+            collectColumnsFromMetadata(m, ids, others);
+
             stack.addAll(m.getInheritanceMetadata().getChildren());
         }
-        return cols;
+
+        // 3. Złącz listy: najpierw ID, potem reszta
+        ids.addAll(others);
+        return ids;
     }
 
-    public List<PropertyMetadata> getColumnsForConcreteTable() {
-        List<PropertyMetadata> cols = new ArrayList<>();
+//    public List<PropertyMetadata> getColumnsForConcreteTable() {
+//        List<PropertyMetadata> cols = new ArrayList<>();
+//
+//        // id + pola z całego łańcucha rodziców
+//        Deque<EntityMetadata> chain = new ArrayDeque<>();
+//        EntityMetadata cur = this;
+//        while (cur != null) {
+//            chain.push(cur);
+//            cur = cur.getInheritanceMetadata().getParent();
+//        }
+//
+//        while (!chain.isEmpty()) {
+//            cols.addAll(chain.pop().getProperties().values());       // FIXME same earlier
+//        }
+//
+//        return cols;
+//    }
 
-        // id + pola z całego łańcucha rodziców
+    public List<PropertyMetadata> getColumnsForConcreteTable() {
+        List<PropertyMetadata> ids = new ArrayList<>();
+        List<PropertyMetadata> others = new ArrayList<>();
+
+        // 1. Zbuduj łańcuch od najwyższego rodzica do obecnej klasy
         Deque<EntityMetadata> chain = new ArrayDeque<>();
         EntityMetadata cur = this;
         while (cur != null) {
-            chain.push(cur);
+            chain.push(cur); // push wrzuca na stos, więc rodzic będzie na wierzchu przy zdejmowaniu
             cur = cur.getInheritanceMetadata().getParent();
         }
 
+        // 2. Iteruj od rodzica w dół
         while (!chain.isEmpty()) {
-            cols.addAll(chain.pop().getProperties().values());       // FIXME same earlier
+            EntityMetadata m = chain.pop();
+            collectColumnsFromMetadata(m, ids, others);
         }
 
-        return cols;
+        // 3. Złącz: ID + reszta
+        ids.addAll(others);
+        return ids;
+    }
+
+    private void collectColumnsFromMetadata(EntityMetadata m, List<PropertyMetadata> ids, List<PropertyMetadata> others) {
+        // Dodaj ID (zakładając, że idColumns zawiera tylko ID)
+        ids.addAll(m.getIdColumns().values());
+
+        // Dodaj pozostałe właściwości, filtrując ID, bo `properties` zawiera wszystko
+        for (PropertyMetadata pm : m.getProperties().values()) {
+            if (!pm.isId) { // Ważne: sprawdzamy flagę isId (zakładam, że masz takie pole w PropertyMetadata)
+                others.add(pm);
+            }
+            // Alternatywnie, jeśli nie masz pola isId w PropertyMetadata, sprawdź czy klucz istnieje w idColumns:
+            // if (!m.getIdColumns().containsKey(pm.getName())) {
+            //    others.add(pm);
+            // }
+        }
     }
 
 
