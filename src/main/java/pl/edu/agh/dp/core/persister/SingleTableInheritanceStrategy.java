@@ -39,9 +39,19 @@ public class SingleTableInheritanceStrategy extends AbstractInheritanceStrategy 
             columnDefs.add("    " + col.getColumnName() + " " + col.getSqlType());
         }
 
-        // TODO primary key!
-
         sb.append(String.join(",\n", columnDefs));
+
+
+        // PRIMARY KEYS
+        List<String> idColumns = new ArrayList<>();
+        Collection<PropertyMetadata> rootIds = entityMetadata.getIdColumns().values();
+        for (PropertyMetadata idProp : rootIds) {
+            idColumns.add(idProp.getColumnName());
+        }
+        sb.append(",\n    PRIMARY KEY (")
+                .append(String.join(", ", idColumns))
+                .append(")");
+
         sb.append("\n);");
 
         return sb.toString();
