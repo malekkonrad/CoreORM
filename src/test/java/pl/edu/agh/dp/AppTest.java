@@ -64,115 +64,126 @@ public class AppTest {
     /**
      * Simple test to create and find
      */
-    @Test
-    public void testCreateTable() {
-        User u = new User();
-        u.setId(1L);
-        u.setName("Jan");
-        u.setEmail("konrad@gmail.com");
-        session.save(u);
-
-        Employee e = new Employee();
-        e.setId(2L);
-//        e.setName("Konrad");
-        e.setSalary(1000.0);
-        session.save(e);
-
-        // animals:
-        Animal dog = new Dog();
-        dog.setId(1L);
-        dog.setName("Pies");
-        session.save(dog);
-
-        Animal dog2 =  new Dog();
-        dog2.setId(2L);
-        dog2.setName("Pies2");
-        session.save(dog2);
-
-
-        Husky dog3 =  new Husky();
-        dog3.setId(3L);
-        dog3.setName("Pies3");
-        dog3.setHow("How How");
-
-        session.save(dog3);
-
-
-        session.commit();
-        User user = session.find(User.class, 1L);
-        System.out.println(user.getName());
-        List<Dog> animals = session.findAll(Dog.class);
-//        System.out.println(animals.toString());
-        for (Dog d : animals) {
-            System.out.println(d.getName());
-        }
-
-
-
-        Dog dog1234 = session.find(Dog.class, 2L);
-        System.out.println("animal 2l Name: " + dog1234.getName());
-
-        Husky husky = session.find(Husky.class, 3L);
-        System.out.println("Husky 3L: " + husky.getName());
-
-        session.delete(dog1234);
-        session.delete(user);
-//        session.delete(husky);
-        session.commit();
-
-        Dog dogAfterDelete = session.find(Dog.class, 2L);
-        assertNull(dogAfterDelete);
-        User userAfetDelete =session.find(User.class, 1L);
-        assertNull(userAfetDelete);
-//        Husky huskyAfterDelete = session.find(Husky.class, 3L);
-//        assertNotNull(huskyAfterDelete);
-
-
-
-
-//        System.out.println("animal 2l Name: " + dogAfterDelete.getName());
-
-
-//        List<User> users =  session.findAll(User.class);
-//        for (User userX : users) {
-//            System.out.println(userX.getName());
-//        }
- //        Dog dog123 =  session.find(Dog.class, 1L);
-//        System.out.println(dog123.getId() + " " + dog123.getName());
-
-//        session.close();
-
-        // Sprawdź bezpośrednio w bazie
-//        try (Connection conn = DriverManager.getConnection("jdbc:sqlite:src/test/resources/test.db");
-//             Statement stmt = conn.createStatement();
-//             ResultSet rs = stmt.executeQuery("SELECT * FROM users WHERE id = 1")) {
-//            if (rs.next()) {
-//                System.out.println("FOUND IN DB: id=" + rs.getLong("id") + ", name=" + rs.getString("name"));
-//            } else {
-//                System.out.println("NOT FOUND IN DB!");
-//            }
-//        } catch (SQLException e) {
-//            e.printStackTrace();
-//        }
-
-        assertEquals(u.getId(), user.getId());
-        assertEquals(u.getEmail(), user.getEmail());
-        assertEquals(u.getName(), user.getName());
-    }
-
-
-
 //    @Test
-//    public void testFindHuskyInJoined(){
+//    public void testCreateTable() {
+//        User u = new User();
+//        u.setId(1L);
+//        u.setName("Jan");
+//        u.setEmail("konrad@gmail.com");
+//        session.save(u);
+//
+//        Employee e = new Employee();
+//        e.setId(2L);
+////        e.setName("Konrad");
+//        e.setSalary(1000.0);
+//        session.save(e);
+//
+//        // animals:
+//        Animal dog = new Dog();
+//        dog.setId(1L);
+//        dog.setName("Pies");
+//        session.save(dog);
+//
+//        Animal dog2 =  new Dog();
+//        dog2.setId(2L);
+//        dog2.setName("Pies2");
+//        session.save(dog2);
+//
+//
 //        Husky dog3 =  new Husky();
-//        dog3.setId(1L);
+//        dog3.setId(3L);
 //        dog3.setName("Pies3");
 //        dog3.setHow("How How");
 //
 //        session.save(dog3);
+//
+//
+//        session.commit();
+//        User user = session.find(User.class, 1L);
+//        System.out.println(user.getName());
+//        List<Dog> animals = session.findAll(Dog.class);
+////        System.out.println(animals.toString());
+//        for (Dog d : animals) {
+//            System.out.println(d.getName());
+//        }
+//
+//
+//
+//        Dog dog1234 = session.find(Dog.class, 2L);
+//        System.out.println("animal 2l Name: " + dog1234.getName());
+//
+//        Husky husky = session.find(Husky.class, 3L);
+//        System.out.println("Husky 3L: " + husky.getName());
+//
+//        session.delete(dog1234);
+//        session.delete(user);
+//        session.delete(husky);
 //        session.commit();
 //
-//        Husky husky = session.find(Husky.class, 1L);
-//        assertEquals(dog3.getName(), husky.getName());
+//        Dog dogAfterDelete = session.find(Husky.class, 3L);
+//        assertNull(dogAfterDelete);
+//        User userAfetDelete =session.find(User.class, 1L);
+//        assertNull(userAfetDelete);
+////        Husky huskyAfterDelete = session.find(Husky.class, 3L);
+////        assertNotNull(huskyAfterDelete);
+//
+//
+//
+//
+////        System.out.println("animal 2l Name: " + dogAfterDelete.getName());
+//
+//
+////        List<User> users =  session.findAll(User.class);
+////        for (User userX : users) {
+////            System.out.println(userX.getName());
+////        }
+// //        Dog dog123 =  session.find(Dog.class, 1L);
+////        System.out.println(dog123.getId() + " " + dog123.getName());
+//
+////        session.close();
+//
+//        // Sprawdź bezpośrednio w bazie
+////        try (Connection conn = DriverManager.getConnection("jdbc:sqlite:src/test/resources/test.db");
+////             Statement stmt = conn.createStatement();
+////             ResultSet rs = stmt.executeQuery("SELECT * FROM users WHERE id = 1")) {
+////            if (rs.next()) {
+////                System.out.println("FOUND IN DB: id=" + rs.getLong("id") + ", name=" + rs.getString("name"));
+////            } else {
+////                System.out.println("NOT FOUND IN DB!");
+////            }
+////        } catch (SQLException e) {
+////            e.printStackTrace();
+////        }
+//
+//        assertEquals(u.getId(), user.getId());
+//        assertEquals(u.getEmail(), user.getEmail());
+//        assertEquals(u.getName(), user.getName());
 //    }
+
+    @Test
+    public void testCreateFindUpdate(){
+        Husky dog =  new Husky();
+        dog.setId(1L);
+        dog.setName("Dog1");
+        dog.setHow("How How");
+
+        session.save(dog);
+        session.commit();
+
+        Husky foundDog = session.find(Husky.class, 1L);
+        assertEquals(dog.getId(), foundDog.getId());
+        assertEquals(dog.getName(), foundDog.getName());
+        assertEquals(dog.getHow(), foundDog.getHow());
+
+        foundDog.setHow("How How How");
+        session.update(foundDog);
+        session.commit();
+
+        Husky found2Time = session.find(Husky.class, 1L);
+        assertEquals(foundDog.getId(), found2Time.getId());
+        assertEquals(foundDog.getName(), found2Time.getName());
+        assertEquals(foundDog.getHow(), found2Time.getHow());
+    }
+
+
 }

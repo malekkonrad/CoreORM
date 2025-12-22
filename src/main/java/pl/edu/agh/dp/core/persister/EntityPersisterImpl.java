@@ -190,7 +190,7 @@ public class EntityPersisterImpl implements EntityPersister {
 
     @Override
     public void update(Object entity, Session session) {
-
+        inheritanceStrategy.update(entity, session);
     }
 
     @Override

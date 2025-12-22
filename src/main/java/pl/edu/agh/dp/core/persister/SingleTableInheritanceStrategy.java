@@ -13,10 +13,7 @@ import pl.edu.agh.dp.core.util.ReflectionUtils;
 import java.lang.reflect.Field;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 @NoArgsConstructor
 public class SingleTableInheritanceStrategy extends AbstractInheritanceStrategy {
@@ -118,7 +115,53 @@ public class SingleTableInheritanceStrategy extends AbstractInheritanceStrategy 
 
     @Override
     public void update(Object entity, Session session) {
+        EntityMetadata rootMetadata = this.entityMetadata.getInheritanceMetadata().getRootClass();
+        String tableName = rootMetadata.getTableName();
 
+        List<String> setColumns = new ArrayList<>();
+        List<Object> values = new ArrayList<>();
+
+        // Zbierz wszystkie pola z hierarchii (pomiń ID i discriminator)
+        List<PropertyMetadata> allProperties = rootMetadata.getColumnsForSingleTable();
+        String discriminatorColumn = rootMetadata.getInheritanceMetadata().getDiscriminatorColumnName();
+
+        for (PropertyMetadata prop : allProperties) {
+            // Pomiń ID i discriminator
+            if (prop.isId() || prop.getColumnName().equals(discriminatorColumn)) {
+                continue;
+            }
+
+            // Tylko pola należące do tej klasy lub jej przodków
+            if (fieldBelongsToClass(prop, entity.getClass())) {
+                setColumns.add(prop.getColumnName() + " = ?");
+                Object value = pl.edu.agh.dp.core.util.ReflectionUtils.getFieldValue(entity, prop.getName());
+                values.add(value);
+            }
+        }
+
+        // WHERE clause
+        Object idValue = getIdValue(entity);
+        String whereClause = buildWhereClause(rootMetadata);
+        Object[] idParams = prepareIdParams(idValue);
+
+        // Połącz wartości SET + WHERE
+        List<Object> allParams = new ArrayList<>(values);
+        allParams.addAll(Arrays.asList(idParams));
+
+        StringBuilder sql = new StringBuilder();
+        sql.append("UPDATE ").append(tableName)
+                .append(" SET ").append(String.join(", ", setColumns))
+                .append(" WHERE ").append(whereClause);
+
+        System.out.println("SingleTable UPDATE SQL: " + sql);
+        System.out.println("Values: " + allParams);
+
+        try {
+            JdbcExecutor jdbc = session.getJdbcExecutor();
+            jdbc.update(sql.toString(), allParams.toArray());
+        } catch (Exception e) {
+            throw new RuntimeException("Error updating entity " + entity, e);
+        }
     }
 
     @Override
