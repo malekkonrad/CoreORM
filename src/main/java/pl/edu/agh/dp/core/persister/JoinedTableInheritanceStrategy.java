@@ -287,12 +287,16 @@ public class JoinedTableInheritanceStrategy extends AbstractInheritanceStrategy 
         sql.append("SELECT ").append(String.join(", ", selectColumns));
         sql.append("\nFROM ").append(root.getTableName());
 
+//        EntityMetadata root = entityMetadata.getInheritanceMetadata().getRootClass();
+
         // Build JOINs from root down to current entity
         for (int i = 1; i < chain.size(); i++) {
             EntityMetadata child = chain.get(i);
             EntityMetadata parent = child.getInheritanceMetadata().getParent();
 
-            PropertyMetadata idProp = parent.getIdColumns().values().iterator().next();
+
+            // STUPID FIX but it works
+            PropertyMetadata idProp = root.getIdColumns().values().iterator().next();
 
             sql.append("\nLEFT JOIN ").append(child.getTableName())
                     .append(" ON ").append(parent.getTableName()).append(".").append(idProp.getColumnName())

@@ -159,4 +159,20 @@ public class AppTest {
         assertEquals(u.getEmail(), user.getEmail());
         assertEquals(u.getName(), user.getName());
     }
+
+
+
+//    @Test
+//    public void testFindHuskyInJoined(){
+//        Husky dog3 =  new Husky();
+//        dog3.setId(1L);
+//        dog3.setName("Pies3");
+//        dog3.setHow("How How");
+//
+//        session.save(dog3);
+//        session.commit();
+//
+//        Husky husky = session.find(Husky.class, 1L);
+//        assertEquals(dog3.getName(), husky.getName());
+//    }
 }
