@@ -183,7 +183,59 @@ public class JoinedTableInheritanceStrategy extends AbstractInheritanceStrategy 
 
     @Override
     public void update(Object entity, Session session) {
+        try {
+            JdbcExecutor jdbc = session.getJdbcExecutor();
+            List<EntityMetadata> chain = buildInheritanceChain();
 
+            // UPDATE w każdej tabeli w hierarchii
+            for (EntityMetadata meta : chain) {
+                List<String> setColumns = new ArrayList<>();
+                List<Object> values = new ArrayList<>();
+
+                // Tylko pola zdefiniowane w tej konkretnej klasie
+                for (PropertyMetadata prop : meta.getProperties().values()) {
+                    if (!fieldBelongsToClass(prop, meta.getEntityClass())) {
+                        continue;
+                    }
+
+                    if (prop.isId()) {
+                        continue; // ID nie jest aktualizowane
+                    }
+
+                    setColumns.add(prop.getColumnName() + " = ?");
+                    Object value = ReflectionUtils.getFieldValue(entity, prop.getName());
+                    values.add(value);
+                }
+
+                // Jeśli brak kolumn do aktualizacji, pomiń tę tabelę
+                if (setColumns.isEmpty()) {
+                    continue;
+                }
+
+                // WHERE clause (zawsze używamy ID z roota)
+                EntityMetadata root = entityMetadata.getInheritanceMetadata().getRootClass();
+                Object idValue = getIdValue(entity);
+                String whereClause = buildWhereClause(root);
+                Object[] idParams = prepareIdParams(idValue);
+
+                // Połącz parametry
+                List<Object> allParams = new ArrayList<>(values);
+                allParams.addAll(Arrays.asList(idParams));
+
+                StringBuilder sql = new StringBuilder();
+                sql.append("UPDATE ").append(meta.getTableName())
+                        .append(" SET ").append(String.join(", ", setColumns))
+                        .append(" WHERE ").append(whereClause);
+
+                System.out.println("Joined UPDATE SQL (" + meta.getTableName() + "): " + sql);
+                System.out.println("Values: " + allParams);
+
+                jdbc.update(sql.toString(), allParams.toArray());
+            }
+
+        } catch (Exception e) {
+            throw new RuntimeException("Error updating entity with joined table strategy: " + entity, e);
+        }
     }
 
     @Override
