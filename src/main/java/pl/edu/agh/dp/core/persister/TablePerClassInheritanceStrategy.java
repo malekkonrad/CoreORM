@@ -115,9 +115,50 @@ public class TablePerClassInheritanceStrategy extends AbstractInheritanceStrateg
         return generatedId;
     }
 
+
     @Override
     public void update(Object entity, Session session) {
+        String tableName = entityMetadata.getTableName();
 
+        List<String> setColumns = new ArrayList<>();
+        List<Object> values = new ArrayList<>();
+
+        // Wszystkie pola z hierarchii (pomiń ID)
+        for (PropertyMetadata prop : entityMetadata.getColumnsForConcreteTable()) {
+            if (prop.isId()) {
+                continue; // ID nie jest aktualizowane
+            }
+
+            setColumns.add(prop.getColumnName() + " = ?");
+            Object value = ReflectionUtils.getFieldValue(entity, prop.getName());
+            values.add(value);
+        }
+
+        EntityMetadata rootMetadata = entityMetadata.getInheritanceMetadata().getRootClass();
+
+        // WHERE clause
+        Object idValue = getIdValue(entity);
+        String whereClause = buildWhereClause(rootMetadata);
+        Object[] idParams = prepareIdParams(idValue);
+
+        // Połącz parametry
+        List<Object> allParams = new ArrayList<>(values);
+        allParams.addAll(Arrays.asList(idParams));
+
+        StringBuilder sql = new StringBuilder();
+        sql.append("UPDATE ").append(tableName)
+                .append(" SET ").append(String.join(", ", setColumns))
+                .append(" WHERE ").append(whereClause);
+
+        System.out.println("TablePerClass UPDATE SQL: " + sql);
+        System.out.println("Values: " + allParams);
+
+        try {
+            JdbcExecutor jdbc = session.getJdbcExecutor();
+            jdbc.update(sql.toString(), allParams.toArray());
+        } catch (Exception e) {
+            throw new RuntimeException("Error updating entity " + entity, e);
+        }
     }
 
     @Override
