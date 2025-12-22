@@ -1,15 +1,41 @@
+#services:
+#  app:
+#    build: .
+#    environment:
+#      - DB_URL=jdbc:postgresql://db:5432/orm_demo
+#      - DB_USER=orm_user
+#      - DB_PASSWORD=secret
+#    depends_on:
+#      db:
+#        condition: service_started
+#    ports:
+#      - "8080:8080" # Optional, if your app exposes a port
+#
+#  db:
+#    image: postgres:15-alpine
+#    environment:
+#      - POSTGRES_DB=orm_demo
+#      - POSTGRES_USER=orm_user
+#      - POSTGRES_PASSWORD=secret
+#    ports:
+#      - "5432:5432"
+#    volumes:
+#      - postgres_data:/var/lib/postgresql/data
+#
+#volumes:
+#  postgres_data:
+
 services:
   app:
     build: .
     environment:
+      # Zwróć uwagę na url: "db" to nazwa serwisu poniżej
       - DB_URL=jdbc:postgresql://db:5432/orm_demo
       - DB_USER=orm_user
       - DB_PASSWORD=secret
     depends_on:
       db:
-        condition: service_started
-    ports:
-      - "8080:8080" # Optional, if your app exposes a port
+        condition: service_healthy # Czekaj aż baza będzie w pełni gotowa!
 
   db:
     image: postgres:15-alpine
@@ -21,6 +47,12 @@ services:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    # Healthcheck sprawdza czy baza jest gotowa na przyjmowanie połączeń
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U orm_user -d orm_demo"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
 volumes:
   postgres_data:
