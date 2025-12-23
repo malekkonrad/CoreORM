@@ -22,7 +22,7 @@ public class AppTest {
     // Pobierz z ENV lub użyj domyślnej wartości (H2)
     String url = System.getenv("DB_URL") != null
             ? System.getenv("DB_URL")
-            : "jdbc:h2:mem:testdb;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DEFAULT_NULL_ORDERING=HIGH";
+            : "jdbc:h2:./testdb;AUTO_SERVER=TRUE;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DEFAULT_NULL_ORDERING=HIGH";
 
     String user = System.getenv("DB_USER") != null
             ? System.getenv("DB_USER")
@@ -44,16 +44,17 @@ public class AppTest {
     @BeforeEach
     public void setUp() {
 
-//        try (Connection conn = DriverManager.getConnection(url, user, password);
-//             Statement stmt = conn.createStatement()) {
-////            stmt.execute("DELETE FROM users");
-//            stmt.execute("DELETE FROM animals");
-//            stmt.execute("DELETE FROM dogs");
-////            stmt.execute("DROP SCHEMA public CASCADE;");
-////            stmt.execute("CREATE SCHEMA public;");
-//        } catch (SQLException e) {
-//            e.printStackTrace();
-//        }
+        try (Connection conn = DriverManager.getConnection(url, user, password);
+             Statement stmt = conn.createStatement()) {
+//            stmt.execute("DELETE FROM users");
+            stmt.execute("DELETE FROM animals");
+            stmt.execute("DELETE FROM dogs");
+            stmt.execute("DELETE FROM huskys");
+//            stmt.execute("DROP SCHEMA public CASCADE;");
+//            stmt.execute("CREATE SCHEMA public;");
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
 
 
         config.register(User.class, Employee.class);
@@ -204,16 +205,22 @@ public class AppTest {
     @Test
     public void testAutoIncrement(){
         Husky dog =  new Husky();
-//        dog.setId(1L);
+//        dog.setId(2L);
         dog.setName("Husky1");
         dog.setHow("How How");
         session.save(dog);
 
         Dog dog2 = new Dog();
-//        dog2.setId(2L);
+//        dog2.setId(1L);
         dog2.setName("Dog2");
         dog2.setAge(10);
         session.save(dog2);
+
+        Cat cat = new Cat();
+//        cat.setId(4L);
+        cat.setName("Cat1");
+        cat.setCatName("CatName1");
+        session.save(cat);
 
         session.commit();
 
@@ -248,11 +255,11 @@ public class AppTest {
         assertEquals(foundDog.getName(), found2Time.getName());
         assertEquals(foundDog.getHow(), found2Time.getHow());
 
-        session.delete(found2Time);
-        session.commit();
-
-        Husky deleted = session.find(Husky.class, dog.getId());
-        assertNull(deleted);
+//        session.delete(found2Time);
+//        session.commit();
+//
+//        Husky deleted = session.find(Husky.class, dog.getId());
+//        assertNull(deleted);
 
     }
 

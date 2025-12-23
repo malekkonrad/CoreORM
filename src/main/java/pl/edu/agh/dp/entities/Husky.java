@@ -11,7 +11,5 @@ import pl.edu.agh.dp.api.annotations.Id;
 @NoArgsConstructor
 @Entity
 public class Husky extends Dog {
-//    @Id
-//    Long huskyId;
     String how;
 }

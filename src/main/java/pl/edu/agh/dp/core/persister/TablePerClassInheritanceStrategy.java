@@ -18,30 +18,101 @@ public class TablePerClassInheritanceStrategy extends AbstractInheritanceStrateg
     }
 
 
+//    @Override
+//    public String create(JdbcExecutor jdbcExecutor) {
+//        StringBuilder sb = new StringBuilder();
+//
+//        sb.append("CREATE TABLE ").append(this.entityMetadata.getTableName()).append(" (\n");
+//
+//        List<String> columnDefs = new ArrayList<>();
+//
+//        for (PropertyMetadata col : this.entityMetadata.getColumnsForConcreteTable()) {
+//            columnDefs.add("    " + col.getColumnName() + " " + col.getSqlType());
+//        }
+//
+//        sb.append(String.join(",\n", columnDefs));
+//
+//        // PRIMARY KEYS
+//        List<String> idColumns = new ArrayList<>();
+//        Collection<PropertyMetadata> rootIds = entityMetadata.getInheritanceMetadata().getRootClass().getIdColumns().values();
+//        for (PropertyMetadata idProp : rootIds) {
+//            idColumns.add(idProp.getColumnName());
+//        }
+//        // FIXME IN SQLITE it cant be added
+//        sb.append(",\n    PRIMARY KEY (")
+//                .append(String.join(", ", idColumns))
+//                .append(")");
+//
+//        sb.append("\n);");
+//
+//        return sb.toString();
+//    }
     @Override
     public String create(JdbcExecutor jdbcExecutor) {
+
+
         StringBuilder sb = new StringBuilder();
+
+        // 1. Obsługa tworzenia samej sekwencji (opcjonalnie tutaj lub w osobnej metodzie)
+        // Jeśli to jest klasa ROOT, wypadałoby najpierw stworzyć dla niej sekwencję.
+        // Ale zazwyczaj generuje się to osobnym zapytaniem przed tworzeniem tabel.
+        // Zakładam, że sekwencja nazywa się: "nazwa_tabeli_root_seq"
+
+        EntityMetadata rootMetadata = this.entityMetadata.getInheritanceMetadata().getRootClass();
+
+        if (rootMetadata == entityMetadata) {
+            String sequenceName = this.entityMetadata.getTableName() + "_id_seq";
+            // START 1 INCREMENT 1 to standard
+            String seq =  "CREATE SEQUENCE " + sequenceName + " START 1 INCREMENT 1;\n";
+            System.out.println(seq);
+            jdbcExecutor.createTable(seq);
+        }
+
+
+        String rootTableName = rootMetadata.getTableName();
+        String sequenceName = rootTableName + "_id_seq"; // np. animal_id_seq
 
         sb.append("CREATE TABLE ").append(this.entityMetadata.getTableName()).append(" (\n");
 
         List<String> columnDefs = new ArrayList<>();
 
+        // Pobieramy IDki, żeby wiedzieć, która kolumna to ID
+        // (Zakładam uproszczenie, że sprawdzamy po nazwie kolumny,
+        // ale lepiej byłoby mieć flagę col.isId() w PropertyMetadata)
+        Collection<PropertyMetadata> rootIds = rootMetadata.getIdColumns().values();
+        List<String> idColumnNames = new ArrayList<>();
+        for (PropertyMetadata idProp : rootIds) {
+            idColumnNames.add(idProp.getColumnName());
+        }
+
         for (PropertyMetadata col : this.entityMetadata.getColumnsForConcreteTable()) {
-            columnDefs.add("    " + col.getColumnName() + " " + col.getSqlType());
+            StringBuilder colDef = new StringBuilder();
+
+
+            // 2. i 3. Sprawdzamy czy to ID i dodajemy sekwencję (TYLKO DLA POSTGRES)
+            if (idColumnNames.contains(col.getColumnName())) {
+                colDef.append("    ").append(col.getColumnName()).append(" ").append("BIGINT");
+                // "DEFAULT nextval('animal_id_seq')"
+                colDef.append(" DEFAULT nextval('").append(sequenceName).append("') PRIMARY KEY ");
+            }
+            else{
+                colDef.append("    ").append(col.getColumnName()).append(" ").append(col.getSqlType());
+            }
+
+            // Dodanie NOT NULL dla ID (dobra praktyka)
+//            if (idColumnNames.contains(col.getColumnName()) || !col.isNullable()) { // jeśli masz info o nullability
+//                colDef.append(" NOT NULL");
+//            }
+
+            columnDefs.add(colDef.toString());
         }
 
         sb.append(String.join(",\n", columnDefs));
 
         // PRIMARY KEYS
-        List<String> idColumns = new ArrayList<>();
-        Collection<PropertyMetadata> rootIds = entityMetadata.getInheritanceMetadata().getRootClass().getIdColumns().values();
-        for (PropertyMetadata idProp : rootIds) {
-            idColumns.add(idProp.getColumnName());
-        }
-        // FIXME IN SQLITE it cant be added
-        sb.append(",\n    PRIMARY KEY (")
-                .append(String.join(", ", idColumns))
-                .append(")");
+//        sb.append(",\n    PRIMARY KEY (")
+//                .append(String.join(", ", idColumnNames))
+//                .append(")");
 
         sb.append("\n);");
 

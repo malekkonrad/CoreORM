@@ -11,9 +11,6 @@ import pl.edu.agh.dp.api.annotations.Id;
 @NoArgsConstructor
 @Entity
 public class Dog extends Animal {
-//    @Id
-//    Long tempID;
-
     int age;
     String color;
 }
