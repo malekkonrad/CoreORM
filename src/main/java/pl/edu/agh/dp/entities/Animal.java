@@ -12,7 +12,7 @@ import pl.edu.agh.dp.core.mapping.InheritanceType;
 @Setter
 @NoArgsConstructor
 @Entity
-@Inheritance(strategy = InheritanceType.JOINED)
+@Inheritance(strategy = InheritanceType.SINGLE_TABLE)
 public class Animal {
     @Id
     Long id;

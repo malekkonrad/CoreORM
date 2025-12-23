@@ -230,7 +230,29 @@ public class SingleTableInheritanceStrategy extends AbstractInheritanceStrategy 
         String discriminatorColumn = rootMetadata.getInheritanceMetadata().getDiscriminatorColumnName();
 
         String discName = rootMetadata.getInheritanceMetadata().getClassToDiscriminator().get(type);
-        String sql = "SELECT * FROM " + tableName + " WHERE " + discriminatorColumn + " = '" + discName +"'";
+
+        // obsługa polimorfizmu
+        List<String> discNames = new ArrayList<>();
+        discNames.add(discName);
+        if (!this.entityMetadata.getInheritanceMetadata().getChildren().isEmpty()) {
+            List<EntityMetadata> childrenToVisit = this.entityMetadata.getInheritanceMetadata().getChildren();
+            while (!childrenToVisit.isEmpty()) {
+                var child =  childrenToVisit.get(0);
+                var childType = child.getEntityClass();
+                discNames.add(rootMetadata.getInheritanceMetadata().getClassToDiscriminator().get(childType));
+                if (!child.getInheritanceMetadata().getChildren().isEmpty()) {
+                    childrenToVisit.addAll(child.getInheritanceMetadata().getChildren());
+                }
+                childrenToVisit.remove(child);
+            }
+        }
+        String discIn = "";
+        for (String name : discNames) {
+            discIn += "'" + name + "',";
+        }
+        discIn = discIn.substring(0, discIn.length() - 1);
+
+        String sql = "SELECT * FROM " + tableName + " WHERE " + discriminatorColumn + " IN (" + discIn +")";
         System.out.println("SQL: " + sql);
 
         try {

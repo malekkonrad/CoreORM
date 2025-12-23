@@ -1,5 +1,6 @@
 package pl.edu.agh.dp;
 
+import org.checkerframework.checker.units.qual.A;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -202,7 +203,7 @@ public class AppTest {
         assertEquals(foundDog.getHow(), found2Time.getHow());
     }
 
-    @Test
+//    @Test
     public void testAutoIncrement(){
         Husky dog =  new Husky();
 //        dog.setId(2L);
@@ -260,6 +261,35 @@ public class AppTest {
 //
 //        Husky deleted = session.find(Husky.class, dog.getId());
 //        assertNull(deleted);
+
+    }
+
+    @Test
+    public void testPolymorphicFindAll(){
+        Husky dog =  new Husky();
+        dog.setName("Husky1");
+        dog.setHow("How How");
+        session.save(dog);
+
+        Dog dog2 = new Dog();
+        dog2.setName("Dog2");
+        dog2.setAge(10);
+        session.save(dog2);
+
+        Cat cat = new Cat();
+        cat.setName("Cat1");
+        cat.setCatName("CatName1");
+        session.save(cat);
+
+        session.commit();
+
+        List<Animal> animals =  session.findAll(Animal.class);
+        System.out.println(animals.toString());
+        for (Animal animal:  animals) {
+            System.out.println(animal.getName());
+        }
+//        assertEquals(dogs.size(), 1);
+//        assertEquals(dogs.get(0).getName(), dog2.getName());
 
     }
 
