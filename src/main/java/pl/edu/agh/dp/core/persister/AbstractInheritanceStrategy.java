@@ -131,6 +131,10 @@ public abstract class AbstractInheritanceStrategy implements InheritanceStrategy
      * Helper: Sprawdza czy pole należy do danej klasy
      */
     protected boolean fieldBelongsToClass(PropertyMetadata prop, Class<?> targetClass) {
+
+        if (prop.getColumnName().equals("DTYPE")){
+            return false;
+        }
         try {
             targetClass.getDeclaredField(prop.getName());
             return true;

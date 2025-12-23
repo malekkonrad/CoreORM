@@ -341,7 +341,7 @@ public class MetadataRegistry {
         // discriminator
         for (EntityMetadata m : entities.values()) {
             // Uruchamiamy logikę tylko dla Roota, bo on zarządza dyskryminatorem dla całej tabeli
-            if (m.getInheritanceMetadata().isRoot() && !m.getInheritanceMetadata().getChildren().isEmpty() && m.getInheritanceMetadata().getType()==InheritanceType.SINGLE_TABLE) {
+            if (m.getInheritanceMetadata().isRoot() && !m.getInheritanceMetadata().getChildren().isEmpty() && (m.getInheritanceMetadata().getType()==InheritanceType.SINGLE_TABLE || m.getInheritanceMetadata().getType()==InheritanceType.JOINED)) {
                 handleDiscriminator(m);
             }
         }

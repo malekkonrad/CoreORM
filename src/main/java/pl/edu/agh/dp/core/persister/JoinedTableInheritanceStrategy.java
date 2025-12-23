@@ -152,6 +152,11 @@ public class JoinedTableInheritanceStrategy extends AbstractInheritanceStrategy 
                     values.add(value);
                 }
 
+                if (isRoot) {
+                    columns.add("DTYPE");
+                    values.add(root.getInheritanceMetadata().getClassToDiscriminator().get(entityMetadata.getEntityClass()));
+                }
+
                 // 3. Obsługa ID w tabelach PODRZĘDNYCH (nie-Root)
                 if (!isRoot) {
                     if (generatedId == null) {
@@ -341,31 +346,217 @@ public class JoinedTableInheritanceStrategy extends AbstractInheritanceStrategy 
         }
     }
 
+//    @Override
+//    public <T> List<T> findAll(Class<T> type, Session session) {
+//        try {
+//            JdbcExecutor jdbc = session.getJdbcExecutor();
+//
+//            // Build JOIN query
+//            String sql = buildJoinQuery();
+//
+//            System.out.println("Joined FindAll SQL: " + sql);
+//
+//            List<Object> results = jdbc.query(sql, this::mapEntity);
+//
+//            // Filter by exact type
+//            List<T> filtered = new ArrayList<>();
+//            for (Object obj : results) {
+//                if (obj.getClass().equals(type)) {
+//                    filtered.add(type.cast(obj));
+//                }
+//            }
+//
+//            return filtered;
+//
+//        } catch (Exception e) {
+//            throw new RuntimeException("Error finding all entities of type: " + type, e);
+//        }
+//    }
+
     @Override
     public <T> List<T> findAll(Class<T> type, Session session) {
+        // 1. Pobieramy metadane
+        EntityMetadata targetMetadata = this.entityMetadata;
+        EntityMetadata rootMetadata = this.entityMetadata.getInheritanceMetadata().getRootClass();
+
+        // 2. Budujemy zapytanie SQL ze złączeniami
+        String sql = buildPolymorphicJoinQuery(targetMetadata, rootMetadata);
+        System.out.println("Joined SQL: " + sql);
+
         try {
             JdbcExecutor jdbc = session.getJdbcExecutor();
 
-            // Build JOIN query
-            String sql = buildJoinQuery();
+            // 3. Mapujemy wyniki używając kolumny DTYPE z tabeli ROOT
+            List<Object> results = jdbc.query(sql, rs -> mapJoinedEntity(rs, rootMetadata));
 
-            System.out.println("Joined FindAll SQL: " + sql);
-
-            List<Object> results = jdbc.query(sql, this::mapEntity);
-
-            // Filter by exact type
+            // 4. Filtrujemy i rzutujemy (Polimorfizm zadziała automatycznie)
             List<T> filtered = new ArrayList<>();
             for (Object obj : results) {
-                if (obj.getClass().equals(type)) {
+                // WAŻNE: Używamy isInstance, a nie equals!
+                // Dzięki temu Husky przejdzie, gdy szukamy Dog.
+                if (type.isInstance(obj)) {
                     filtered.add(type.cast(obj));
                 }
             }
-
             return filtered;
 
         } catch (Exception e) {
-            throw new RuntimeException("Error finding all entities of type: " + type, e);
+            throw new RuntimeException("Error finding entities in Joined Strategy", e);
         }
+    }
+
+    private String buildPolymorphicJoinQuery(EntityMetadata targetMeta, EntityMetadata rootMeta) {
+        StringBuilder sb = new StringBuilder();
+
+        String rootTable = rootMeta.getTableName(); // np. "animals"
+        String targetTable = targetMeta.getTableName(); // np. "dogs"
+
+        // 1. SELECT: Musimy wybrać kolumny ze wszystkich tabel w hierarchii (od Roota do Liści)
+        // Dla uproszczenia tutaj daję *, ale w produkcji powinno się wypisać aliasy t0.col, t1.col...
+        // żeby uniknąć konfliktu nazw (np. jeśli Animal i Dog mają kolumnę o tej samej nazwie).
+        sb.append("SELECT * FROM ").append(rootTable);
+
+        // 2. JOINY DO KLASY DOCELOWEJ (INNER JOIN)
+        // Jeśli szukamy Dog, musimy zrobić INNER JOIN z dogs.
+        // Jeśli szukamy Animal, ten krok jest pomijany (bo rootTable == targetTable).
+
+        if (!rootMeta.equals(targetMeta)) {
+            // Musisz przejść po hierarchii w dół aż do targetMeta
+            // Zakładam uproszczenie: targetMeta wie jaka jest jego tabela
+            sb.append(" INNER JOIN ").append(targetTable)
+                    .append(" ON ").append(rootTable).append(".id = ").append(targetTable).append(".id");
+        }
+
+        // 3. JOINY DO PODKLAS (LEFT JOIN)
+        // Musimy dołączyć Husky, żeby pobrać pole 'how'.
+        // LEFT JOIN, bo jeśli to zwykły pies, to w tabeli 'huskys' nie ma rekordu.
+
+        List<EntityMetadata> subclasses = getAllSubclasses(targetMeta); // Musisz mieć taką metodę
+        for (EntityMetadata sub : subclasses) {
+            String subTable = sub.getTableName();
+            sb.append(" LEFT JOIN ").append(subTable)
+                    .append(" ON ").append(targetTable).append(".id = ").append(subTable).append(".id");
+        }
+
+        // 4. WHERE (Dla pewności, choć INNER JOIN wyżej już to załatwił)
+        // W strategii Joined zazwyczaj Root ma kolumnę DTYPE.
+        // Możemy filtrować po DTYPE, ale INNER JOIN na tabeli 'dogs' jest wystarczający i szybszy.
+
+        return sb.toString();
+    }
+
+    private Object mapJoinedEntity(ResultSet rs, EntityMetadata rootMetadata) throws SQLException {
+        try {
+            // 1. Odczytujemy DTYPE z tabeli ROOT (np. "pl.edu...Husky")
+            // Zakładam, że kolumna nazywa się DTYPE lub masz jej nazwę w metadanych
+            String discriminatorCol = rootMetadata.getInheritanceMetadata().getDiscriminatorColumnName();
+            String className = rs.getString(discriminatorCol);
+
+            Class<?> clazz = rootMetadata.getInheritanceMetadata().getDiscriminatorToClass().get(className);
+
+//            clazz.toString()
+            // 2. Tworzymy instancję
+            Class<?> realClass = Class.forName(clazz.getName());
+            Object instance = realClass.getDeclaredConstructor().newInstance();
+
+            // 3. Wypełniamy pola
+            // Musisz przejść po polach realClass (Husky) oraz wszystkich rodziców (Dog, Animal).
+            // Ponieważ zrobiliśmy "SELECT *", ResultSet zawiera kolumny ze wszystkich połączonych tabel.
+
+            populateAllFields(instance, rs, realClass);
+
+            return instance;
+        } catch (Exception e) {
+            throw new RuntimeException("Mapping error in Joined Strategy", e);
+        }
+    }
+
+
+    private EntityMetadata findThisFucker(Class<?> realClass){
+        EntityMetadata tempRoot = entityMetadata.getInheritanceMetadata().getRootClass();
+        var subs = getAllSubclasses(tempRoot);
+
+        for (EntityMetadata sub : subs) {
+            if (sub.getEntityClass().equals(realClass)) {
+                return sub;
+            }
+        }
+        return null;
+    }
+
+    private void populateAllFields(Object instance, ResultSet rs, Class<?> realClass) throws SQLException {
+        // 1. Pobieramy metadane dla konkretnej klasy (np. Husky)
+
+
+
+        ///  FIXME najbardziej chujowe rozwiązanie jakie swiat widział
+//        EntityMetadata currentMetadata = this.entityMetadata.getInheritanceMetadata().getEntityMetadata(realClass);
+        EntityMetadata currentMetadata = findThisFucker(realClass);
+
+//        EntityMetadata currentMetadata = this.entityMetadata;
+
+        // 2. Iterujemy w górę hierarchii (Husky -> Dog -> Animal)
+        // Musimy wypełnić pola z każdej warstwy dziedziczenia
+        while (currentMetadata != null) {
+
+            // Pobieramy definicje kolumn przypisane do tej konkretnej encji/tabeli
+            for (PropertyMetadata column : currentMetadata.getColumnsForConcreteTable()) {
+                String columnName = column.getColumnName(); // np. "how", "age", "name"
+                String fieldName = column.getName();   // np. "how", "age", "name"
+
+                if (fieldName == null) {
+                    continue;
+                }
+                // ----------------
+
+                // Sprawdzamy czy pole należy do klasy (to już masz, ale warto zostawić)
+                if (!fieldBelongsToClass(column, currentMetadata.getEntityClass())) {
+                    continue;
+                }
+
+                try {
+                    // 3. Pobieramy wartość z ResultSet
+                    // Używamy getObject, żeby pobrać wartość bez względu na typ (Integer, String, etc.)
+                    // Warto tutaj sprawdzić czy kolumna istnieje w RS, choć przy SELECT * powinna być.
+                    Object value = rs.getObject(columnName);
+
+                    // 4. Wpisujemy wartość do obiektu używając Twojego ReflectionUtils
+                    // Ważne: Sprawdzamy null, żeby nie próbować wpisać null do typu prymitywnego (int)
+                    if (value != null) {
+                        ReflectionUtils.setFieldValue(instance, fieldName, value);
+                    } else {
+                        // Opcjonalnie: obsługa nulli dla typów obiektowych, jeśli ReflectionUtils tego nie robi
+                        // Dla prymitywów (int age) zostawiamy wartość domyślną (0), bo set wywołałby błąd
+                    }
+
+                } catch (SQLException e) {
+                    // Czasami w ResultSet kolumna może nie istnieć (np. jeśli nie użyłeś SELECT * tylko wymieniłeś kolumny)
+                    // Wtedy ignorujemy lub logujemy błąd
+                    System.err.println("Column not found in ResultSet: " + columnName);
+                }
+            }
+
+            // 5. Przechodzimy do rodzica (Husky -> Dog, potem Dog -> Animal)
+            // Zakładam, że masz metodę w metadanych, która zwraca metadane rodzica.
+            // Jeśli nie, musisz pobrać je z InheritanceMetadata na podstawie superklasy.
+//            Class<?> superClass = currentMetadata.getEntityClass().getSuperclass();
+            if (currentMetadata.getInheritanceMetadata().getParent() != null) {
+                currentMetadata = currentMetadata.getInheritanceMetadata().getParent();
+            } else {
+                currentMetadata = null; // Koniec hierarchii (doszliśmy do Object lub klasy bez adnotacji @Entity)
+            }
+        }
+    }
+
+    private List<EntityMetadata> getAllSubclasses(EntityMetadata root) {
+        List<EntityMetadata> result = new ArrayList<>();
+        Deque<EntityMetadata> stack = new ArrayDeque<>(root.getInheritanceMetadata().getChildren());
+        while(!stack.isEmpty()){
+            EntityMetadata current = stack.pop();
+            result.add(current);
+            stack.addAll(current.getInheritanceMetadata().getChildren());
+        }
+        return result;
     }
 
     private String buildJoinQuery() {

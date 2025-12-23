@@ -30,20 +30,10 @@ public class InheritanceMetadata {
     private EntityMetadata parent;
     private List<EntityMetadata> children = new ArrayList<>();
 
-    public <E> InheritanceMetadata(InheritanceType type, String discriminatorColumnName, String discriminatorColumnType, Map<Class<?>, String> classToDisc, Map<String, Class<?>> discToClass, List<Class<?>> of) {
-        this.type = type;
-        this.discriminatorColumnName = discriminatorColumnName;
-        this.classToDiscriminator = classToDisc;
-        this.discriminatorToClass = discToClass;
-        this.subclasses = of;
-//        this.subclasses = of;
-    }
-
     public boolean isRoot() { return parent == null; }
 
     @Override
     public String toString() {
-//        return "Inheritance " + type.toString() + " sub:" + subclasses.toString() + " dis " + discriminatorToClass.toString();
         if (parent != null) {
             return type.toString() +  " root: " + rootClass.getTableName() + " parent: " + parent.getTableName() + " children: " + children.size();
         }
