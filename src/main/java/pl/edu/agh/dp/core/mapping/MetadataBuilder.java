@@ -54,10 +54,21 @@ public class MetadataBuilder {
         // FIXME
         // Error checking for id
 
-//        if (idProperties.isEmpty() || meta.getInheritanceMetadata().getRootClass().getIdColumns().isEmpty()) {
-//            throw new IntegrityException("Every table must have an Id." +
-//                    "Unable to determine id in entity: " + clazz.getName());
-//        }
+        // 1. Sprawdzamy, czy znaleźliśmy ID w bieżącej klasie
+        boolean hasLocalId = !idProperties.isEmpty();
+
+        // 2. Jeśli nie ma lokalnie, sprawdzamy w górę hierarchii używając Refleksji
+        if (!hasLocalId) {
+            boolean hasParentId = checkRecursiveIdInParents(clazz);
+
+            if (!hasParentId) {
+                throw new IntegrityException("Entity " + clazz.getName() +
+                        " has no @Id defined and does not inherit any @Id from superclasses.");
+            }
+        }
+
+
+
         // Error checking for composite keys
         if (idProperties.size() > 1) {
             List<PropertyMetadata> idIncremented = new ArrayList<>();
@@ -83,6 +94,27 @@ public class MetadataBuilder {
         }
 
         return meta;
+    }
+
+    private static boolean checkRecursiveIdInParents(Class<?> currentClass) {
+        // Zaczynamy od rodzica (bo bieżącą klasę już sprawdziliśmy w 'idProperties')
+        Class<?> superClass = currentClass.getSuperclass();
+
+        while (superClass != null && superClass != Object.class) {
+            // Sprawdzamy czy jakikolwiek pole w nadklasie ma adnotację @Id
+            // Upewnij się, że używasz swojej adnotacji pl.edu.agh.dp.api.annotations.Id
+            boolean hasId = Arrays.stream(superClass.getDeclaredFields())
+                    .anyMatch(f -> f.isAnnotationPresent(pl.edu.agh.dp.api.annotations.Id.class));
+
+            if (hasId) {
+                return true; // Znaleziono ID u przodka
+            }
+
+            // Idziemy wyżej
+            superClass = superClass.getSuperclass();
+        }
+
+        return false; // Doszliśmy do Object i nikt nie miał ID
     }
 
     private static void mapForeignColumn(EntityMetadata meta, Field f, List<PropertyMetadata> idProperties) {

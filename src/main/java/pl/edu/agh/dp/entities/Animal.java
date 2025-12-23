@@ -14,7 +14,7 @@ import pl.edu.agh.dp.core.mapping.InheritanceType;
 @Entity
 @Inheritance(strategy = InheritanceType.JOINED)
 public class Animal {
-    @Id
+    @Id(autoIncrement = false)
     Long id;
     String name;
 }

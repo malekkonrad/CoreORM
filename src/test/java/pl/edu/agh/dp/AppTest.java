@@ -267,16 +267,20 @@ public class AppTest {
     @Test
     public void testPolymorphicFindAll(){
         Husky dog =  new Husky();
+        dog.setId(3L);
         dog.setName("Husky1");
         dog.setHow("How How");
         session.save(dog);
 
         Dog dog2 = new Dog();
+        dog2.setId(1L);
         dog2.setName("Dog2");
         dog2.setAge(10);
         session.save(dog2);
 
         Cat cat = new Cat();
+//        cat.setName("Cat1");
+        cat.setId(4L);
         cat.setName("Cat1");
         cat.setCatName("CatName1");
         session.save(cat);
@@ -288,6 +292,10 @@ public class AppTest {
         for (Animal animal:  animals) {
             System.out.println(animal.getName());
         }
+
+        Dog foundDog = session.find(Dog.class, dog2.getId());
+        assertEquals(dog2.getId(), foundDog.getId());
+        System.out.println(foundDog.getName() + " " + foundDog.getId());
 //        assertEquals(dogs.size(), 1);
 //        assertEquals(dogs.get(0).getName(), dog2.getName());
 

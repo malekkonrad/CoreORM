@@ -18,47 +18,14 @@ public class TablePerClassInheritanceStrategy extends AbstractInheritanceStrateg
         super(metadata);
     }
 
-
-//    @Override
-//    public String create(JdbcExecutor jdbcExecutor) {
-//        StringBuilder sb = new StringBuilder();
-//
-//        sb.append("CREATE TABLE ").append(this.entityMetadata.getTableName()).append(" (\n");
-//
-//        List<String> columnDefs = new ArrayList<>();
-//
-//        for (PropertyMetadata col : this.entityMetadata.getColumnsForConcreteTable()) {
-//            columnDefs.add("    " + col.getColumnName() + " " + col.getSqlType());
-//        }
-//
-//        sb.append(String.join(",\n", columnDefs));
-//
-//        // PRIMARY KEYS
-//        List<String> idColumns = new ArrayList<>();
-//        Collection<PropertyMetadata> rootIds = entityMetadata.getInheritanceMetadata().getRootClass().getIdColumns().values();
-//        for (PropertyMetadata idProp : rootIds) {
-//            idColumns.add(idProp.getColumnName());
-//        }
-//        // FIXME IN SQLITE it cant be added
-//        sb.append(",\n    PRIMARY KEY (")
-//                .append(String.join(", ", idColumns))
-//                .append(")");
-//
-//        sb.append("\n);");
-//
-//        return sb.toString();
-//    }
     @Override
     public String create(JdbcExecutor jdbcExecutor) {
 
 
         StringBuilder sb = new StringBuilder();
 
-        // 1. Obsługa tworzenia samej sekwencji (opcjonalnie tutaj lub w osobnej metodzie)
-        // Jeśli to jest klasa ROOT, wypadałoby najpierw stworzyć dla niej sekwencję.
-        // Ale zazwyczaj generuje się to osobnym zapytaniem przed tworzeniem tabel.
-        // Zakładam, że sekwencja nazywa się: "nazwa_tabeli_root_seq"
-
+        // 1. Obsługa tworzenia samej sekwencji
+        assert this.entityMetadata != null;
         EntityMetadata rootMetadata = this.entityMetadata.getInheritanceMetadata().getRootClass();
 
         if (rootMetadata == entityMetadata) {
@@ -69,7 +36,6 @@ public class TablePerClassInheritanceStrategy extends AbstractInheritanceStrateg
             jdbcExecutor.createTable(seq);
         }
 
-
         String rootTableName = rootMetadata.getTableName();
         String sequenceName = rootTableName + "_id_seq"; // np. animal_id_seq
 
@@ -77,9 +43,7 @@ public class TablePerClassInheritanceStrategy extends AbstractInheritanceStrateg
 
         List<String> columnDefs = new ArrayList<>();
 
-        // Pobieramy IDki, żeby wiedzieć, która kolumna to ID
-        // (Zakładam uproszczenie, że sprawdzamy po nazwie kolumny,
-        // ale lepiej byłoby mieć flagę col.isId() w PropertyMetadata)
+        // Pobieramy ID, żeby wiedzieć, która kolumna to ID
         Collection<PropertyMetadata> rootIds = rootMetadata.getIdColumns().values();
         List<String> idColumnNames = new ArrayList<>();
         for (PropertyMetadata idProp : rootIds) {
@@ -89,10 +53,9 @@ public class TablePerClassInheritanceStrategy extends AbstractInheritanceStrateg
         for (PropertyMetadata col : this.entityMetadata.getColumnsForConcreteTable()) {
             StringBuilder colDef = new StringBuilder();
 
-            // 2. i 3. Sprawdzamy czy to ID i dodajemy sekwencję (TYLKO DLA POSTGRES)
+            // Sprawdzamy, czy to ID i dodajemy sekwencję (TYLKO DLA POSTGRES)
             if (idColumnNames.contains(col.getColumnName())) {
                 colDef.append("    ").append(col.getColumnName()).append(" ").append("BIGINT");
-                // "DEFAULT nextval('animal_id_seq')"
                 colDef.append(" DEFAULT nextval('").append(sequenceName).append("') PRIMARY KEY ");
             }
             else{
@@ -181,12 +144,15 @@ public class TablePerClassInheritanceStrategy extends AbstractInheritanceStrateg
             JdbcExecutor jdbc = session.getJdbcExecutor();
             generatedId = jdbc.insert(sql.toString(), values.toArray());
             System.out.println("Generated ID: " + generatedId);
+
             // Ustaw wygenerowane ID
-            // FIXME important!!!!!!!!!!!!!!!!!!!!!!!!
-            PropertyMetadata idProp = entityMetadata.getInheritanceMetadata().getRootClass().getIdColumns().get("id");
-            if (idProp.isAutoIncrement()) {
-                System.out.println("seting id in " + entity.toString()+ " " + idProp.getColumnName());
-                ReflectionUtils.setFieldValue(entity, idProp.getName(), generatedId);
+            int numOfIds = entityMetadata.getInheritanceMetadata().getRootClass().getIdColumns().size();
+            if (numOfIds == 1) {        // we have one key if there's more then for sure it's not autoincrement
+                PropertyMetadata idProp = entityMetadata.getInheritanceMetadata().getRootClass().getIdColumns().values().iterator().next();
+                if (idProp.isAutoIncrement()) {
+                    System.out.println("seting id in " + entity.toString()+ " value: " + generatedId);
+                    ReflectionUtils.setFieldValue(entity, idProp.getName(), generatedId);
+                }
             }
         } catch (Exception e) {
             System.out.println(e.getMessage());
@@ -198,6 +164,7 @@ public class TablePerClassInheritanceStrategy extends AbstractInheritanceStrateg
 
     @Override
     public void update(Object entity, Session session) {
+        assert entityMetadata != null;
         String tableName = entityMetadata.getTableName();
 
         List<String> setColumns = new ArrayList<>();
@@ -243,6 +210,7 @@ public class TablePerClassInheritanceStrategy extends AbstractInheritanceStrateg
 
     @Override
     public void delete(Object entity, Session session) {
+        assert entityMetadata != null;
         String tableName = entityMetadata.getTableName();
 
         EntityMetadata rootMetadata = this.entityMetadata.getInheritanceMetadata().getRootClass();
@@ -347,42 +315,16 @@ public class TablePerClassInheritanceStrategy extends AbstractInheritanceStrateg
         }
     }
 
-//    @Override
-//    public <T> List<T> findAll(Class<T> type, Session session) {
-//        String tableName = entityMetadata.getTableName();
-//        String sql = "SELECT * FROM " + tableName;
-//
-//        // FIXME - maybe separate this code to private method in abstractInheritanceStrategy
-//        System.out.println("SQL: " + sql);
-//
-//        try {
-//            JdbcExecutor jdbc = session.getJdbcExecutor();
-//            List<Object> results = jdbc.query(sql, this::mapEntity);
-//
-//            List<T> filtered = new ArrayList<>();
-//            for (Object obj : results) {
-//                if (type.isInstance(obj)) {
-//                    filtered.add(type.cast(obj));
-//                }
-//            }
-//            return filtered;
-//        } catch (Exception e) {
-//            throw new RuntimeException("Error finding all entities", e);
-//        }
-//    }
-
     @Override
     public <T> List<T> findAll(Class<T> type, Session session) {
         // 1. Pobieramy metadane dla klasy, o którą pytamy (np. Dog)
-        // Zakładam, że masz dostęp do InheritanceMetadata, żeby znaleźć metadane dla 'type'
         EntityMetadata parentMeta = this.entityMetadata;
 
         // 2. Znajdujemy wszystkie podklasy (włącznie z 'type'), które mają swoje tabele
-        // Musisz zaimplementować tę metodę pomocniczą (kod poniżej)
         List<EntityMetadata> concreteSubclasses = getAllConcreteSubclasses(parentMeta);
 
         // 3. Ustalamy wspólne kolumny (tylko te, które ma klasa 'type' / Dog)
-        // Dzięki temu UNION ALL się uda (każda tabela musi oddać tyle samo kolumn)
+        assert parentMeta != null;
         List<String> columnsToSelect = parentMeta.getColumnsForConcreteTable()
                 .stream()
                 .map(PropertyMetadata::getColumnName)
@@ -427,7 +369,6 @@ public class TablePerClassInheritanceStrategy extends AbstractInheritanceStrateg
         toVisit.add(parent);
         while (!toVisit.isEmpty()) {
             var current =  toVisit.remove(0);
-
             for (EntityMetadata child: current.getInheritanceMetadata().getChildren()){
                 result.add(child);
                 toVisit.add(child);
@@ -446,23 +387,12 @@ public class TablePerClassInheritanceStrategy extends AbstractInheritanceStrateg
             Object instance = realClass.getDeclaredConstructor().newInstance();
 
             // 3. Wypełniamy pola.
-            // UWAGA: Tutaj musisz użyć swojej logiki hydracji/wypełniania obiektu.
-            // Użyj metadanych klasy BAZOWEJ (baseType), bo tylko te kolumny pobraliśmy w SQL.
-
-            EntityMetadata baseMetadata = this.entityMetadata;
-
-            for (PropertyMetadata col : baseMetadata.getColumnsForConcreteTable()) {
+            assert this.entityMetadata != null;
+            for (PropertyMetadata col : this.entityMetadata.getColumnsForConcreteTable()) {
                 String colName = col.getColumnName();
                 Object value = rs.getObject(colName);
-                // Tutaj twoja logika settera/field access:
-//                col.getField().setAccessible(true);
-//                col.getField().set(instance, value);
                 ReflectionUtils.setFieldValue(instance, colName, value);
             }
-
-            // Ustaw ID jeśli nie jest w columnsForConcreteTable (zależy jak masz to zorganizowane)
-            // ...
-
             return baseType.cast(instance);
         } catch (Exception e) {
             throw new RuntimeException("Error mapping polymorphic entity", e);

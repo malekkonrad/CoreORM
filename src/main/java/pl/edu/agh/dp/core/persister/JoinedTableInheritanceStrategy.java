@@ -21,19 +21,19 @@ public class JoinedTableInheritanceStrategy extends AbstractInheritanceStrategy 
     public String create(JdbcExecutor jdbcExecutor) {
         StringBuilder sb = new StringBuilder();
 
-        // Create table for this entity
+        assert entityMetadata != null;
         sb.append("CREATE TABLE ").append(entityMetadata.getTableName()).append(" (\n");
 
         List<String> columnDefs = new ArrayList<>();
         List<String> primaryKeys = new ArrayList<>();
 
+        // IDs first because POSTGRES fuck you
         for (PropertyMetadata prop : entityMetadata.getProperties().values()) {
             if (prop.isId()) {
                 columnDefs.add("    " + prop.getColumnName() + " " + prop.getSqlType());
                 primaryKeys.add(prop.getColumnName());
             }
         }
-
 
         // Add columns defined in this class only (not inherited ones)
         for (PropertyMetadata prop : entityMetadata.getProperties().values()) {
@@ -45,7 +45,7 @@ public class JoinedTableInheritanceStrategy extends AbstractInheritanceStrategy 
 
         sb.append(String.join(",\n", columnDefs));
 
-        // Add primary key constraint
+        // Add primary key constraint - for root
         if (!primaryKeys.isEmpty()) {
             sb.append(",\n    PRIMARY KEY (").append(String.join(", ", primaryKeys)).append(")");
         }
@@ -79,7 +79,6 @@ public class JoinedTableInheritanceStrategy extends AbstractInheritanceStrategy 
                         .append(String.join(", ", fkColumns))
                         .append(")");
 
-
                 sb.append(",\n    FOREIGN KEY (")
                         .append(String.join(", ", fkColumns))
                         .append(") REFERENCES ")
@@ -88,9 +87,7 @@ public class JoinedTableInheritanceStrategy extends AbstractInheritanceStrategy 
                         .append(String.join(", ", refColumns))
                         .append(")");
             }
-
         }
-
         sb.append("\n);");
 
         return sb.toString();
@@ -101,7 +98,9 @@ public class JoinedTableInheritanceStrategy extends AbstractInheritanceStrategy 
         visitingChain.add(entityMetadata);
 
         EntityMetadata current = entityMetadata;
-        while(current.getInheritanceMetadata().getParent() != null) {
+        while(true) {
+            assert current != null;
+            if (current.getInheritanceMetadata().getParent() == null) break;
             visitingChain.add(current.getInheritanceMetadata().getParent());
             current = current.getInheritanceMetadata().getParent();
         }
@@ -116,14 +115,11 @@ public class JoinedTableInheritanceStrategy extends AbstractInheritanceStrategy 
             JdbcExecutor jdbc = session.getJdbcExecutor();
 
             Long generatedId = null;
-            // Zakładam, że visitingChain jest posortowany: Root -> Child -> GrandChild
+            // Sorted visiting chain from root to leaf
             List<EntityMetadata> visitingChain = buildInheritanceChain();
 
-            // Pobieramy metadane korzenia (tam gdzie jest definicja ID)
+            assert entityMetadata != null;
             EntityMetadata root = entityMetadata.getInheritanceMetadata().getRootClass();
-
-            // Pobieramy nazwę kolumny ID z korzenia (do użycia w podklasach)
-            String rootIdColumnName = root.getIdColumns().values().iterator().next().getColumnName();
 
             for (EntityMetadata meta : visitingChain) {
                 List<String> columns = new ArrayList<>();
@@ -131,22 +127,17 @@ public class JoinedTableInheritanceStrategy extends AbstractInheritanceStrategy 
 
                 boolean isRoot = meta.getInheritanceMetadata().isRoot();
 
-                // Iterujemy po polach danej klasy
                 for (PropertyMetadata prop : meta.getProperties().values()) {
 
-                    // 1. Sprawdzamy czy pole należy do tej konkretnej klasy (żeby nie dublować pól z dziedziczenia)
                     if (!fieldBelongsToClass(prop, meta.getEntityClass())) {
                         continue;
                     }
 
-                    // 2. Obsługa ID w tabeli ROOT (AutoIncrement)
+                    //ID support in ROOT table (AutoIncrement)
                     if (isRoot && prop.isId() && prop.isAutoIncrement()) {
-                        // ZMIANA: Jeśli to ROOT i AutoIncrement -> POMIJAMY w SQL.
-                        // Baza sama nada numer, my go odczytamy po wykonaniu inserta.
                         continue;
                     }
 
-                    // Dodajemy standardowe pola (nie-ID lub ID nie-automatyczne)
                     columns.add(prop.getColumnName());
                     Object value = ReflectionUtils.getFieldValue(entity, prop.getName());
                     values.add(value);
@@ -157,34 +148,17 @@ public class JoinedTableInheritanceStrategy extends AbstractInheritanceStrategy 
                     values.add(root.getInheritanceMetadata().getClassToDiscriminator().get(entityMetadata.getEntityClass()));
                 }
 
-                // 3. Obsługa ID w tabelach PODRZĘDNYCH (nie-Root)
+                // ID not in root
                 if (!isRoot) {
                     if (generatedId == null) {
                         throw new RuntimeException("Generated ID is null but trying to insert into child table! Root insert failed?");
                     }
 
-                    // WAŻNE: W tabelach podrzędnych (Joined) klucz główny jest też kluczem obcym do Roota.
-                    // Musimy go dodać RĘCZNIE, używając ID wygenerowanego wcześniej.
-
-                    // Używamy nazwy kolumny ID zdefiniowanej w tej tabeli (meta) lub z roota,
-                    // zazwyczaj w JOINED nazwa kolumny ID jest taka sama lub mapowana.
-                    // Tutaj biorę nazwę kolumny ID z bieżącej tabeli:
-//                    String childIdColumnName = meta.getIdColumns().values().iterator().next().getColumnName();
-
-
-                    // FIXME duże uproszczenie - łatwa zmiana chyba wziąć pierwszy element - i guess
-                    String childIdColumnName = root.getIdColumns().get("id").getColumnName();
+                    String childIdColumnName = root.getIdColumns().keySet().iterator().next();
                     columns.add(childIdColumnName);
                     values.add(generatedId);
                 }
 
-                if (columns.isEmpty()) {
-                    // Może się zdarzyć, że tabela podrzędna nie ma własnych pól poza ID,
-                    // ale i tak musimy zrobić INSERT samego ID, żeby zachować spójność dziedziczenia.
-                    if (isRoot) continue; // Jeśli root jest pusty (dziwne), to skip
-                }
-
-                // Budowanie SQL
                 StringBuilder sql = new StringBuilder();
                 sql.append("INSERT INTO ")
                         .append(meta.getTableName())
@@ -193,35 +167,24 @@ public class JoinedTableInheritanceStrategy extends AbstractInheritanceStrategy 
                         .append(") VALUES (")
                         .append("?,".repeat(values.size()));
 
-                if (values.size() > 0) {
-                    sql.deleteCharAt(sql.length() - 1); // usuń ostatni przecinek
-                }
+                sql.deleteCharAt(sql.length() - 1); // delete last comma
                 sql.append(")");
 
                 System.out.println("Joined Insert SQL (" + (isRoot ? "ROOT" : "CHILD") + "): " + sql);
                 System.out.println("Values: " + values);
 
-                // Wykonanie SQL
                 Long currentResult = jdbc.insert(sql.toString(), values.toArray());
 
-                // 4. Po insercie do ROOT - pobranie i ustawienie wygenerowanego ID
                 if (isRoot) {
-                    // Jeśli mieliśmy autoincrement, baza zwróciła nam nowe ID
-                    // Jeśli nie, to currentResult może być null lub 0 (zależy od implementacji jdbc),
-                    // ale wtedy ID braliśmy z obiektu.
-
                     boolean hasAutoIncrementId = meta.getIdColumns().values().stream().anyMatch(PropertyMetadata::isAutoIncrement);
 
                     if (hasAutoIncrementId) {
-                        generatedId = currentResult; // To jest nasze ID z bazy (np. 15)
+                        generatedId = currentResult;
 
-                        // Ustawiamy to ID w obiekcie Java (Refleksja)
                         for (PropertyMetadata idProp : meta.getIdColumns().values()) {
                             ReflectionUtils.setFieldValue(entity, idProp.getName(), generatedId);
                         }
                     } else {
-                        // Jeśli nie było auto-increment, to ID musiał być ustawiony w obiekcie przed insertem
-                        // Musimy go pobrać, żeby użyć w tabelach podrzędnych
                         String idPropName = meta.getIdColumns().values().iterator().next().getName();
                         generatedId = (Long) ReflectionUtils.getFieldValue(entity, idPropName);
                     }
@@ -241,7 +204,6 @@ public class JoinedTableInheritanceStrategy extends AbstractInheritanceStrategy 
             JdbcExecutor jdbc = session.getJdbcExecutor();
             List<EntityMetadata> chain = buildInheritanceChain();
 
-            // UPDATE w każdej tabeli w hierarchii
             for (EntityMetadata meta : chain) {
                 List<String> setColumns = new ArrayList<>();
                 List<Object> values = new ArrayList<>();
@@ -266,13 +228,12 @@ public class JoinedTableInheritanceStrategy extends AbstractInheritanceStrategy 
                     continue;
                 }
 
-                // WHERE clause (zawsze używamy ID z roota)
+                assert entityMetadata != null;
                 EntityMetadata root = entityMetadata.getInheritanceMetadata().getRootClass();
                 Object idValue = getIdValue(entity);
                 String whereClause = buildWhereClause(root);
                 Object[] idParams = prepareIdParams(idValue);
 
-                // Połącz parametry
                 List<Object> allParams = new ArrayList<>(values);
                 allParams.addAll(Arrays.asList(idParams));
 
@@ -298,9 +259,10 @@ public class JoinedTableInheritanceStrategy extends AbstractInheritanceStrategy 
             JdbcExecutor jdbc = session.getJdbcExecutor();
             List<EntityMetadata> chain = buildInheritanceChain();
 
-            // DELETE od najdalszego dziecka do roota (żeby nie naruszyć foreign keys)
+            //DELETE from the farthest child to the root (to avoid affecting foreign keys)
             Collections.reverse(chain);
 
+            assert entityMetadata != null;
             EntityMetadata root = entityMetadata.getInheritanceMetadata().getRootClass();
             Object idValue = getIdValue(entity);
             Object[] idParams = prepareIdParams(idValue);
@@ -327,11 +289,10 @@ public class JoinedTableInheritanceStrategy extends AbstractInheritanceStrategy 
     public Object findById(Object id, Session session) {
         try {
             JdbcExecutor jdbc = session.getJdbcExecutor();
-//
-            // Build JOIN query across all tables in hierarchy
             String sql = buildJoinQuery();
 
             // Get ID column name from root
+            assert entityMetadata != null;
             EntityMetadata root = entityMetadata.getInheritanceMetadata().getRootClass();
             PropertyMetadata idColumn = root.getIdColumns().values().iterator().next();
 
@@ -340,60 +301,30 @@ public class JoinedTableInheritanceStrategy extends AbstractInheritanceStrategy 
             System.out.println("Joined FindById SQL: " + sql);
 
             return jdbc.queryOne(sql, this::mapEntity, id).orElse(null);
-//            return null;
         } catch (Exception e) {
             throw new RuntimeException("Error finding entity with id = " + id, e);
         }
     }
 
-//    @Override
-//    public <T> List<T> findAll(Class<T> type, Session session) {
-//        try {
-//            JdbcExecutor jdbc = session.getJdbcExecutor();
-//
-//            // Build JOIN query
-//            String sql = buildJoinQuery();
-//
-//            System.out.println("Joined FindAll SQL: " + sql);
-//
-//            List<Object> results = jdbc.query(sql, this::mapEntity);
-//
-//            // Filter by exact type
-//            List<T> filtered = new ArrayList<>();
-//            for (Object obj : results) {
-//                if (obj.getClass().equals(type)) {
-//                    filtered.add(type.cast(obj));
-//                }
-//            }
-//
-//            return filtered;
-//
-//        } catch (Exception e) {
-//            throw new RuntimeException("Error finding all entities of type: " + type, e);
-//        }
-//    }
-
     @Override
     public <T> List<T> findAll(Class<T> type, Session session) {
-        // 1. Pobieramy metadane
-        EntityMetadata targetMetadata = this.entityMetadata;
+        assert this.entityMetadata != null;
         EntityMetadata rootMetadata = this.entityMetadata.getInheritanceMetadata().getRootClass();
 
-        // 2. Budujemy zapytanie SQL ze złączeniami
-        String sql = buildPolymorphicJoinQuery(targetMetadata, rootMetadata);
+        String sql = buildPolymorphicJoinQuery(this.entityMetadata, rootMetadata);
         System.out.println("Joined SQL: " + sql);
 
         try {
             JdbcExecutor jdbc = session.getJdbcExecutor();
 
-            // 3. Mapujemy wyniki używając kolumny DTYPE z tabeli ROOT
+            // We map the results using the DTYPE column from the ROOT table
             List<Object> results = jdbc.query(sql, rs -> mapJoinedEntity(rs, rootMetadata));
 
-            // 4. Filtrujemy i rzutujemy (Polimorfizm zadziała automatycznie)
+            // We filter and cast (Polymorphism will work automatically)
             List<T> filtered = new ArrayList<>();
             for (Object obj : results) {
-                // WAŻNE: Używamy isInstance, a nie equals!
-                // Dzięki temu Husky przejdzie, gdy szukamy Dog.
+                // IMPORTANT: We use isInstance, not equals!
+                // This will ensure that Husky passes when we search for Dog.
                 if (type.isInstance(obj)) {
                     filtered.add(type.cast(obj));
                 }
@@ -485,15 +416,9 @@ public class JoinedTableInheritanceStrategy extends AbstractInheritanceStrategy 
     }
 
     private void populateAllFields(Object instance, ResultSet rs, Class<?> realClass) throws SQLException {
-        // 1. Pobieramy metadane dla konkretnej klasy (np. Husky)
-
-
-
-        ///  FIXME najbardziej chujowe rozwiązanie jakie swiat widział
-//        EntityMetadata currentMetadata = this.entityMetadata.getInheritanceMetadata().getEntityMetadata(realClass);
+        // We get metadata for specific class (e.g. Husky)
+        ///  WARNING najbardziej chujowe rozwiązanie, jakie świat widział
         EntityMetadata currentMetadata = findThisFucker(realClass);
-
-//        EntityMetadata currentMetadata = this.entityMetadata;
 
         // 2. Iterujemy w górę hierarchii (Husky -> Dog -> Animal)
         // Musimy wypełnić pola z każdej warstwy dziedziczenia
@@ -507,7 +432,6 @@ public class JoinedTableInheritanceStrategy extends AbstractInheritanceStrategy 
                 if (fieldName == null) {
                     continue;
                 }
-                // ----------------
 
                 // Sprawdzamy czy pole należy do klasy (to już masz, ale warto zostawić)
                 if (!fieldBelongsToClass(column, currentMetadata.getEntityClass())) {
@@ -524,11 +448,7 @@ public class JoinedTableInheritanceStrategy extends AbstractInheritanceStrategy 
                     // Ważne: Sprawdzamy null, żeby nie próbować wpisać null do typu prymitywnego (int)
                     if (value != null) {
                         ReflectionUtils.setFieldValue(instance, fieldName, value);
-                    } else {
-                        // Opcjonalnie: obsługa nulli dla typów obiektowych, jeśli ReflectionUtils tego nie robi
-                        // Dla prymitywów (int age) zostawiamy wartość domyślną (0), bo set wywołałby błąd
                     }
-
                 } catch (SQLException e) {
                     // Czasami w ResultSet kolumna może nie istnieć (np. jeśli nie użyłeś SELECT * tylko wymieniłeś kolumny)
                     // Wtedy ignorujemy lub logujemy błąd
@@ -537,9 +457,6 @@ public class JoinedTableInheritanceStrategy extends AbstractInheritanceStrategy 
             }
 
             // 5. Przechodzimy do rodzica (Husky -> Dog, potem Dog -> Animal)
-            // Zakładam, że masz metodę w metadanych, która zwraca metadane rodzica.
-            // Jeśli nie, musisz pobrać je z InheritanceMetadata na podstawie superklasy.
-//            Class<?> superClass = currentMetadata.getEntityClass().getSuperclass();
             if (currentMetadata.getInheritanceMetadata().getParent() != null) {
                 currentMetadata = currentMetadata.getInheritanceMetadata().getParent();
             } else {
@@ -579,13 +496,10 @@ public class JoinedTableInheritanceStrategy extends AbstractInheritanceStrategy 
         sql.append("SELECT ").append(String.join(", ", selectColumns));
         sql.append("\nFROM ").append(root.getTableName());
 
-//        EntityMetadata root = entityMetadata.getInheritanceMetadata().getRootClass();
-
         // Build JOINs from root down to current entity
         for (int i = 1; i < chain.size(); i++) {
             EntityMetadata child = chain.get(i);
             EntityMetadata parent = child.getInheritanceMetadata().getParent();
-
 
             // STUPID FIX but it works
             PropertyMetadata idProp = root.getIdColumns().values().iterator().next();
@@ -629,6 +543,7 @@ public class JoinedTableInheritanceStrategy extends AbstractInheritanceStrategy 
             return entity;
 
         } catch (Exception e) {
+            assert entityMetadata != null;
             throw new SQLException("Failed to map entity: " + entityMetadata.getEntityClass().getName(), e);
         }
     }
@@ -658,6 +573,7 @@ public class JoinedTableInheritanceStrategy extends AbstractInheritanceStrategy 
         }
 
         // Default to root class
+        assert entityMetadata != null;
         return entityMetadata.getInheritanceMetadata().getRootClass().getEntityClass();
     }
 
@@ -681,6 +597,7 @@ public class JoinedTableInheritanceStrategy extends AbstractInheritanceStrategy 
 
     private EntityMetadata findMetadataForClass(Class<?> clazz) {
         // Search through hierarchy
+        assert entityMetadata != null;
         EntityMetadata root = entityMetadata.getInheritanceMetadata().getRootClass();
         if (root.getEntityClass().equals(clazz)) {
             return root;

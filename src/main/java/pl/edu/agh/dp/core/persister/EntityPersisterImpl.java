@@ -197,25 +197,4 @@ public class EntityPersisterImpl implements EntityPersister {
     public void delete(Object entity, Session session) {
         inheritanceStrategy.delete(entity, session);
     }
-
-    private Object mapEntity(ResultSet rs) throws SQLException {
-        try {
-            Object entity = metadata.getEntityClass().getDeclaredConstructor().newInstance();
-
-            for (PropertyMetadata prop : metadata.getProperties().values()) {
-                Object value = rs.getObject(prop.getColumnName());
-
-                // Konwersja Integer -> Long dla wszystkich pól Long
-                if (value instanceof Integer && prop.getType() == Long.class) {
-                    value = ((Integer) value).longValue();
-                }
-
-                ReflectionUtils.setFieldValue(entity, prop.getName(), value);
-            }
-
-            return entity;
-        } catch (Exception e) {
-            throw new SQLException("Failed to map entity: " + metadata.getEntityClass().getName(), e);
-        }
-    }
 }

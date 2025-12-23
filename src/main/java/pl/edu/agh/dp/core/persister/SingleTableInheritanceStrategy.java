@@ -1,12 +1,8 @@
 package pl.edu.agh.dp.core.persister;
 
-import lombok.NoArgsConstructor;
 import pl.edu.agh.dp.api.Session;
-import pl.edu.agh.dp.core.jdbc.Dialect;
 import pl.edu.agh.dp.core.jdbc.JdbcExecutor;
-import pl.edu.agh.dp.core.jdbc.JdbcExecutorImpl;
 import pl.edu.agh.dp.core.mapping.EntityMetadata;
-import pl.edu.agh.dp.core.mapping.MetadataRegistry;
 import pl.edu.agh.dp.core.mapping.PropertyMetadata;
 import pl.edu.agh.dp.core.util.ReflectionUtils;
 
@@ -15,17 +11,16 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.*;
 
-@NoArgsConstructor
+
 public class SingleTableInheritanceStrategy extends AbstractInheritanceStrategy {
 
     public SingleTableInheritanceStrategy(EntityMetadata metadata) {
         super(metadata);
     }
 
-
     @Override
     public String create(JdbcExecutor jdbcExecutor) {
-        // FIXME nullpointer!
+        assert this.entityMetadata != null;
         if (!this.entityMetadata.getInheritanceMetadata().isRoot()){
             return null;
         }
@@ -41,7 +36,6 @@ public class SingleTableInheritanceStrategy extends AbstractInheritanceStrategy 
 
         sb.append(String.join(",\n", columnDefs));
 
-
         // PRIMARY KEYS
         List<String> idColumns = new ArrayList<>();
         Collection<PropertyMetadata> rootIds = entityMetadata.getIdColumns().values();
@@ -49,7 +43,6 @@ public class SingleTableInheritanceStrategy extends AbstractInheritanceStrategy 
             idColumns.add(idProp.getColumnName());
         }
 
-        // FIXME comment on tests - fuck sqlite
         sb.append(",\n    PRIMARY KEY (")
                 .append(String.join(", ", idColumns))
                 .append(")");
@@ -61,7 +54,7 @@ public class SingleTableInheritanceStrategy extends AbstractInheritanceStrategy 
 
     @Override
     public Object insert(Object entity, Session session) {
-        ///  FIXME
+        assert this.entityMetadata != null;
         EntityMetadata rootMetadata = this.entityMetadata.getInheritanceMetadata().getRootClass();
         String tableName = rootMetadata.getTableName();
         String discriminatorColumn = rootMetadata.getInheritanceMetadata().getDiscriminatorColumnName();
@@ -116,12 +109,15 @@ public class SingleTableInheritanceStrategy extends AbstractInheritanceStrategy 
             JdbcExecutor jdbc = session.getJdbcExecutor();
             Long generatedId = jdbc.insert(sql.toString(), values.toArray());
             System.out.println("Generated ID: " + generatedId);
+
             // Ustaw wygenerowane ID
-            // FIXME important!!!!!!!!!!!!!!!!!!!!!!!!
-            PropertyMetadata idProp = rootMetadata.getIdColumns().get("id");
-            if (idProp.isAutoIncrement()) {
-                System.out.println("seting id in " + entity.toString()+ " " + idProp.getColumnName());
-                ReflectionUtils.setFieldValue(entity, idProp.getName(), generatedId);
+            int numOfIds = rootMetadata.getIdColumns().size();
+            if (numOfIds == 1) {        // we have one key if there's more then for sure it's not autoincrement
+                PropertyMetadata idProp = rootMetadata.getIdColumns().values().iterator().next();
+                if (idProp.isAutoIncrement()) {
+                    System.out.println("seting id in " + entity.toString()+ " value: " + generatedId);
+                    ReflectionUtils.setFieldValue(entity, idProp.getName(), generatedId);
+                }
             }
 
             return generatedId;
@@ -132,6 +128,7 @@ public class SingleTableInheritanceStrategy extends AbstractInheritanceStrategy 
 
     @Override
     public void update(Object entity, Session session) {
+        assert this.entityMetadata != null;
         EntityMetadata rootMetadata = this.entityMetadata.getInheritanceMetadata().getRootClass();
         String tableName = rootMetadata.getTableName();
 
@@ -183,6 +180,7 @@ public class SingleTableInheritanceStrategy extends AbstractInheritanceStrategy 
 
     @Override
     public void delete(Object entity, Session session) {
+        assert this.entityMetadata != null;
         EntityMetadata rootMetadata = this.entityMetadata.getInheritanceMetadata().getRootClass();
         String tableName = rootMetadata.getTableName();
 
@@ -205,12 +203,12 @@ public class SingleTableInheritanceStrategy extends AbstractInheritanceStrategy 
 
     @Override
     public Object findById(Object id, Session session) {
+        assert this.entityMetadata != null;
         EntityMetadata rootMetadata = this.entityMetadata.getInheritanceMetadata().getRootClass();
         String tableName = rootMetadata.getTableName();
         String discriminatorColumn = rootMetadata.getInheritanceMetadata().getDiscriminatorColumnName();
 
-        // FIXME
-        PropertyMetadata idColumn = rootMetadata.getIdColumns().get("id");
+        PropertyMetadata idColumn = rootMetadata.getIdColumns().values().iterator().next();
 
         String sql = "SELECT * FROM " + tableName + " WHERE " + idColumn.getColumnName() + " = ?";
 
@@ -225,13 +223,14 @@ public class SingleTableInheritanceStrategy extends AbstractInheritanceStrategy 
 
     @Override
     public <T> List<T> findAll(Class<T> type, Session session) {
+        assert this.entityMetadata != null;
         EntityMetadata rootMetadata = this.entityMetadata.getInheritanceMetadata().getRootClass();
         String tableName = rootMetadata.getTableName();
         String discriminatorColumn = rootMetadata.getInheritanceMetadata().getDiscriminatorColumnName();
 
         String discName = rootMetadata.getInheritanceMetadata().getClassToDiscriminator().get(type);
 
-        // obsługa polimorfizmu
+        // Polymorphic logic
         List<String> discNames = new ArrayList<>();
         discNames.add(discName);
         if (!this.entityMetadata.getInheritanceMetadata().getChildren().isEmpty()) {
@@ -246,11 +245,11 @@ public class SingleTableInheritanceStrategy extends AbstractInheritanceStrategy 
                 childrenToVisit.remove(child);
             }
         }
-        String discIn = "";
+        StringBuilder discIn = new StringBuilder();
         for (String name : discNames) {
-            discIn += "'" + name + "',";
+            discIn.append("'").append(name).append("',");
         }
-        discIn = discIn.substring(0, discIn.length() - 1);
+        discIn = new StringBuilder(discIn.substring(0, discIn.length() - 1));
 
         String sql = "SELECT * FROM " + tableName + " WHERE " + discriminatorColumn + " IN (" + discIn +")";
         System.out.println("SQL: " + sql);
@@ -273,7 +272,7 @@ public class SingleTableInheritanceStrategy extends AbstractInheritanceStrategy 
 
     private Object mapEntity(ResultSet rs) throws SQLException {
         try {
-
+            assert this.entityMetadata != null;
             EntityMetadata rootMetadata = this.entityMetadata.getInheritanceMetadata().getRootClass();
             String discriminatorColumn = rootMetadata.getInheritanceMetadata().getDiscriminatorColumnName();
             if (discriminatorColumn==null){
