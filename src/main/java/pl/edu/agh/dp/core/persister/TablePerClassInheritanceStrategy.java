@@ -295,61 +295,93 @@ public class TablePerClassInheritanceStrategy extends AbstractInheritanceStrateg
                 columns.add(pm.getColumnName());
             }
 
-            StringBuilder sql = new StringBuilder();
-            sql.append("SELECT ")
-                    .append(String.join(", ", columns))
-                    .append(" FROM ")
-                    .append(entityMetadata.getTableName())
-                    .append(" WHERE ");
 
-            Object[] params = new Object[idColumns.size()];
-            if (idColumns.size() == 1) {
-                PropertyMetadata pm = idColumns.iterator().next();
-                sql.append(pm.getColumnName());
-                sql.append(" = ?");
-                try {
-                    params[0] = pm.getType().cast(id);
-                } catch (ClassCastException e) {
-                    throw new IntegrityException(
-                            "Type mismatch or unable to cast. Field: '" + pm.getName() + "' is: '" + pm.getType() + "', but got: '" + id.getClass() + "'");
-                }
-            }
-            else {
-                for (int i = 0; i < params.length; i++) {
+            // 2. Znajdujemy wszystkie podklasy (włącznie z 'type'), które mają swoje tabele
+            List<EntityMetadata> concreteSubclasses = getAllConcreteSubclasses(entityMetadata);
+            System.out.println(concreteSubclasses.toString());
+
+            StringBuilder sql = new StringBuilder();
+            Object[] params = new Object[idColumns.size() * concreteSubclasses.size()];
+
+//            sql.append("SELECT ")
+//                    .append(String.join(", ", columns))
+//                    .append(" FROM ")
+//                    .append(entityMetadata.getTableName())
+//                    .append(" WHERE ");
+
+            // przejść przez wszystkie klasy dziedziczące po naszej obecnej i zrobić union
+            for (int j = 0; j < concreteSubclasses.size(); j++) {
+                EntityMetadata subMeta = concreteSubclasses.get(j);
+
+                sql.append("SELECT ")
+                        .append(String.join(", ", columns))
+                        // WAŻNE: Wstrzykujemy nazwę klasy jako sztuczną kolumnę DTYPE
+//                        .append(", '").append(subMeta.getEntityClass().getName()).append("' as DTYPE")
+                        .append(" FROM ")
+                        .append(subMeta.getTableName())
+                        .append(" WHERE ");
+
+
+
+                if (idColumns.size() == 1) {
                     PropertyMetadata pm = idColumns.iterator().next();
                     sql.append(pm.getColumnName());
                     sql.append(" = ?");
-                    if (i < params.length - 1) {
-                        sql.append(" AND ");
-                    }
                     try {
-                        ReflectionUtils.findField(id.getClass(), pm.getName());
-                    } catch (NoSuchFieldException e) {
-                        List<String> fields = new ArrayList<>();
-                        List<String> types = new ArrayList<>();
-                        for (PropertyMetadata pmeta : idColumns) {
-                            fields.add(pmeta.getName());
-                            types.add(pmeta.getType().getName() + " " + pmeta.getName() + ";");
-                        }
-                        throw new IntegrityException(
-                                "Composite key for entity: '" + entityMetadata.getEntityClass().getName() + "' should be provided.\n" +
-                                "Composite key: (" + String.join(", ", fields) + ")\n" +
-                                "'Id' should have the aforementioned fields to function properly.\n" +
-                                "Provided: '" + id.toString() + "'\n" +
-                                "Example:\n" +
-                                "class " + entityMetadata.getEntityClass().getSimpleName() + "Id {\n\t" +
-                                String.join("\n\t", fields) + "\n}"
-                        );
-                    }
-                    Object val = ReflectionUtils.getFieldValue(id, pm.getName());
-                    try {
-                        params[i] = pm.getType().cast(val);
+                        // change !
+                        params[j] = pm.getType().cast(id);
                     } catch (ClassCastException e) {
                         throw new IntegrityException(
                                 "Type mismatch or unable to cast. Field: '" + pm.getName() + "' is: '" + pm.getType() + "', but got: '" + id.getClass() + "'");
                     }
                 }
+                else {
+                    for (int i = 0; i < params.length; i++) {
+                        PropertyMetadata pm = idColumns.iterator().next();
+                        sql.append(pm.getColumnName());
+                        sql.append(" = ?");
+                        if (i < params.length - 1) {
+                            sql.append(" AND ");
+                        }
+                        try {
+                            ReflectionUtils.findField(id.getClass(), pm.getName());
+                        } catch (NoSuchFieldException e) {
+                            List<String> fields = new ArrayList<>();
+                            List<String> types = new ArrayList<>();
+                            for (PropertyMetadata pmeta : idColumns) {
+                                fields.add(pmeta.getName());
+                                types.add(pmeta.getType().getName() + " " + pmeta.getName() + ";");
+                            }
+                            throw new IntegrityException(
+                                    "Composite key for entity: '" + entityMetadata.getEntityClass().getName() + "' should be provided.\n" +
+                                            "Composite key: (" + String.join(", ", fields) + ")\n" +
+                                            "'Id' should have the aforementioned fields to function properly.\n" +
+                                            "Provided: '" + id.toString() + "'\n" +
+                                            "Example:\n" +
+                                            "class " + entityMetadata.getEntityClass().getSimpleName() + "Id {\n\t" +
+                                            String.join("\n\t", fields) + "\n}"
+                            );
+                        }
+                        Object val = ReflectionUtils.getFieldValue(id, pm.getName());
+                        try {
+                            params[i] = pm.getType().cast(val);
+                        } catch (ClassCastException e) {
+                            throw new IntegrityException(
+                                    "Type mismatch or unable to cast. Field: '" + pm.getName() + "' is: '" + pm.getType() + "', but got: '" + id.getClass() + "'");
+                        }
+                    }
+                }
+
+
+
+
+
+                if (j < concreteSubclasses.size() - 1) {
+                    sql.append(" UNION ALL ");
+                }
             }
+
+
 
             System.out.println("SELECT findById: ");
             System.out.println(sql.toString());
@@ -414,6 +446,7 @@ public class TablePerClassInheritanceStrategy extends AbstractInheritanceStrateg
         List<EntityMetadata> toVisit = new ArrayList<>();
 
         toVisit.add(parent);
+        result.add(parent);
         while (!toVisit.isEmpty()) {
             var current =  toVisit.remove(0);
             for (EntityMetadata child: current.getInheritanceMetadata().getChildren()){
