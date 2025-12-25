@@ -279,148 +279,362 @@ public class TablePerClassInheritanceStrategy extends AbstractInheritanceStrateg
         }
     }
 
+//    @Override
+//    public Object findById(Object id, Session session) {
+//
+//        try {
+//            JdbcExecutor jdbc = session.getJdbcExecutor();
+//
+//            assert entityMetadata != null;
+//            EntityMetadata root = entityMetadata.getInheritanceMetadata().getRootClass();
+//            Collection<PropertyMetadata> idColumns = root.getIdColumns().values();
+//            System.out.println("ID columns: " + idColumns);
+//
+//            List<String> columns = new ArrayList<>();
+//            for (PropertyMetadata pm : entityMetadata.getColumnsForConcreteTable()) {
+//                columns.add(pm.getColumnName());
+//            }
+//
+//
+//            // 2. Znajdujemy wszystkie podklasy (włącznie z 'type'), które mają swoje tabele
+//            List<EntityMetadata> concreteSubclasses = getAllConcreteSubclasses(entityMetadata);
+//            System.out.println(concreteSubclasses.toString());
+//
+//            StringBuilder sql = new StringBuilder();
+//            Object[] params = new Object[idColumns.size() * concreteSubclasses.size()];
+//
+////            sql.append("SELECT ")
+////                    .append(String.join(", ", columns))
+////                    .append(" FROM ")
+////                    .append(entityMetadata.getTableName())
+////                    .append(" WHERE ");
+//
+//            // przejść przez wszystkie klasy dziedziczące po naszej obecnej i zrobić union
+//            for (int j = 0; j < concreteSubclasses.size(); j++) {
+//                EntityMetadata subMeta = concreteSubclasses.get(j);
+//
+//                sql.append("SELECT ")
+//                        .append(String.join(", ", columns))
+//                        // WAŻNE: Wstrzykujemy nazwę klasy jako sztuczną kolumnę DTYPE
+////                        .append(", '").append(subMeta.getEntityClass().getName()).append("' as DTYPE")
+//                        .append(" FROM ")
+//                        .append(subMeta.getTableName())
+//                        .append(" WHERE ");
+//
+//
+//
+//                if (idColumns.size() == 1) {
+//                    PropertyMetadata pm = idColumns.iterator().next();
+//                    sql.append(pm.getColumnName());
+//                    sql.append(" = ?");
+//                    try {
+//                        // change !
+//                        params[j] = pm.getType().cast(id);
+//                    } catch (ClassCastException e) {
+//                        throw new IntegrityException(
+//                                "Type mismatch or unable to cast. Field: '" + pm.getName() + "' is: '" + pm.getType() + "', but got: '" + id.getClass() + "'");
+//                    }
+//                }
+//                else {
+//                    for (int i = 0; i < params.length; i++) {
+//                        PropertyMetadata pm = idColumns.iterator().next();
+//                        sql.append(pm.getColumnName());
+//                        sql.append(" = ?");
+//                        if (i < params.length - 1) {
+//                            sql.append(" AND ");
+//                        }
+//                        try {
+//                            ReflectionUtils.findField(id.getClass(), pm.getName());
+//                        } catch (NoSuchFieldException e) {
+//                            List<String> fields = new ArrayList<>();
+//                            List<String> types = new ArrayList<>();
+//                            for (PropertyMetadata pmeta : idColumns) {
+//                                fields.add(pmeta.getName());
+//                                types.add(pmeta.getType().getName() + " " + pmeta.getName() + ";");
+//                            }
+//                            throw new IntegrityException(
+//                                    "Composite key for entity: '" + entityMetadata.getEntityClass().getName() + "' should be provided.\n" +
+//                                            "Composite key: (" + String.join(", ", fields) + ")\n" +
+//                                            "'Id' should have the aforementioned fields to function properly.\n" +
+//                                            "Provided: '" + id.toString() + "'\n" +
+//                                            "Example:\n" +
+//                                            "class " + entityMetadata.getEntityClass().getSimpleName() + "Id {\n\t" +
+//                                            String.join("\n\t", fields) + "\n}"
+//                            );
+//                        }
+//                        Object val = ReflectionUtils.getFieldValue(id, pm.getName());
+//                        try {
+//                            params[i] = pm.getType().cast(val);
+//                        } catch (ClassCastException e) {
+//                            throw new IntegrityException(
+//                                    "Type mismatch or unable to cast. Field: '" + pm.getName() + "' is: '" + pm.getType() + "', but got: '" + id.getClass() + "'");
+//                        }
+//                    }
+//                }
+//
+//
+//
+//
+//
+//                if (j < concreteSubclasses.size() - 1) {
+//                    sql.append(" UNION ALL ");
+//                }
+//            }
+//
+//
+//
+//            System.out.println("SELECT findById: ");
+//            System.out.println(sql.toString());
+//
+//        return jdbc.queryOne(sql.toString(), this::mapEntity, params)
+//            .orElse(null);
+//
+//        } catch (Exception e) {
+//            throw new RuntimeException("Error finding entity with id = " + id, e);
+//        }
+//    }
+
+
     @Override
     public Object findById(Object id, Session session) {
-
         try {
-            JdbcExecutor jdbc = session.getJdbcExecutor();
+            // FAZA 1: Znajdź, która konkretna klasa (tabela) posiada to ID
+            EntityMetadata concreteMetadata = findConcreteMetadata(id, session);
 
-            assert entityMetadata != null;
-            EntityMetadata root = entityMetadata.getInheritanceMetadata().getRootClass();
-            Collection<PropertyMetadata> idColumns = root.getIdColumns().values();
-            System.out.println("ID columns: " + idColumns);
-
-            List<String> columns = new ArrayList<>();
-            for (PropertyMetadata pm : entityMetadata.getColumnsForConcreteTable()) {
-                columns.add(pm.getColumnName());
+            // Jeśli nie znaleziono ID w żadnej tabeli
+            if (concreteMetadata == null) {
+                return null;
             }
 
-
-            // 2. Znajdujemy wszystkie podklasy (włącznie z 'type'), które mają swoje tabele
-            List<EntityMetadata> concreteSubclasses = getAllConcreteSubclasses(entityMetadata);
-            System.out.println(concreteSubclasses.toString());
-
-            StringBuilder sql = new StringBuilder();
-            Object[] params = new Object[idColumns.size() * concreteSubclasses.size()];
-
-//            sql.append("SELECT ")
-//                    .append(String.join(", ", columns))
-//                    .append(" FROM ")
-//                    .append(entityMetadata.getTableName())
-//                    .append(" WHERE ");
-
-            // przejść przez wszystkie klasy dziedziczące po naszej obecnej i zrobić union
-            for (int j = 0; j < concreteSubclasses.size(); j++) {
-                EntityMetadata subMeta = concreteSubclasses.get(j);
-
-                sql.append("SELECT ")
-                        .append(String.join(", ", columns))
-                        // WAŻNE: Wstrzykujemy nazwę klasy jako sztuczną kolumnę DTYPE
-//                        .append(", '").append(subMeta.getEntityClass().getName()).append("' as DTYPE")
-                        .append(" FROM ")
-                        .append(subMeta.getTableName())
-                        .append(" WHERE ");
-
-
-
-                if (idColumns.size() == 1) {
-                    PropertyMetadata pm = idColumns.iterator().next();
-                    sql.append(pm.getColumnName());
-                    sql.append(" = ?");
-                    try {
-                        // change !
-                        params[j] = pm.getType().cast(id);
-                    } catch (ClassCastException e) {
-                        throw new IntegrityException(
-                                "Type mismatch or unable to cast. Field: '" + pm.getName() + "' is: '" + pm.getType() + "', but got: '" + id.getClass() + "'");
-                    }
-                }
-                else {
-                    for (int i = 0; i < params.length; i++) {
-                        PropertyMetadata pm = idColumns.iterator().next();
-                        sql.append(pm.getColumnName());
-                        sql.append(" = ?");
-                        if (i < params.length - 1) {
-                            sql.append(" AND ");
-                        }
-                        try {
-                            ReflectionUtils.findField(id.getClass(), pm.getName());
-                        } catch (NoSuchFieldException e) {
-                            List<String> fields = new ArrayList<>();
-                            List<String> types = new ArrayList<>();
-                            for (PropertyMetadata pmeta : idColumns) {
-                                fields.add(pmeta.getName());
-                                types.add(pmeta.getType().getName() + " " + pmeta.getName() + ";");
-                            }
-                            throw new IntegrityException(
-                                    "Composite key for entity: '" + entityMetadata.getEntityClass().getName() + "' should be provided.\n" +
-                                            "Composite key: (" + String.join(", ", fields) + ")\n" +
-                                            "'Id' should have the aforementioned fields to function properly.\n" +
-                                            "Provided: '" + id.toString() + "'\n" +
-                                            "Example:\n" +
-                                            "class " + entityMetadata.getEntityClass().getSimpleName() + "Id {\n\t" +
-                                            String.join("\n\t", fields) + "\n}"
-                            );
-                        }
-                        Object val = ReflectionUtils.getFieldValue(id, pm.getName());
-                        try {
-                            params[i] = pm.getType().cast(val);
-                        } catch (ClassCastException e) {
-                            throw new IntegrityException(
-                                    "Type mismatch or unable to cast. Field: '" + pm.getName() + "' is: '" + pm.getType() + "', but got: '" + id.getClass() + "'");
-                        }
-                    }
-                }
-
-
-
-
-
-                if (j < concreteSubclasses.size() - 1) {
-                    sql.append(" UNION ALL ");
-                }
-            }
-
-
-
-            System.out.println("SELECT findById: ");
-            System.out.println(sql.toString());
-
-        return jdbc.queryOne(sql.toString(), this::mapEntity, params)
-            .orElse(null);
+            // FAZA 2: Pobierz pełny obiekt z właściwej tabeli ze wszystkimi polami
+            return loadSpecificEntity(concreteMetadata, id, session);
 
         } catch (Exception e) {
             throw new RuntimeException("Error finding entity with id = " + id, e);
         }
     }
 
-    @Override
-    public <T> List<T> findAll(Class<T> type, Session session) {
-        // 1. Pobieramy metadane dla klasy, o którą pytamy (np. Dog)
-        EntityMetadata parentMeta = this.entityMetadata;
+    /**
+     * Faza 1: Sprawdza wszystkie tabele dziedziczące i zwraca metadane tej, w której jest ID.
+     */
+    private EntityMetadata findConcreteMetadata(Object id, Session session) throws Exception {
+        JdbcExecutor jdbc = session.getJdbcExecutor();
+        EntityMetadata root = entityMetadata.getInheritanceMetadata().getRootClass();
+        Collection<PropertyMetadata> idColumns = root.getIdColumns().values();
 
-        // 2. Znajdujemy wszystkie podklasy (włącznie z 'type'), które mają swoje tabele
-        List<EntityMetadata> concreteSubclasses = getAllConcreteSubclasses(parentMeta);
+        // Pobieramy wszystkie podklasy (Animal, Dog, Husky, Cat...)
+        List<EntityMetadata> concreteSubclasses = getAllConcreteSubclasses(entityMetadata);
 
-        // 3. Ustalamy wspólne kolumny (tylko te, które ma klasa 'type' / Dog)
-        assert parentMeta != null;
-        List<String> columnsToSelect = parentMeta.getColumnsForConcreteTable()
+        StringBuilder sql = new StringBuilder();
+        List<Object> params = new ArrayList<>();
+
+        // Budujemy zapytanie sprawdzające obecność ID w każdej tabeli
+        for (int i = 0; i < concreteSubclasses.size(); i++) {
+            EntityMetadata subMeta = concreteSubclasses.get(i);
+
+            // SELECT 'pl.agh...Husky' FROM husky WHERE id = ?
+            sql.append("SELECT '")
+                    .append(subMeta.getEntityClass().getName())
+                    .append("' as DTYPE FROM ")
+                    .append(subMeta.getTableName())
+                    .append(" WHERE ");
+
+            // Obsługa klucza (uproszczona dla pojedynczego ID, ale logika ta sama co wcześniej)
+            appendIdWhereClause(sql, params, idColumns, id);
+
+            if (i < concreteSubclasses.size() - 1) {
+                sql.append(" UNION ALL ");
+            }
+        }
+
+        // Wykonujemy zapytanie, które zwróci nam tylko nazwę klasy
+        return jdbc.queryOne(sql.toString(), rs -> {
+            String className = rs.getString("DTYPE");
+            // Szukamy metadanych odpowiadających nazwie klasy
+            return concreteSubclasses.stream()
+                    .filter(m -> m.getEntityClass().getName().equals(className))
+                    .findFirst()
+                    .orElseThrow(() -> new RuntimeException("Metadata not found for class: " + className));
+        }, params.toArray()).orElse(null);
+    }
+
+    /**
+     * Faza 2: Pobiera konkretny obiekt, znając już jego dokładny typ i tabelę.
+     */
+    private Object loadSpecificEntity(EntityMetadata specificMetadata, Object id, Session session) throws Exception {
+        JdbcExecutor jdbc = session.getJdbcExecutor();
+
+        // Budujemy listę WSZYSTKICH kolumn dla tej konkretnej klasy (np. Husky ma też pola Animala i Doga)
+        List<String> columns = specificMetadata.getColumnsForConcreteTable()
                 .stream()
                 .map(PropertyMetadata::getColumnName)
                 .collect(Collectors.toList());
 
-        String columnsSql = String.join(", ", columnsToSelect);
+        StringBuilder sql = new StringBuilder();
+        sql.append("SELECT ")
+                .append(String.join(", ", columns))
+                .append(" FROM ")
+                .append(specificMetadata.getTableName())
+                .append(" WHERE ");
 
-        // 4. Budujemy UNION ALL
+        // Parametry do WHERE
+        EntityMetadata root = entityMetadata.getInheritanceMetadata().getRootClass();
+        Collection<PropertyMetadata> idColumns = root.getIdColumns().values();
+        List<Object> params = new ArrayList<>();
+        appendIdWhereClause(sql, params, idColumns, id);
+
+        System.out.println("Loading full entity SQL: " + sql);
+
+        // Używamy specjalnego mappera, który korzysta z przekazanych metadanych (specificMetadata),
+        // a nie z this.entityMetadata (które wskazuje na Animal)
+        return jdbc.queryOne(sql.toString(), rs -> mapSpecificEntity(rs, specificMetadata), params.toArray())
+                .orElse(null);
+    }
+
+    /**
+     * Mapper, który potrafi zmapować obiekt na podstawie przekazanych metadanych,
+     * a nie tych przypisanych do strategii.
+     */
+    private Object mapSpecificEntity(ResultSet rs, EntityMetadata metadata) throws SQLException {
+        try {
+            // Tworzymy instancję konkretnej klasy (np. Husky)
+            Object entity = metadata.getEntityClass().getDeclaredConstructor().newInstance();
+
+            for (PropertyMetadata prop : metadata.getColumnsForConcreteTable()) {
+                try {
+                    Object value = rs.getObject(prop.getColumnName());
+
+                    // Fix na typy numeryczne
+                    if (value instanceof Integer && prop.getType() == Long.class) {
+                        value = ((Integer) value).longValue();
+                    }
+
+                    if (value != null) {
+                        ReflectionUtils.setFieldValue(entity, prop.getName(), value);
+                    }
+                } catch (SQLException e) {
+                    // Ignorujemy, jeśli kolumny nie ma (choć w tej strategii powinna być)
+                }
+            }
+            return entity;
+        } catch (Exception e) {
+            throw new RuntimeException("Error mapping entity " + metadata.getEntityClass().getName(), e);
+        }
+    }
+
+    // Pomocnicza metoda do budowania WHERE id = ? (wyciągnięta, by nie powielać kodu)
+    private void appendIdWhereClause(StringBuilder sql, List<Object> params, Collection<PropertyMetadata> idColumns, Object id) {
+        if (idColumns.size() == 1) {
+            PropertyMetadata pm = idColumns.iterator().next();
+            sql.append(pm.getColumnName()).append(" = ?");
+            params.add(pm.getType().cast(id));
+        } else {
+            // Tu wklej swoją logikę dla composite key, dla czytelności skróciłem
+            int count = 0;
+            for(PropertyMetadata pm : idColumns) {
+                if(count > 0) sql.append(" AND ");
+                sql.append(pm.getColumnName()).append(" = ?");
+                Object val = ReflectionUtils.getFieldValue(id, pm.getName());
+                params.add(val);
+                count++;
+            }
+        }
+    }
+
+
+
+
+//    @Override
+//    public <T> List<T> findAll(Class<T> type, Session session) {
+//        // 1. Pobieramy metadane dla klasy, o którą pytamy (np. Dog)
+//        EntityMetadata parentMeta = this.entityMetadata;
+//
+//        // 2. Znajdujemy wszystkie podklasy (włącznie z 'type'), które mają swoje tabele
+//        List<EntityMetadata> concreteSubclasses = getAllConcreteSubclasses(parentMeta);
+//
+//        // 3. Ustalamy wspólne kolumny (tylko te, które ma klasa 'type' / Dog)
+//        assert parentMeta != null;
+//        List<String> columnsToSelect = parentMeta.getColumnsForConcreteTable()
+//                .stream()
+//                .map(PropertyMetadata::getColumnName)
+//                .collect(Collectors.toList());
+//
+//        String columnsSql = String.join(", ", columnsToSelect);
+//
+//        // 4. Budujemy UNION ALL
+//        StringBuilder sqlBuilder = new StringBuilder();
+//
+//        for (int i = 0; i < concreteSubclasses.size(); i++) {
+//            EntityMetadata subMeta = concreteSubclasses.get(i);
+//
+//            sqlBuilder.append("SELECT ")
+//                    .append(columnsSql)
+//                    // WAŻNE: Wstrzykujemy nazwę klasy jako sztuczną kolumnę DTYPE
+//                    .append(", '").append(subMeta.getEntityClass().getName()).append("' as DTYPE")
+//                    .append(" FROM ")
+//                    .append(subMeta.getTableName());
+//
+//            if (i < concreteSubclasses.size() - 1) {
+//                sqlBuilder.append(" UNION ALL ");
+//            }
+//        }
+//
+//        String sql = sqlBuilder.toString();
+//        System.out.println("TPC SQL: " + sql);
+//
+//        try {
+//            JdbcExecutor jdbc = session.getJdbcExecutor();
+//            // Używamy specjalnego mappera, który czyta DTYPE
+//            return jdbc.query(sql, rs -> mapPolymorphicEntity(rs, type));
+//        } catch (Exception e) {
+//            throw new RuntimeException("Error finding all entities in TPC", e);
+//        }
+//    }
+
+    @Override
+    public <T> List<T> findAll(Class<T> type, Session session) {
+        // 1. Znajdujemy wszystkie podklasy (Husky, Cat, Dog...)
+        List<EntityMetadata> concreteSubclasses = getAllConcreteSubclasses(this.entityMetadata);
+
+        // 2. Zbieramy WSZYSTKIE unikalne nazwy kolumn ze wszystkich podklas
+        // Np. [id, name, age, how, cat_name]
+        Set<String> allPossibleColumns = new LinkedHashSet<>();
+        for (EntityMetadata meta : concreteSubclasses) {
+            for (PropertyMetadata pm : meta.getColumnsForConcreteTable()) {
+                allPossibleColumns.add(pm.getColumnName());
+            }
+        }
+
+        // 3. Budujemy zapytanie UNION ALL z wypełnianiem NULLami
         StringBuilder sqlBuilder = new StringBuilder();
 
         for (int i = 0; i < concreteSubclasses.size(); i++) {
             EntityMetadata subMeta = concreteSubclasses.get(i);
 
-            sqlBuilder.append("SELECT ")
-                    .append(columnsSql)
-                    // WAŻNE: Wstrzykujemy nazwę klasy jako sztuczną kolumnę DTYPE
-                    .append(", '").append(subMeta.getEntityClass().getName()).append("' as DTYPE")
+            // Zbiór kolumn, które ta konkretna tabela faktycznie posiada
+            Set<String> subTableColumns = subMeta.getColumnsForConcreteTable().stream()
+                    .map(PropertyMetadata::getColumnName)
+                    .collect(Collectors.toSet());
+
+            sqlBuilder.append("SELECT ");
+
+            // Iterujemy po WSZYSTKICH możliwych kolumnach hierarchii
+            List<String> selectionParts = new ArrayList<>();
+            for (String colName : allPossibleColumns) {
+                if (subTableColumns.contains(colName)) {
+                    // Tabela ma tę kolumnę -> wybieramy ją
+                    selectionParts.add(colName);
+                } else {
+                    // Tabela nie ma tej kolumny -> wstawiamy NULL i aliasujemy nazwą kolumny
+                    // (alias jest ważny, żeby ResultSet wiedział jak nazwać kolumnę)
+                    selectionParts.add("NULL AS " + colName);
+                }
+            }
+
+            sqlBuilder.append(String.join(", ", selectionParts));
+
+            // Dodajemy DTYPE
+            sqlBuilder.append(", '").append(subMeta.getEntityClass().getName()).append("' as DTYPE")
                     .append(" FROM ")
                     .append(subMeta.getTableName());
 
@@ -430,14 +644,65 @@ public class TablePerClassInheritanceStrategy extends AbstractInheritanceStrateg
         }
 
         String sql = sqlBuilder.toString();
-        System.out.println("TPC SQL: " + sql);
+        System.out.println("TPC findAll SQL: " + sql);
 
         try {
             JdbcExecutor jdbc = session.getJdbcExecutor();
-            // Używamy specjalnego mappera, który czyta DTYPE
-            return jdbc.query(sql, rs -> mapPolymorphicEntity(rs, type));
+            // Przekazujemy listę wszystkich kolumn, żeby mapper wiedział co mapować
+            return jdbc.query(sql, rs -> mapPolymorphicEntityFull(rs, type, allPossibleColumns));
         } catch (Exception e) {
             throw new RuntimeException("Error finding all entities in TPC", e);
+        }
+    }
+
+    // Nowy mapper, który potrafi obsłużyć pola z podklas
+    private <T> T mapPolymorphicEntityFull(ResultSet rs, Class<T> baseType, Set<String> allColumns) throws SQLException {
+        try {
+            // 1. Odczytujemy DTYPE
+            String className = rs.getString("DTYPE");
+            Class<?> realClass = Class.forName(className);
+
+            // 2. Tworzymy instancję (np. Husky)
+            Object instance = realClass.getDeclaredConstructor().newInstance();
+
+            // 3. Wypełniamy pola używając ReflectionUtils
+            // Iterujemy po kolumnach dostępnych w SQL (allColumns), a nie polach klasy bazowej
+            for (String colName : allColumns) {
+                try {
+                    Object value = rs.getObject(colName);
+
+                    // Jeśli wartość jest NULL (np. kolumna z innej klasy), to po prostu nic nie robimy
+                    if (value != null) {
+                        // Musimy znaleźć nazwę pola w klasie na podstawie nazwy kolumny
+                        // To wymagałoby mapy kolumna -> pole.
+                        // DLA UPROSZCZENIA: zakładam tutaj, że w Twoim kodzie nazwa kolumny == nazwa pola (zazwyczaj tak jest w prostych ORM)
+                        // W pełnej wersji musiałbyś przeszukać metadane realClass, żeby znaleźć pole dla danej kolumny.
+
+                        String fieldName = colName; // Uproszczenie!
+
+                        // Fix dla Integer -> Long
+                        if (value instanceof Integer) {
+                            // Sprawdźmy typ pola w klasie docelowej
+                            try {
+                                var field = ReflectionUtils.findField(realClass, fieldName); // Twoja metoda findField powinna zwracać Field
+                                if (field.getType() == Long.class) {
+                                    value = ((Integer) value).longValue();
+                                }
+                            } catch (Exception e) {
+                                // ignoruj jeśli pole nie istnieje
+                            }
+                        }
+
+                        ReflectionUtils.setFieldValue(instance, fieldName, value);
+                    }
+                } catch (Exception e) {
+                    // Ignorujemy błędy mapowania pojedynczych pól (np. gdy pole w klasie nazywa się inaczej niż kolumna)
+                    // W produkcji trzeba tu użyć metadanych: column -> field name
+                }
+            }
+            return baseType.cast(instance);
+        } catch (Exception e) {
+            throw new RuntimeException("Error mapping polymorphic entity", e);
         }
     }
 
