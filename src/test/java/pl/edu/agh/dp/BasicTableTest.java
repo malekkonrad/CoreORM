@@ -21,6 +21,8 @@ import java.sql.*;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.time.OffsetDateTime;
+import java.time.chrono.ChronoLocalDate;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -45,6 +47,7 @@ public class BasicTableTest {
         LocalDate aDate;
         LocalTime aTime;
         LocalDateTime aDateTime;
+        OffsetDateTime aOffsetDateTime;
         UUID uuid;
     }
 
@@ -145,6 +148,20 @@ public class BasicTableTest {
         session = sessionFactory.openSession();
 
         BasicTable t = new BasicTable();
+        t.setAnInteger(10);
+        t.setABigDecimal(new BigDecimal("10"));
+        t.setADate(LocalDate.now());
+        t.setABoolean(true);
+        t.setADateTime(LocalDateTime.now());
+        t.setADouble(10.0);
+        t.setAFloat(10.0f);
+        t.setALong(10L);
+        t.setAShort((short) 10);
+        t.setAString("test");
+        t.setATime(LocalTime.now());
+        t.setABoolean(true);
+        t.setUuid(UUID.randomUUID());
+        t.setAOffsetDateTime(OffsetDateTime.now());
         session.save(t);
         session.commit();
 
@@ -166,7 +183,9 @@ public class BasicTableTest {
         session.commit();
 
         // we can select from this table
-        assertDoesNotThrow(() -> {stmt.executeQuery("SELECT * from custom_table_name");});
+        assertDoesNotThrow(() -> {
+            stmt.executeQuery("SELECT * from custom_table_name");
+        });
 
         assertNotNull(t.getId());
 
@@ -187,7 +206,7 @@ public class BasicTableTest {
         session.save(t);
         session.commit();
         // TODO update this entity on commit
-//        assertEquals("default_val", t.getStatus());
+        // assertEquals("default_val", t.getStatus());
 
         ColumnPropertiesTable found = session.find(ColumnPropertiesTable.class, t.getId());
         assertNotNull(found);
@@ -206,7 +225,9 @@ public class BasicTableTest {
         t.setId(100L);
         // only one of the keys is set
         session.save(t);
-        assertThrowsExactly(IntegrityException.class, () -> {session.commit();});
+        assertThrowsExactly(IntegrityException.class, () -> {
+            session.commit();
+        });
         // both keys are set
         t.setId2(200L);
         session.save(t);

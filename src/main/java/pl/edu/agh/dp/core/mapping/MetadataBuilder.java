@@ -408,15 +408,16 @@ public class MetadataBuilder {
         if (type == java.time.LocalDate.class) {
             return "DATE";
         }
-
         if (type == java.time.LocalTime.class) {
             return "TIME";
         }
 
-        if (type == java.time.LocalDateTime.class ||
-                type == java.time.OffsetDateTime.class ||
-                type == java.util.Date.class) {
-            return "TIMESTAMP";
+        if (type == java.time.LocalDateTime.class) {
+            return "DATETIME";
+        }
+
+        if (type == java.time.OffsetDateTime.class) {
+            return "TIMESTAMP WITH TIME ZONE";
         }
 
         // UUID
@@ -424,10 +425,6 @@ public class MetadataBuilder {
             return "UUID";
         }
 
-        // Binary data
-        if (type == byte[].class) {
-            return "BYTEA";
-        }
         // FIXME detect Collection and suggest relationship
         throw new IntegrityException("Unsupported type: " + type);
     }

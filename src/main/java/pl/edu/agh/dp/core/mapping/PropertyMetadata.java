@@ -30,7 +30,7 @@ public class PropertyMetadata {
         if (isUnique) {
             sb.append(" UNIQUE");
         }
-        if (isNullable) {
+        if (!isNullable) {
             sb.append(" NOT NULL");
         }
         if (defaultValue != "__UNSET__") {

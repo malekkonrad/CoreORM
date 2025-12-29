@@ -7,6 +7,7 @@ import pl.edu.agh.dp.core.mapping.EntityMetadata;
 import pl.edu.agh.dp.core.mapping.PropertyMetadata;
 import pl.edu.agh.dp.core.util.ReflectionUtils;
 
+import java.sql.Date;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.*;
@@ -418,6 +419,18 @@ public class TablePerClassInheritanceStrategy extends AbstractInheritanceStrateg
 //                    }
 
                     if (value != null) {
+                        // I hate dates
+                        if (value instanceof java.sql.Date) {
+                            value = ((Date) value).toLocalDate();
+                        } else if (value instanceof java.sql.Timestamp) {
+                            value = ((java.sql.Timestamp) value).toLocalDateTime();
+                        } else if (value instanceof java.sql.Time) {
+                            value = ((java.sql.Time) value).toLocalTime();
+                        }
+                        // cast integer to short
+                        if (value instanceof Integer && prop.getType() == Short.class) {
+                            value = ((Integer) value).shortValue();
+                        }
                         ReflectionUtils.setFieldValue(entity, prop.getName(), value);
                     }
                 } catch (SQLException e) {
