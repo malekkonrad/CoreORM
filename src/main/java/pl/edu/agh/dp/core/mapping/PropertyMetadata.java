@@ -20,12 +20,12 @@ public class PropertyMetadata {
     boolean isUnique = false;       // false
     boolean isNullable = false;     // false
     boolean isIndex = false;        // false
-    Object defaultValue = null;     // default to null
+    Object defaultValue = "__UNSET__";     // default to unset
     String references = null;       // if foreign key
 
     public String toSqlColumn() {
         StringBuffer sb = new StringBuffer();
-        sb.append("`").append(columnName);
+        sb.append(" ").append(columnName);
         sb.append(" ").append(sqlType);
         if (isUnique) {
             sb.append(" UNIQUE");
@@ -33,12 +33,14 @@ public class PropertyMetadata {
         if (isNullable) {
             sb.append(" NOT NULL");
         }
-        if (isIndex) {
-            sb.append(" INDEX");
-        }
         if (defaultValue != "__UNSET__") {
-            // TODO empty default value
-            sb.append(" DEFAULT ").append(defaultValue);
+            if (defaultValue == "") {  // default to null (unnecessary in postgres)
+                sb.append(" DEFAULT NULL");
+            } else if (type == String.class) { // string must be in quotes
+                sb.append(" DEFAULT '").append(defaultValue).append("'");
+            } else {  // numeric defaults
+                sb.append(" DEFAULT ").append(defaultValue);
+            }
         }
         return sb.toString();
     }

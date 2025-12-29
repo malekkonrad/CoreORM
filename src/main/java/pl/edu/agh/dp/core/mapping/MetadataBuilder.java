@@ -147,7 +147,7 @@ public class MetadataBuilder {
                         false,
                         isNullable,
                         false,
-                        false,
+                        "__UNSET__",
                         null
                 );
         meta.addFkProperty(pm);
@@ -176,7 +176,7 @@ public class MetadataBuilder {
                             false,
                             false,
                             false,
-                            null,
+                            "__UNSET__",
                             null
                     )
             );
@@ -298,15 +298,15 @@ public class MetadataBuilder {
         int precision = 0;
         boolean isUnique = false;
         boolean isNullable = false;
-        boolean isIndex = false;
-        Object defaultValue = null;
+        boolean isIndex = false; // TODO create index on table later
+        Object defaultValue = "__UNSET__";
         if (f.isAnnotationPresent(Column.class)) {
             Column column = f.getAnnotation(Column.class);
             if (!Objects.equals(column.columnName(), "")) columnName = column.columnName();
             isUnique = column.unique();
             isNullable = column.nullable();
             isIndex = column.index();
-            if (Objects.equals(column.defaultValue(), "__UNSET__")) {
+            if (!Objects.equals(column.defaultValue(), "__UNSET__")) {
                 // try to cast default value to the corresponding type
                 defaultValue = f.getType().cast(column.defaultValue());
             }
@@ -316,7 +316,7 @@ public class MetadataBuilder {
                         f.getName(),
                         columnName,
                         f.getType(),
-                        getSqlType(f.getType(), length, scale, precision, autoIncrement),
+                        getSqlType(meta, f, f.getType(), length, scale, precision, autoIncrement),
                         isId,
                         autoIncrement,
                         isUnique,
@@ -330,27 +330,37 @@ public class MetadataBuilder {
     }
 
     public static <T> String getSqlType(
+            EntityMetadata meta,
+            Field f,
             Class<T> type,
             int length,
             int scale,
             int precision,
             boolean autoIncrement
     ) {
-        // String types
-        if (type == String.class) {
-            if (length > 0) {
-                return "VARCHAR(" + length + ")";
-            }
-            return "TEXT";
+        // unsupported primary types
+        String errorText = "Unsupported type.\n" +
+                               "Class: " + meta.getEntityClass() + "\n" +
+                               "Field: " + f.getName() + "\n" +
+                               "'%s' class is not supported please use the '%s' class instead.";
+        final Map<Class<?>, String> forbiddenType = new HashMap<>() {{
+            put(int.class, "Integer");
+            put(long.class, "Long");
+            put(short.class, "Short");
+            put(float.class, "Float");
+            put(double.class, "Double");
+            put(boolean.class, "Boolean");
+        }};
+        if (forbiddenType.containsKey(type)) {
+            throw new IntegrityException(String.format(errorText, type.getSimpleName(), forbiddenType.get(type)));
         }
-
         // Integer types
-        if (type == int.class || type == Integer.class) {
+        if (type == Integer.class) {
             return autoIncrement ? "SERIAL" : "INTEGER";
         }
 
         if (type == long.class || type == Long.class) {
-            return autoIncrement ? "BIGSERIAL" : "BIGINT";      // zamiast BIGSERIAL    INTEGER PRIMARY KEY
+            return autoIncrement ? "BIGSERIAL" : "BIGINT";
         }
 
         if (type == short.class || type == Short.class) {
@@ -359,6 +369,14 @@ public class MetadataBuilder {
         // other auto increments are not supported
         if (autoIncrement) {
             throw new IntegrityException("Auto increment is supported only for int, long, and short. Not for: " + type);
+        }
+
+        // String types
+        if (type == String.class) {
+            if (length > 0) {
+                return "VARCHAR(" + length + ")";
+            }
+            return "TEXT";
         }
 
         // Floating point types

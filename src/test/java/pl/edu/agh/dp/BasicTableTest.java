@@ -1,5 +1,6 @@
 package pl.edu.agh.dp;
 
+import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
@@ -11,16 +12,16 @@ import pl.edu.agh.dp.api.Orm;
 import pl.edu.agh.dp.api.Session;
 import pl.edu.agh.dp.api.SessionFactory;
 import pl.edu.agh.dp.api.annotations.Column;
-import pl.edu.agh.dp.api.annotations.Entity;
 import pl.edu.agh.dp.api.annotations.Id;
 import pl.edu.agh.dp.api.annotations.Table;
 import pl.edu.agh.dp.core.exceptions.IntegrityException;
 
-import java.sql.Connection;
-import java.sql.DriverManager;
-import java.sql.SQLException;
-import java.sql.Statement;
-import java.util.List;
+import java.math.BigDecimal;
+import java.sql.*;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
+import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -30,8 +31,29 @@ public class BasicTableTest {
     @Setter
     @NoArgsConstructor
     public static class BasicTable {
+        // list of all supported types
         @Id(autoIncrement = true)
         Long id;
+        Integer anInteger;
+        Long aLong;
+        Short aShort;
+        String aString;
+        Float aFloat;
+        Double aDouble;
+        Boolean aBoolean;
+        BigDecimal aBigDecimal;
+        LocalDate aDate;
+        LocalTime aTime;
+        LocalDateTime aDateTime;
+        UUID uuid;
+    }
+
+    @Setter
+    @Getter
+    @AllArgsConstructor
+    public static class ComplexKey {
+        Long id;
+        Long id2;
     }
 
     @Getter
@@ -50,7 +72,7 @@ public class BasicTableTest {
     public static class ComplexKeyErrorsTable {
         @Id(autoIncrement = true)
         Long id;
-        @Id(autoIncrement = true)
+        @Id(autoIncrement = false)
         Long id2;
     }
 
@@ -88,11 +110,15 @@ public class BasicTableTest {
     SessionFactory sessionFactory;
     Session session;
 
+    Connection conn;
+    Statement stmt;
+
     @BeforeEach
     public void setUp() {
         // Reset database
-        try (Connection conn = DriverManager.getConnection(url, user, password);
-                Statement stmt = conn.createStatement()) {
+        try {
+            conn = DriverManager.getConnection(url, user, password);
+            stmt = conn.createStatement();
             stmt.execute("DROP ALL OBJECTS");
         } catch (SQLException e) {
             e.printStackTrace();
@@ -139,6 +165,9 @@ public class BasicTableTest {
         session.save(t);
         session.commit();
 
+        // we can select from this table
+        assertDoesNotThrow(() -> {stmt.executeQuery("SELECT * from custom_table_name");});
+
         assertNotNull(t.getId());
 
         CustomNameTable found = session.find(CustomNameTable.class, t.getId());
@@ -154,17 +183,17 @@ public class BasicTableTest {
 
         ColumnPropertiesTable t = new ColumnPropertiesTable();
         t.setName("test_name");
-        // status uses default value logic if not set, but here we set it to verify
-        // persistence
-        t.setStatus("active");
 
         session.save(t);
         session.commit();
+        // TODO update this entity on commit
+//        assertEquals("default_val", t.getStatus());
 
         ColumnPropertiesTable found = session.find(ColumnPropertiesTable.class, t.getId());
         assertNotNull(found);
         assertEquals("test_name", found.getName());
-        assertEquals("active", found.getStatus());
+        // status default to the value set in the table class
+        assertEquals("default_val", found.getStatus());
     }
 
     @Test
@@ -175,23 +204,25 @@ public class BasicTableTest {
 
         ComplexKeyTable t = new ComplexKeyTable();
         t.setId(100L);
+        // only one of the keys is set
+        session.save(t);
+        assertThrowsExactly(IntegrityException.class, () -> {session.commit();});
+        // both keys are set
         t.setId2(200L);
-
         session.save(t);
         session.commit();
-
-        // Since find(Class, Object) works for single ID, we use findAll for composite
-        // or custom join check
-        List<ComplexKeyTable> all = session.findAll(ComplexKeyTable.class);
-        assertEquals(1, all.size());
-        assertEquals(100L, all.get(0).getId());
-        assertEquals(200L, all.get(0).getId2());
+        // test getting the table
+        ComplexKey complexKey = new ComplexKey(100L, 200L);
+        ComplexKeyTable found = session.find(ComplexKeyTable.class, complexKey);
+        assertNotNull(found);
+        assertEquals(t.getId(), found.getId());
+        assertEquals(t.getId2(), found.getId2());
     }
 
     @Test
     void testComplexKeyErrors() {
         config.register(ComplexKeyErrorsTable.class);
-        // Expect exception when building factory due to metadata validation
+        // Complex key cannot be set to autoincrement
         assertThrows(IntegrityException.class, () -> {
             config.buildSessionFactory();
         });

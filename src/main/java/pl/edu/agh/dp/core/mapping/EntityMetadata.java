@@ -55,6 +55,17 @@ public class EntityMetadata {
         return sb.toString();
     }
 
+    public String toSqlPrimaryKey() {
+        StringBuilder sb = new StringBuilder();
+        sb.append("PRIMARY KEY (");
+        for (PropertyMetadata pm : idColumns.values()) {
+            sb.append(pm.getName()).append(", ");
+        }
+        sb.delete(sb.length() - 2, sb.length());
+        sb.append(")");
+        return sb.toString();
+    }
+
 
 //    public List<PropertyMetadata> getColumnsForSingleTable() {
 //        EntityMetadata root = getInheritanceMetadata().getRootClass();

@@ -27,17 +27,18 @@ public class TablePerClassInheritanceStrategy extends AbstractInheritanceStrateg
         // 1. Obsługa tworzenia samej sekwencji
         assert this.entityMetadata != null;
         EntityMetadata rootMetadata = this.entityMetadata.getInheritanceMetadata().getRootClass();
-
-        if (rootMetadata == entityMetadata) {
-            String sequenceName = this.entityMetadata.getTableName() + "_id_seq";
-            // START 1 INCREMENT 1 to standard
-            String seq =  "CREATE SEQUENCE " + sequenceName + " START 1 INCREMENT 1;\n";
-            System.out.println(seq);
-            jdbcExecutor.createTable(seq);
-        }
-
-        String rootTableName = rootMetadata.getTableName();
-        String sequenceName = rootTableName + "_id_seq"; // np. animal_id_seq
+        // FIXME why do we create a sequence and not using the SERIAL type?
+//
+//        if (rootMetadata == entityMetadata) {
+//            String sequenceName = this.entityMetadata.getTableName() + "_id_seq";
+//            // START 1 INCREMENT 1 to standard
+//            String seq =  "CREATE SEQUENCE " + sequenceName + " START 1 INCREMENT 1;\n";
+//            System.out.println(seq);
+//            jdbcExecutor.createTable(seq);
+//        }
+//
+//        String rootTableName = rootMetadata.getTableName();
+//        String sequenceName = rootTableName + "_id_seq"; // np. animal_id_seq
 
         sb.append("CREATE TABLE ").append(this.entityMetadata.getTableName()).append(" (\n");
 
@@ -55,17 +56,23 @@ public class TablePerClassInheritanceStrategy extends AbstractInheritanceStrateg
 
             // Sprawdzamy, czy to ID i dodajemy sekwencję (TYLKO DLA POSTGRES)
             if (idColumnNames.contains(col.getColumnName())) {
-                colDef.append("    ").append(col.getColumnName()).append(" ").append("BIGINT");
-                colDef.append(" DEFAULT nextval('").append(sequenceName).append("') PRIMARY KEY ");
+                colDef.append(col.toSqlColumn());
+//                colDef.append("    ").append(col.getColumnName()).append(" ").append("BIGINT");
+//                colDef.append(" DEFAULT nextval('").append(sequenceName).append("') PRIMARY KEY ");
             }
             else{
-                colDef.append("    ").append(col.getColumnName()).append(" ").append(col.getSqlType());
+                colDef.append(col.toSqlColumn());
+//                colDef.append("    ").append(col.getColumnName()).append(" ").append(col.getSqlType());
             }
 
             columnDefs.add(colDef.toString());
         }
 
         sb.append(String.join(",\n", columnDefs));
+        sb.append(",\n ");
+
+        // create Primary Key
+        sb.append(rootMetadata.toSqlPrimaryKey());
 
         sb.append("\n);");
 
@@ -79,55 +86,52 @@ public class TablePerClassInheritanceStrategy extends AbstractInheritanceStrateg
         List<Object> values = new ArrayList<>();
 
         assert entityMetadata != null;
-        Collection<PropertyMetadata> idColumns = entityMetadata.getIdColumns().values();
+        List<PropertyMetadata> idColumns = new ArrayList<>(entityMetadata.getIdColumns().values());
         boolean isCompositeKey = idColumns.size() > 1;
 
-        Map<String, Boolean> idProvided = new HashMap<>();
+        Set<String> idProvided = new HashSet<>();
         for (PropertyMetadata pm : entityMetadata.getColumnsForConcreteTable()) {
-
-            if (pm.isId() && pm.isAutoIncrement()) {
-                continue; // Nie dodawaj tej kolumny do SQL, baza sama ją wypełni
-            }
-
-            columns.add(pm.getColumnName());
             Object value = ReflectionUtils.getFieldValue(entity, pm.getName());
-            values.add(value);
-            if (pm.isId()) {
-                idProvided.put(pm.getName(), true);
+            // TODO handle null in the value, cause it could be set to null explicitly
+            if (value != null) {
+                columns.add(pm.getColumnName());
+                values.add(value);
+                if (pm.isId()) {
+                    idProvided.add(pm.getName());
+                }
             }
         }
 
-
         // FIXME nie działa @Mateusz
-//        if (isCompositeKey) {
-//            if (idProvided.size() != idColumns.size()) {
-//                List<String> compositeKey = new ArrayList<>();
-//                List<String> missingIds = new ArrayList<>();
-//                for (PropertyMetadata pm : idColumns) {
-//                    if (!idProvided.containsKey(pm.getName())) {
-//                        missingIds.add(pm.getName());
-//                    }
-//                    compositeKey.add(pm.getName());
-//                }
-//                throw new IntegrityException(
-//                        "Not all identifiers are set. You must set all ids in composite key.\n" +
-//                        "Composite key: (" + String.join(", ", compositeKey) + ")\n" +
-//                        "Missing/unset fields: (" + String.join(", ", missingIds) + ")"
-//                );
-//            }
-//        } else {
-//            if (!idProvided.isEmpty() && idColumns.get(0).isAutoIncrement()) {
-//                throw new IntegrityException(
-//                        "You cannot set an id that is auto increment.\n" +
-//                        "Tried to set: '" + idColumns.get(0).getName() + "' that is an auto incremented id.\n" +
-//                        "Remove the auto increment or don't set it.");
-//            } else if (idProvided.isEmpty() && !idColumns.get(0).isAutoIncrement()) {
-//                throw new IntegrityException(
-//                        "You must set an id that is not auto increment.\n" +
-//                        "Field: '" + idColumns.get(0).getName() + "' is not set.\n" +
-//                        "Add auto increment or set this field.");
-//            }
-//        }
+        if (isCompositeKey) {
+            if (idProvided.size() != idColumns.size()) {
+                List<String> compositeKey = new ArrayList<>();
+                List<String> missingIds = new ArrayList<>();
+                for (PropertyMetadata pm : idColumns) {
+                    if (!idProvided.contains(pm.getName())) {
+                        missingIds.add(pm.getName());
+                    }
+                    compositeKey.add(pm.getName());
+                }
+                throw new IntegrityException(
+                        "Not all identifiers are set. You must set all ids in composite key.\n" +
+                        "Composite key: (" + String.join(", ", compositeKey) + ")\n" +
+                        "Missing/unset fields: (" + String.join(", ", missingIds) + ")"
+                );
+            }
+        } else {
+            if (!idProvided.isEmpty() && idColumns.get(0).isAutoIncrement()) {
+                throw new IntegrityException(
+                        "You cannot set an id that is auto increment.\n" +
+                        "Tried to set: '" + idColumns.get(0).getName() + "' that is an auto incremented id.\n" +
+                        "Remove the auto increment or don't set it.");
+            } else if (idProvided.isEmpty() && !idColumns.get(0).isAutoIncrement()) {
+                throw new IntegrityException(
+                        "You must set an id that is not auto increment.\n" +
+                        "Field: '" + idColumns.get(0).getName() + "' is not set.\n" +
+                        "Add auto increment or set this field.");
+            }
+        }
 
         StringBuilder sql = new StringBuilder();
         sql.append("INSERT INTO ")
@@ -136,7 +140,7 @@ public class TablePerClassInheritanceStrategy extends AbstractInheritanceStrateg
                 .append(String.join(", ", columns))
                 .append(") VALUES (")
                 .append("?,".repeat(values.size()));
-        sql.deleteCharAt(sql.length() - 1);
+        if (!values.isEmpty()) sql.deleteCharAt(sql.length() - 1); // sanity check if inserting nothing
         sql.append(")");
 
         Long generatedId;
@@ -409,9 +413,9 @@ public class TablePerClassInheritanceStrategy extends AbstractInheritanceStrateg
                     Object value = rs.getObject(prop.getColumnName());
 
                     // Konwersja Integer -> Long dla wszystkich pól Long
-                    if (value instanceof Integer && prop.getType() == Long.class) {
-                        value = ((Integer) value).longValue();
-                    }
+//                    if (value instanceof Integer && prop.getType() == Long.class) {
+//                        value = ((Integer) value).longValue();
+//                    }
 
                     if (value != null) {
                         ReflectionUtils.setFieldValue(entity, prop.getName(), value);
