@@ -7,7 +7,7 @@ import pl.edu.agh.dp.core.mapping.InheritanceType;
 
 @Getter
 @Setter
-@Entity
+//@Entity
 @Table(name = "users")
 public class User {
     @Id(autoIncrement = false)

@@ -9,7 +9,7 @@ import pl.edu.agh.dp.api.annotations.Id;
 @Getter
 @Setter
 @NoArgsConstructor
-@Entity
+//@Entity
 public class Dog extends Animal {
     int age;
     String color;

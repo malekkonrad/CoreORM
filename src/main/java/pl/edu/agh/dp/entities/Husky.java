@@ -9,7 +9,7 @@ import pl.edu.agh.dp.api.annotations.Id;
 @Getter
 @Setter
 @NoArgsConstructor
-@Entity
+//@Entity
 public class Husky extends Dog {
     String how;
 }

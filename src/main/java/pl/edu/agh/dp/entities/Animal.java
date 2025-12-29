@@ -11,7 +11,7 @@ import pl.edu.agh.dp.core.mapping.InheritanceType;
 @Getter
 @Setter
 @NoArgsConstructor
-@Entity
+//@Entity
 @Inheritance(strategy = InheritanceType.JOINED)
 public class Animal {
     @Id(autoIncrement = false)

@@ -5,7 +5,7 @@ import pl.edu.agh.dp.api.annotations.Id;
 import pl.edu.agh.dp.api.annotations.Inheritance;
 import pl.edu.agh.dp.core.mapping.InheritanceType;
 
-@Entity
+//@Entity
 @Inheritance(strategy = InheritanceType.SINGLE_TABLE)
 public class Vehicle {
     @Id
