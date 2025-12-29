@@ -29,6 +29,14 @@ public class EntityMetadata {
         if (pm.isId) idColumns.put(pm.getName(), pm);
     }
 
+    public void addFkProperty(PropertyMetadata pm) {
+        fkColumns.put(pm.getName(), pm);
+    }
+
+    public void addIdProperty(PropertyMetadata pm) {
+        idColumns.put(pm.getName(), pm);
+    }
+
     public void addAssociationMetadata(AssociationMetadata am) {
         associationMetadata.put(am.getField(), am);
     }

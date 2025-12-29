@@ -50,6 +50,7 @@ public class MetadataRegistry {
             return;
         }
         // TODO nullable fkey when the fkey is in the other table
+        // TODO multiple fkeys when the the other table has a composite key
         // TODO default factory
         // TODO load strategy (lazy, eager)
         // TODO load strategy (join, selectin)
@@ -66,7 +67,7 @@ public class MetadataRegistry {
         // check if join columns are the same
         // check if all the join columns are actually in the class
         // check if relationship has correct reverse type
-        // check if not both of them are marked as Id
+        // check if not both of them are marked as Id when it's not many to many relationship
         // check if join could be determined or do we need join columns
         // TODO check other join columns for foreign keys
         for (AssociationMetadata currentAm : entityMetadata.getAssociationMetadata().values()) {
@@ -247,16 +248,38 @@ public class MetadataRegistry {
 
             // Everything is checked now and is correct
 
-            // fix foreign keys (remove, change name, remove id)
-            for (PropertyMetadata pm : currentAm.getJoinColumns()) {
-                if (pm.getName().equals(currentAm.getField())) {
-                    if (isForeignKeyOnCurrent) {
-                        // TODO handle multiple primary keys in target entity
-                        pm.setReferences(targetEntityMetadata.tableName + " (" + targetEntityMetadata.idColumns.get(0) + ")");
-                    } else {
+            /*
+            Plan:
+             * we need to fill the fk column with actual foreign keys
+             * the referenced object must have finalized idProperties
+             * later fill the target and join columns in both relationships
+             */
 
+            // fix foreign keys (remove, change name, remove id)
+            if (isForeignKeyOnCurrent && !isForeignKeyOnTarget) {
+                PropertyMetadata fkColumn = entityMetadata.fkColumns.get(currentAm.getField());
+                List<PropertyMetadata> targetIdColumns = new ArrayList<>();
+                for (PropertyMetadata pm : targetEntityMetadata.idColumns.values()) {
+                    if (pm.references.isEmpty()) {
+                        targetIdColumns.add(pm);
                     }
                 }
+
+                if (targetIdColumns.isEmpty()) {
+                    throw new IntegrityException("No primary keys to map to, idk what to do.");
+                }
+
+                if (targetIdColumns.size() == 1) {
+                    fkColumn.setReferences(targetEntityMetadata.tableName + "(" + targetIdColumns.get(0) + ")");
+                    fkColumn.setColumnName(fkColumn.getColumnName() + "_fkey");
+                    // remove fkey from target
+                    targetEntityMetadata.fkColumns.remove(targetAm.getField());
+                } else {
+                    // TODO composite key
+                    throw new IntegrityException("Multiple primary keys to map to, idk what to do.");
+                }
+            } else {
+                throw new IntegrityException("Unhandled relationship.");
             }
 
             // add constraints fk to SQL table

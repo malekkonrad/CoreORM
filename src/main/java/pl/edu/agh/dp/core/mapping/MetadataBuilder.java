@@ -15,8 +15,6 @@ public class MetadataBuilder {
         EntityMetadata meta = new EntityMetadata();
         meta.setEntityClass(clazz);
 
-        // TODO: detect associations
-
         String name = clazz.getSimpleName();
         if (name.isBlank()) {
             throw new IntegrityException("Unable to identify the table name of: " + clazz.getName());
@@ -152,7 +150,7 @@ public class MetadataBuilder {
                         false,
                         null
                 );
-        meta.addProperty(pm);
+        meta.addFkProperty(pm);
         if (isId) idProperties.add(pm);
     }
 
