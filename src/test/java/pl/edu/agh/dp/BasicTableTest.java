@@ -51,6 +51,40 @@ public class BasicTableTest {
         UUID uuid;
     }
 
+    @Getter
+    @Setter
+    @NoArgsConstructor
+    public static class BasicTableWithColumnAnnotations {
+        @Id(autoIncrement = false)
+        Long id;
+        @Column(columnName = "anINTEGER", nullable = true, unique = true, defaultValue = "5")
+        Integer anInteger;
+        @Column(columnName = "aLONG", nullable = true, unique = true, defaultValue = "6")
+        Long aLong;
+        @Column(columnName = "aSHORT", nullable = true, unique = true, defaultValue = "7")
+        Short aShort;
+        @Column(columnName = "aSTRING", nullable = true, unique = true, defaultValue = "8", length = 10)
+        String aString;
+        @Column(columnName = "aFLOAT", nullable = true, unique = true, defaultValue = "9")
+        Float aFloat;
+        @Column(columnName = "aDOUBLE", nullable = true, unique = true, defaultValue = "10")
+        Double aDouble;
+        @Column(columnName = "aBOOLEAN", nullable = true, unique = true, defaultValue = "false")
+        Boolean aBoolean;
+        @Column(columnName = "aBIGDECIMAL", nullable = true, unique = true, defaultValue = "11")
+        BigDecimal aBigDecimal;
+        @Column(columnName = "aDATE", nullable = true, unique = true, defaultValue = "2026-01-01")
+        LocalDate aDate;
+        @Column(columnName = "aTIME", nullable = true, unique = true, defaultValue = "10:42:20.064703900")
+        LocalTime aTime;
+        @Column(columnName = "aDATETIME", nullable = true, unique = true, defaultValue = "2026-01-01T10:42:20.064703900")
+        LocalDateTime aDateTime;
+        @Column(columnName = "aOFFSETDATETIME", nullable = true, unique = true, defaultValue = "2026-01-01T10:44:25.571050200+01:00")
+        OffsetDateTime aOffsetDateTime;
+        @Column(columnName = "UUID", nullable = true, unique = true, defaultValue = "4dfda391-40c9-4782-ab3d-32c7a999775f")
+        UUID uuid;
+    }
+
     @Setter
     @Getter
     @AllArgsConstructor
@@ -168,6 +202,24 @@ public class BasicTableTest {
         assertNotNull(t.getId());
 
         BasicTable found = session.find(BasicTable.class, t.getId());
+        assertNotNull(found);
+        assertEquals(t.getId(), found.getId());
+    }
+
+    @Test
+    void testBasicTableColumnValidation() {
+        config.register(BasicTableWithColumnAnnotations.class);
+        sessionFactory = config.buildSessionFactory();
+        session = sessionFactory.openSession();
+
+        BasicTableWithColumnAnnotations t = new BasicTableWithColumnAnnotations();
+        t.setId(1L);
+        session.save(t);
+        session.commit();
+
+        assertNotNull(t.getId());
+
+        BasicTableWithColumnAnnotations found = session.find(BasicTableWithColumnAnnotations.class, t.getId());
         assertNotNull(found);
         assertEquals(t.getId(), found.getId());
     }

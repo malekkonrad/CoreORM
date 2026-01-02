@@ -8,6 +8,13 @@ import java.beans.Transient;
 import java.lang.reflect.Field;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
+import java.math.BigDecimal;
+import java.math.BigInteger;
+import java.text.DecimalFormat;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
+import java.time.OffsetDateTime;
 import java.util.*;
 
 public class MetadataBuilder {
@@ -308,7 +315,34 @@ public class MetadataBuilder {
             isIndex = column.index();
             if (!Objects.equals(column.defaultValue(), "__UNSET__")) {
                 // try to cast default value to the corresponding type
-                defaultValue = f.getType().cast(column.defaultValue());
+                if (f.getType().equals(Integer.class)) {
+                    defaultValue = Integer.parseInt(column.defaultValue());
+                } else if (f.getType().equals(Long.class)) {
+                    defaultValue = Long.parseLong(column.defaultValue());
+                } else if (f.getType().equals(Short.class)) {
+                    defaultValue = Short.parseShort(column.defaultValue());
+                } else if (f.getType().equals(Float.class)) {
+                    defaultValue = Float.parseFloat(column.defaultValue());
+                } else if (f.getType().equals(Double.class)) {
+                    defaultValue = Double.parseDouble(column.defaultValue());
+                } else if (f.getType().equals(Boolean.class)) {
+                    defaultValue = Boolean.parseBoolean(column.defaultValue());
+                } else if (f.getType().equals(BigDecimal.class)) {
+                    defaultValue = new BigDecimal(column.defaultValue());
+                } else if (f.getType().equals(LocalDate.class)) {
+                    defaultValue = LocalDate.parse(column.defaultValue());
+                } else if (f.getType().equals(LocalTime.class)) {
+                    defaultValue = LocalTime.parse(column.defaultValue()); // FIXME
+                } else if (f.getType().equals(LocalDateTime.class)) {
+                    defaultValue = LocalDateTime.parse(column.defaultValue());
+                } else if (f.getType().equals(OffsetDateTime.class)) {
+                    defaultValue = OffsetDateTime.parse(column.defaultValue());
+                } else if (f.getType().equals(UUID.class)) {
+                    defaultValue = UUID.fromString(column.defaultValue());
+                } else {
+                    // fallback
+                    defaultValue = f.getType().cast(column.defaultValue());
+                }
             }
         }
         PropertyMetadata pm =

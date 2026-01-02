@@ -5,6 +5,13 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
+import java.time.OffsetDateTime;
+import java.time.format.DateTimeFormatter;
+import java.util.UUID;
+
 @Getter
 @AllArgsConstructor
 @Setter
@@ -27,20 +34,28 @@ public class PropertyMetadata {
         StringBuffer sb = new StringBuffer();
         sb.append(" ").append(columnName);
         sb.append(" ").append(sqlType);
-        if (isUnique) {
-            sb.append(" UNIQUE");
+        if (defaultValue != "__UNSET__") {
+            String value;
+            if (defaultValue == "") {  // default to null (unnecessary in postgres)
+                value = "NULL";
+            } else if (type == String.class || type == LocalTime.class || type == LocalDate.class || type == UUID.class) { // string and some dates must be in quotes
+                value = "'" + defaultValue + "'";
+            } else if (type == LocalDateTime.class) {
+                final DateTimeFormatter PG_TIMESTAMP = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.nnnnnnnnn");
+                value = "'" + ((LocalDateTime) defaultValue).format(PG_TIMESTAMP) + "'";
+            } else if (type == OffsetDateTime.class) {
+                DateTimeFormatter PG_TSTZ = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.nnnnnnnnnXXX");
+                value = "'" + ((OffsetDateTime) defaultValue).format(PG_TSTZ) + "'";
+            } else {  // numeric defaults
+                value = defaultValue.toString();
+            }
+            sb.append(" DEFAULT ").append(value);
         }
         if (!isNullable) {
             sb.append(" NOT NULL");
         }
-        if (defaultValue != "__UNSET__") {
-            if (defaultValue == "") {  // default to null (unnecessary in postgres)
-                sb.append(" DEFAULT NULL");
-            } else if (type == String.class) { // string must be in quotes
-                sb.append(" DEFAULT '").append(defaultValue).append("'");
-            } else {  // numeric defaults
-                sb.append(" DEFAULT ").append(defaultValue);
-            }
+        if (isUnique) {
+            sb.append(" UNIQUE");
         }
         return sb.toString();
     }
