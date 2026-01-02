@@ -213,6 +213,7 @@ public class BasicTableTest {
         session = sessionFactory.openSession();
 
         BasicTableWithColumnAnnotations t = new BasicTableWithColumnAnnotations();
+        // the rest is set to defaults
         t.setId(1L);
         session.save(t);
         session.commit();
