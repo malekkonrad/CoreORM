@@ -49,6 +49,7 @@ public class EntityMetadata {
         sb.append("  tableName: ").append(tableName).append("\n");
         sb.append("  idColumns: ").append(idColumns).append("\n");
         sb.append("  properties: ").append(properties).append("\n");
+        sb.append("  fkColumns: ").append(fkColumns).append("\n");
         sb.append("  associations: ").append(associationMetadata).append("\n");
         sb.append("  inheritanceMetadata: ").append(inheritanceMetadata).append("\n");
         sb.append("}");

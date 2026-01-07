@@ -1,5 +1,6 @@
 package pl.edu.agh.dp.core.api;
 
+import lombok.Getter;
 import pl.edu.agh.dp.api.Session;
 import pl.edu.agh.dp.core.jdbc.JdbcExecutor;
 import pl.edu.agh.dp.core.jdbc.JdbcExecutorImpl;
@@ -14,6 +15,8 @@ import java.util.Set;
 
 public class SessionImpl implements Session {
 
+    // TODO dirty testing
+    @Getter
     private final Map<Class<?>, EntityPersister> entityPersisters;
 
     private final Set<Object> newEntities = new HashSet<>();

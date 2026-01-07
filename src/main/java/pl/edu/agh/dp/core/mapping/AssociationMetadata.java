@@ -45,6 +45,7 @@ public class AssociationMetadata {
     public String toString() {
         StringBuilder sb = new StringBuilder();
         sb.append("AssociationMetadata{\n");
+        sb.append("  field: ").append(field).append("\n");
         sb.append("  type: ").append(type).append("\n");
         sb.append("  targetEntity: ").append(targetEntity.getName()).append("\n");
         sb.append("  mappedBy: ").append(mappedBy).append("\n");

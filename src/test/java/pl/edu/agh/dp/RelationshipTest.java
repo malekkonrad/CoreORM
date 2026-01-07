@@ -38,6 +38,7 @@ public class RelationshipTest {
     public static class Employee {
         @Id(autoIncrement = true)
         Long id;
+        String name;
         @OneToOne
         Dog dog;
     }
@@ -99,6 +100,12 @@ public class RelationshipTest {
         sessionFactory = config.buildSessionFactory();
         session = sessionFactory.openSession();
 
+        Employee employee = new Employee();
+        employee.name = "Dave";
+        employee.dog = new Dog();
+        employee.dog.setName("Nice");
 
+        session.save(employee);
+        session.commit();
     }
 }

@@ -13,4 +13,5 @@ public interface EntityPersister {
     void delete(Object entity, Session session);
 
     InheritanceStrategy getInheritanceStrategy();
+    EntityMetadata getEntityMetadata();
 }

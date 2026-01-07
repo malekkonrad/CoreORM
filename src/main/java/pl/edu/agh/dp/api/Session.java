@@ -5,6 +5,7 @@ import pl.edu.agh.dp.core.persister.EntityPersister;
 
 import java.sql.Connection;
 import java.util.List;
+import java.util.Map;
 
 /**
  * AutoCloseable to be able to use in try ( ... )
@@ -23,4 +24,5 @@ public interface Session extends AutoCloseable {
     void close();
 
     JdbcExecutor getJdbcExecutor();
+    Map<Class<?>, EntityPersister> getEntityPersisters();
 }

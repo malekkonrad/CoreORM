@@ -1,6 +1,7 @@
 package pl.edu.agh.dp.core.schema;
 
 
+import pl.edu.agh.dp.core.exceptions.IntegrityException;
 import pl.edu.agh.dp.core.jdbc.ConnectionProvider;
 import pl.edu.agh.dp.core.jdbc.JdbcExecutor;
 import pl.edu.agh.dp.core.jdbc.JdbcExecutorImpl;
@@ -42,14 +43,28 @@ public class SchemaGenerator {
             return Integer.compare(getInheritanceDepth(c1), getInheritanceDepth(c2));
         });
 
+        List<String> constraints = new ArrayList<>();
+
         for (EntityMetadata metadata : sortedEntities) {
             EntityPersister entityPersister = entityPersisters.get(metadata.getEntityClass());
 
             if (entityPersister != null) {
                 String sql = entityPersister.getInheritanceStrategy().create(jdbcExecutor);
+                String[] strings = sql.split("__SPLIT__");
+                if (strings.length != 2) {
+                    throw new IntegrityException("Oops... Invalid SQL statement: " + sql);
+                }
+                sql = strings[0];
+                constraints.add(strings[1]);
                 System.out.println("Executing SQL for " + metadata.getEntityClass().getSimpleName() + ": " + sql);
                 jdbcExecutor.createTable(sql);
             }
+        }
+
+        for (String constraint : constraints) {
+            System.out.println("Executing SQL for " + constraint);
+            // TODO change to add constraint
+            jdbcExecutor.createTable(constraint);
         }
             // 2.  tabele pośrednie ManyToMany
 //            for (EntityMetadata meta : entities) {

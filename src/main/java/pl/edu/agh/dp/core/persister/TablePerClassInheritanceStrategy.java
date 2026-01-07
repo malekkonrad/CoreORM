@@ -3,6 +3,7 @@ package pl.edu.agh.dp.core.persister;
 import pl.edu.agh.dp.api.Session;
 import pl.edu.agh.dp.core.exceptions.IntegrityException;
 import pl.edu.agh.dp.core.jdbc.JdbcExecutor;
+import pl.edu.agh.dp.core.mapping.AssociationMetadata;
 import pl.edu.agh.dp.core.mapping.EntityMetadata;
 import pl.edu.agh.dp.core.mapping.PropertyMetadata;
 import pl.edu.agh.dp.core.util.ReflectionUtils;
@@ -44,6 +45,7 @@ public class TablePerClassInheritanceStrategy extends AbstractInheritanceStrateg
         sb.append("CREATE TABLE ").append(this.entityMetadata.getTableName()).append(" (\n");
 
         List<String> columnDefs = new ArrayList<>();
+        List<String> constraints = new ArrayList<>();
 
         // Pobieramy ID, żeby wiedzieć, która kolumna to ID
         Collection<PropertyMetadata> rootIds = rootMetadata.getIdColumns().values();
@@ -69,6 +71,15 @@ public class TablePerClassInheritanceStrategy extends AbstractInheritanceStrateg
             columnDefs.add(colDef.toString());
         }
 
+        // FIXME it's temporary
+        for (PropertyMetadata pm : this.entityMetadata.getFkColumns().values()) {
+            columnDefs.add(pm.toSqlColumn());
+        }
+        for (PropertyMetadata pm : this.entityMetadata.getFkColumns().values()) {
+            constraints.add("ALTER TABLE " + entityMetadata.getTableName() + " ADD " + pm.toSqlConstraint() + ";\n");
+        }
+        // end of FIXME
+
         sb.append(String.join(",\n", columnDefs));
         sb.append(",\n ");
 
@@ -77,11 +88,17 @@ public class TablePerClassInheritanceStrategy extends AbstractInheritanceStrateg
 
         sb.append("\n);");
 
+        // FIXME handle it better
+        sb.append("__SPLIT__");
+        sb.append(String.join("", constraints));
+        sb.append(" ");
+
         return sb.toString();
     }
 
     @Override
     public Object insert(Object entity, Session session) {
+        System.out.println("Inserting: " + entity.getClass().getName());
 
         List<String> columns = new ArrayList<>();
         List<Object> values = new ArrayList<>();
@@ -103,7 +120,32 @@ public class TablePerClassInheritanceStrategy extends AbstractInheritanceStrateg
             }
         }
 
-        // FIXME nie działa @Mateusz
+        // handle relationships
+        for (AssociationMetadata am : entityMetadata.getAssociationMetadata().values()) {
+            Object value = ReflectionUtils.getFieldValue(entity, am.getField());
+            if (value != null) {
+                System.out.println("Inserting relationship value");
+                // TODO it's dirty
+                var entityPersisters = session.getEntityPersisters();
+                var persister = entityPersisters.get(value.getClass());
+                persister.insert(value, session);
+                // TODO change join column to reflect the fkColumns
+                // set fk id
+                for (PropertyMetadata pm : entityMetadata.getFkColumns().values()) {
+                    String ref = pm.getReferences();
+                    if (ref.startsWith(persister.getEntityMetadata().getTableName())) {
+                        String fieldName = ref.substring(
+                                ref.indexOf('(') + 1,
+                                ref.indexOf(')')
+                        );
+                        Object field = ReflectionUtils.getFieldValue(value, fieldName);
+                        columns.add(pm.getColumnName());
+                        values.add(field);
+                    }
+                }
+            }
+        }
+
         if (isCompositeKey) {
             if (idProvided.size() != idColumns.size()) {
                 List<String> compositeKey = new ArrayList<>();

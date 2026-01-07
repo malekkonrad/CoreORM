@@ -26,16 +26,16 @@ public class MetadataRegistry {
         // FIXME: better function call or move this part to MetadataBuilder - (change name for MetadataFactory)?
         handleInheritance();
 
-        for (Class<?> clazz : entitiesClasses){
-            EntityMetadata entity =  entities.get(clazz);
-            System.out.println(entity);
-        }
-
 
         // TODO update associations, with table info because now we have that information
         // TODO maybe bundle up errors ?
         for (Class<?> clazz : entitiesClasses){
             fillAssociationData(clazz);
+        }
+
+        for (Class<?> clazz : entitiesClasses){
+            EntityMetadata entity = entities.get(clazz);
+            System.out.println(entity);
         }
     }
 
@@ -155,22 +155,23 @@ public class MetadataRegistry {
 
             // check if all the join columns exist
             // check if one of join columns is it's own relationship (field)
-            Set<String> currentJoinColumns = checkJoinColumns(clazz, currentAm);
-            Set<String> targetJoinColumns = checkJoinColumns(targetEntity, targetAm);
-
-            // check if join columns are the same
-            if (!currentJoinColumns.containsAll(targetJoinColumns) || !targetJoinColumns.containsAll(currentJoinColumns)) {
-                throw new IntegrityException(
-                        "Join columns must be the same.\n" +
-                        "Join columns of both classes should match.\n" +
-                        "Source Class: " + clazz.getName() + "\n" +
-                        "Relationship: " + currentAm.getField() + "\n" +
-                        "Join columns: " + String.join(", ", currentJoinColumns) + "\n" +
-                        "Target Class: " + targetEntity.getName() + "\n" +
-                        "Relationship: " + targetAm.getField() + "\n" +
-                        "Join columns: " + String.join(", ", targetJoinColumns)
-                );
-            }
+            // TODO invalidate joinColumn if not given
+//            Set<String> currentJoinColumns = checkJoinColumns(clazz, currentAm);
+//            Set<String> targetJoinColumns = checkJoinColumns(targetEntity, targetAm);
+//
+//            // check if join columns are the same
+//            if (!currentJoinColumns.containsAll(targetJoinColumns) || !targetJoinColumns.containsAll(currentJoinColumns)) {
+//                throw new IntegrityException(
+//                        "Join columns must be the same.\n" +
+//                        "Join columns of both classes should match.\n" +
+//                        "Source Class: " + clazz.getName() + "\n" +
+//                        "Relationship: " + currentAm.getField() + "\n" +
+//                        "Join columns: " + String.join(", ", currentJoinColumns) + "\n" +
+//                        "Target Class: " + targetEntity.getName() + "\n" +
+//                        "Relationship: " + targetAm.getField() + "\n" +
+//                        "Join columns: " + String.join(", ", targetJoinColumns)
+//                );
+//            }
 
             // check if relationship has correct reverse type
             // checked for not (list of correct types)
@@ -211,6 +212,10 @@ public class MetadataRegistry {
                             "Relationship: " + targetAm.getField() + "\n" +
                             "In one to one relationship at most one of them could be annotated with @Id."
                     );
+                }
+                if (!isForeignKeyOnCurrent && !isForeignKeyOnTarget) {
+                    // choose at random
+                    isForeignKeyOnCurrent = true;
                 }
             } else if (currentAm.getType() == AssociationMetadata.Type.ONE_TO_MANY) {
                 isForeignKeyOnCurrent = false;
@@ -260,7 +265,8 @@ public class MetadataRegistry {
                 PropertyMetadata fkColumn = entityMetadata.fkColumns.get(currentAm.getField());
                 List<PropertyMetadata> targetIdColumns = new ArrayList<>();
                 for (PropertyMetadata pm : targetEntityMetadata.idColumns.values()) {
-                    if (pm.references.isEmpty()) {
+                    // add only id's and not other relationships
+                    if (pm.references == null || pm.references.isEmpty()) {
                         targetIdColumns.add(pm);
                     }
                 }
@@ -270,10 +276,36 @@ public class MetadataRegistry {
                 }
 
                 if (targetIdColumns.size() == 1) {
-                    fkColumn.setReferences(targetEntityMetadata.tableName + "(" + targetIdColumns.get(0) + ")");
+                    fkColumn.setReferences(targetEntityMetadata.tableName + "(" + targetIdColumns.get(0).getColumnName() + ")");
                     fkColumn.setColumnName(fkColumn.getColumnName() + "_fkey");
                     // remove fkey from target
                     targetEntityMetadata.fkColumns.remove(targetAm.getField());
+                    // fill target join columns
+                    currentAm.setTargetJoinColumns(targetAm.getJoinColumns());
+                    targetAm.setTargetJoinColumns(currentAm.getJoinColumns());
+                } else {
+                    // TODO composite key
+                    throw new IntegrityException("Multiple primary keys to map to, idk what to do.");
+                }
+            } else if (!isForeignKeyOnCurrent && isForeignKeyOnTarget) {
+                PropertyMetadata targetFkColumn = targetEntityMetadata.fkColumns.get(targetAm.getField());
+                List<PropertyMetadata> idColumns = new ArrayList<>();
+                for (PropertyMetadata pm : entityMetadata.idColumns.values()) {
+                    // add only id's and not other relationships
+                    if (pm.references.isEmpty()) {
+                        idColumns.add(pm);
+                    }
+                }
+
+                if (idColumns.isEmpty()) {
+                    throw new IntegrityException("No primary keys to map to, idk what to do.");
+                }
+
+                if (idColumns.size() == 1) {
+                    targetFkColumn.setReferences(entityMetadata.tableName + "(" + idColumns.get(0).getColumnName() + ")");
+                    targetFkColumn.setColumnName(targetFkColumn.getColumnName() + "_fkey");
+                    // remove fkey from current
+                    entityMetadata.fkColumns.remove(currentAm.getField());
                 } else {
                     // TODO composite key
                     throw new IntegrityException("Multiple primary keys to map to, idk what to do.");

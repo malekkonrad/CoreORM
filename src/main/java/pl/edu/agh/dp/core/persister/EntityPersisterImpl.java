@@ -21,6 +21,11 @@ public class EntityPersisterImpl implements EntityPersister {
 
     private EntityMetadata metadata;
 
+    // TODO dirty
+    public EntityMetadata getEntityMetadata() {
+        return metadata;
+    }
+
     private InheritanceStrategy inheritanceStrategy;
 
     public EntityPersisterImpl(EntityMetadata metadata) {
