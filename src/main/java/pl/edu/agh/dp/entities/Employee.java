@@ -12,9 +12,9 @@ import java.util.List;
 public class Employee {
     @Id
     private Long id;
-    private double salary;
+    private Double salary;
 
-    private int departmentId;
+    private Integer departmentId;
 //    private int versionId;
 
     // simple mapping

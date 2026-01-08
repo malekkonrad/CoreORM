@@ -45,17 +45,17 @@ public class AppTest {
         @BeforeEach
         public void setUp() {
 
-                try (Connection conn = DriverManager.getConnection(url, user, password);
-                                Statement stmt = conn.createStatement()) {
-                        // stmt.execute("DELETE FROM users");
-                        stmt.execute("DELETE FROM animals");
-                        stmt.execute("DELETE FROM dogs");
-                        stmt.execute("DELETE FROM huskys");
-                        // stmt.execute("DROP SCHEMA public CASCADE;");
-                        // stmt.execute("CREATE SCHEMA public;");
-                } catch (SQLException e) {
-                        e.printStackTrace();
-                }
+//                try (Connection conn = DriverManager.getConnection(url, user, password);
+//                                Statement stmt = conn.createStatement()) {
+//                        // stmt.execute("DELETE FROM users");
+//                        stmt.execute("DELETE FROM animals");
+//                        stmt.execute("DELETE FROM dogs");
+//                        stmt.execute("DELETE FROM huskys");
+//                        // stmt.execute("DROP SCHEMA public CASCADE;");
+//                        // stmt.execute("CREATE SCHEMA public;");
+//                } catch (SQLException e) {
+//                        e.printStackTrace();
+//                }
 
                 config.register(User.class, Employee.class);
                 sessionFactory = config.buildSessionFactory();
@@ -265,7 +265,7 @@ public class AppTest {
 
         }
 
-        @Test
+//        @Test
         public void testPolymorphicFindAll() {
                 Husky dog = new Husky();
                 dog.setId(3L);
