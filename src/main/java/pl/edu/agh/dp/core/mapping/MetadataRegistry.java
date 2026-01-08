@@ -441,6 +441,7 @@ public class MetadataRegistry {
         discriminatorProperty.setType(String.class); // Zakładamy String
         discriminatorProperty.setSqlType("VARCHAR");
         discriminatorProperty.setId(false);
+        discriminatorProperty.setNullable(true); // DTYPE może być null dla niektórych strategii
         // Ważne: to pole nie ma Field w Javie, więc generator SQL musi to obsłużyć
         // (nie próbować robić field.get() przy insertach w ciemno)
 

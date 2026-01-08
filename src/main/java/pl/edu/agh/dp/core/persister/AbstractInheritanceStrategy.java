@@ -11,6 +11,10 @@ import pl.edu.agh.dp.core.mapping.PropertyMetadata;
 import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
+import java.time.OffsetDateTime;
 import java.util.*;
 
 @NoArgsConstructor(force = true)
@@ -29,6 +33,12 @@ public abstract class AbstractInheritanceStrategy implements InheritanceStrategy
         } else if (type == Integer.class || type == int.class) {
             int val = rs.getInt(columnName);
             return rs.wasNull() ? null : val;
+        } else if (type == Short.class || type == short.class) {
+            short val = rs.getShort(columnName);
+            return rs.wasNull() ? null : val;
+        } else if (type == Float.class || type == float.class) {
+            float val = rs.getFloat(columnName);
+            return rs.wasNull() ? null : val;
         } else if (type == String.class) {
             return rs.getString(columnName);
         } else if (type == Double.class || type == double.class) {
@@ -37,6 +47,22 @@ public abstract class AbstractInheritanceStrategy implements InheritanceStrategy
         } else if (type == Boolean.class || type == boolean.class) {
             boolean val = rs.getBoolean(columnName);
             return rs.wasNull() ? null : val;
+        } else if (type == LocalTime.class) {
+            java.sql.Time sqlTime = rs.getTime(columnName);
+            return sqlTime != null ? sqlTime.toLocalTime() : null;
+        } else if (type == LocalDate.class) {
+            java.sql.Date sqlDate = rs.getDate(columnName);
+            return sqlDate != null ? sqlDate.toLocalDate() : null;
+        } else if (type == LocalDateTime.class) {
+            java.sql.Timestamp sqlTimestamp = rs.getTimestamp(columnName);
+            return sqlTimestamp != null ? sqlTimestamp.toLocalDateTime() : null;
+        } else if (type == OffsetDateTime.class) {
+            Object obj = rs.getObject(columnName);
+            if (obj == null) return null;
+            if (obj instanceof OffsetDateTime) return obj;
+            if (obj instanceof java.sql.Timestamp) {
+                return ((java.sql.Timestamp) obj).toLocalDateTime().atOffset(java.time.ZoneOffset.UTC);
+            }
         }
 
         return rs.getObject(columnName);

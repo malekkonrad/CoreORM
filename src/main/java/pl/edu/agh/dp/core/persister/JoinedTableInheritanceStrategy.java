@@ -30,7 +30,7 @@ public class JoinedTableInheritanceStrategy extends AbstractInheritanceStrategy 
         // IDs first because POSTGRES fuck you
         for (PropertyMetadata prop : entityMetadata.getProperties().values()) {
             if (prop.isId()) {
-                columnDefs.add("    " + prop.getColumnName() + " " + prop.getSqlType());
+                columnDefs.add(prop.toSqlColumn());
                 primaryKeys.add(prop.getColumnName());
             }
         }
@@ -40,14 +40,14 @@ public class JoinedTableInheritanceStrategy extends AbstractInheritanceStrategy 
             if (prop.isId()) {
                 continue;
             }
-            columnDefs.add("    " + prop.getColumnName() + " " + prop.getSqlType());
+            columnDefs.add(prop.toSqlColumn());
         }
 
         sb.append(String.join(",\n", columnDefs));
 
         // Add primary key constraint - for root
         if (!primaryKeys.isEmpty()) {
-            sb.append(",\n    PRIMARY KEY (").append(String.join(", ", primaryKeys)).append(")");
+            sb.append(",\n PRIMARY KEY (").append(String.join(", ", primaryKeys)).append(")");
         }
 
         // Add foreign key to parent table if this is a child entity
@@ -479,12 +479,7 @@ public class JoinedTableInheritanceStrategy extends AbstractInheritanceStrategy 
                 String columnAlias = currentMeta.getTableName() + "_" + prop.getColumnName();
 
                 try {
-                    Object value = rs.getObject(columnAlias);
-
-                    // Standardowy fix typów
-                    if (value instanceof Integer && prop.getType() == Long.class) {
-                        value = ((Integer) value).longValue();
-                    }
+                    Object value = getValueFromResultSet(rs, columnAlias, prop.getType());
 
                     if (value != null) {
                         ReflectionUtils.setFieldValue(instance, prop.getName(), value);

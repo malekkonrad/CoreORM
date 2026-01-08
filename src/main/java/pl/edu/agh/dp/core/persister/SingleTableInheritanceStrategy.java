@@ -31,7 +31,7 @@ public class SingleTableInheritanceStrategy extends AbstractInheritanceStrategy 
         List<String> columnDefs = new ArrayList<>();
 
         for (PropertyMetadata col : this.entityMetadata.getColumnsForSingleTable()) {
-            columnDefs.add("    " + col.getColumnName() + " " + col.getSqlType());
+            columnDefs.add(col.toSqlColumn());
         }
 
         sb.append(String.join(",\n", columnDefs));
@@ -43,7 +43,7 @@ public class SingleTableInheritanceStrategy extends AbstractInheritanceStrategy 
             idColumns.add(idProp.getColumnName());
         }
 
-        sb.append(",\n    PRIMARY KEY (")
+        sb.append(",\n PRIMARY KEY (")
                 .append(String.join(", ", idColumns))
                 .append(")");
 
@@ -315,25 +315,8 @@ public class SingleTableInheritanceStrategy extends AbstractInheritanceStrategy 
         String columnName = pm.getColumnName();
         Class<?> type = pm.getType();
 
-        // Użyj typowanych getterów zamiast getObject()
-        if (type == Long.class || type == long.class) {
-            long val = rs.getLong(columnName);
-            return rs.wasNull() ? null : val;
-        } else if (type == Integer.class || type == int.class) {
-            int val = rs.getInt(columnName);
-            return rs.wasNull() ? null : val;
-        } else if (type == String.class) {
-            return rs.getString(columnName);
-        } else if (type == Double.class || type == double.class) {
-            double val = rs.getDouble(columnName);
-            return rs.wasNull() ? null : val;
-        } else if (type == Boolean.class || type == boolean.class) {
-            boolean val = rs.getBoolean(columnName);
-            return rs.wasNull() ? null : val;
-        }
-
-        // Fallback
-        return rs.getObject(columnName);
+        // Use the inherited method from AbstractInheritanceStrategy
+        return getValueFromResultSet(rs, columnName, type);
     }
 
     protected boolean fieldBelongsToClass(PropertyMetadata prop, Class<?> targetClass) {
