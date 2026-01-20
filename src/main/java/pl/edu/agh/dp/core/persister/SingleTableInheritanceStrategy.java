@@ -1,5 +1,6 @@
 package pl.edu.agh.dp.core.persister;
 
+import javafx.util.Pair;
 import pl.edu.agh.dp.api.Session;
 import pl.edu.agh.dp.core.jdbc.JdbcExecutor;
 import pl.edu.agh.dp.core.mapping.EntityMetadata;
@@ -19,7 +20,7 @@ public class SingleTableInheritanceStrategy extends AbstractInheritanceStrategy 
     }
 
     @Override
-    public String create(JdbcExecutor jdbcExecutor) {
+    public Pair<String, String> create() {
         assert this.entityMetadata != null;
         if (!this.entityMetadata.getInheritanceMetadata().isRoot()){
             return null;
@@ -49,7 +50,7 @@ public class SingleTableInheritanceStrategy extends AbstractInheritanceStrategy 
 
         sb.append("\n);");
 
-        return sb.toString();
+        return new Pair<>(sb.toString(), "");
     }
 
     @Override

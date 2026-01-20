@@ -56,35 +56,62 @@ public class EntityMetadata {
         return sb.toString();
     }
 
-    public String toSqlPrimaryKey() {
+    public String getSqlTable() {
+        StringBuilder sb = new StringBuilder();
+        sb.append("CREATE TABLE ").append(tableName);
+        sb.append(" (\n");
+        for (PropertyMetadata pm : properties.values()) {
+            sb.append(pm.toSqlColumn()).append(",\n");
+        }
+        for (PropertyMetadata pm : fkColumns.values()) {
+            sb.append(pm.toSqlColumn()).append(",\n");
+        }
+        sb.append(getSqlPrimaryKey());
+        sb.append("\n);\n");
+        // create association table
+        for (AssociationMetadata am : associationMetadata.values()) {
+            if (am.getHasForeignKey() && am.getAssociationTable() != null) {
+                sb.append(am.getAssociationTable().getSqlTable());
+            }
+        }
+        return sb.toString();
+    }
+
+    public String getSqlConstraints() {
+        StringBuilder sb = new StringBuilder();
+        for (PropertyMetadata pm : fkColumns.values()) {
+            sb.append("ALTER TABLE ").append(tableName).append(" ADD ").append(pm.toSqlConstraint()).append(";\n");
+        }
+        // create association constraints
+        for (AssociationMetadata am : associationMetadata.values()) {
+            if (am.getHasForeignKey() && am.getAssociationTable() != null) {
+                sb.append(am.getAssociationTable().getSqlConstraints());
+            }
+        }
+        return sb.toString();
+    }
+
+    public String getSqlPrimaryKey() {
         StringBuilder sb = new StringBuilder();
         sb.append("PRIMARY KEY (");
         for (PropertyMetadata pm : idColumns.values()) {
-            sb.append(pm.getName()).append(", ");
+            sb.append(pm.getColumnName()).append(", ");
         }
         sb.delete(sb.length() - 2, sb.length());
         sb.append(")");
         return sb.toString();
     }
 
+    public List<PropertyMetadata> getNonForeignKeyColumns() {
+        List<PropertyMetadata> result = new ArrayList<>();
+        for (PropertyMetadata pm : idColumns.values()) {
+            if (pm.references == null || pm.references.isEmpty()) {
+                result.add(pm);
+            }
+        }
+        return result;
+    }
 
-//    public List<PropertyMetadata> getColumnsForSingleTable() {
-//        EntityMetadata root = getInheritanceMetadata().getRootClass();
-//
-//        // FIXME - not sure it's right
-//
-//        List<PropertyMetadata> cols = new ArrayList<>(root.getProperties().values());
-//
-//
-//        // traverse through tree
-//        Deque<EntityMetadata> stack = new ArrayDeque<>(root.getInheritanceMetadata().getChildren());
-//        while (!stack.isEmpty()) {
-//            EntityMetadata m = stack.pop();
-//            cols.addAll(m.getProperties().values());     // FIXME same question - how to get all columns
-//            stack.addAll(m.getInheritanceMetadata().getChildren());
-//        }
-//        return cols;
-//    }
     public List<PropertyMetadata> getColumnsForSingleTable() {
         // Listy na oddzielne typy kolumn
         List<PropertyMetadata> ids = new ArrayList<>();
@@ -111,23 +138,41 @@ public class EntityMetadata {
         return ids;
     }
 
-//    public List<PropertyMetadata> getColumnsForConcreteTable() {
-//        List<PropertyMetadata> cols = new ArrayList<>();
-//
-//        // id + pola z całego łańcucha rodziców
-//        Deque<EntityMetadata> chain = new ArrayDeque<>();
-//        EntityMetadata cur = this;
-//        while (cur != null) {
-//            chain.push(cur);
-//            cur = cur.getInheritanceMetadata().getParent();
-//        }
-//
-//        while (!chain.isEmpty()) {
-//            cols.addAll(chain.pop().getProperties().values());       // FIXME same earlier
-//        }
-//
-//        return cols;
-//    }
+    public Map<String, PropertyMetadata> getIdColumnsForConcreteTable() {
+        Map<String, PropertyMetadata> columns = new HashMap<>();
+        // 1. Zbuduj łańcuch od najwyższego rodzica do obecnej klasy
+        Deque<EntityMetadata> chain = new ArrayDeque<>();
+        EntityMetadata cur = this;
+        while (cur != null) {
+            chain.push(cur); // push wrzuca na stos, więc rodzic będzie na wierzchu przy zdejmowaniu
+            cur = cur.getInheritanceMetadata().getParent();
+        }
+
+        while (!chain.isEmpty()) {
+            EntityMetadata m = chain.pop();
+            columns.putAll(m.getIdColumns());
+        }
+
+        return columns;
+    }
+
+    public Map<String, PropertyMetadata> getAllColumnsForConcreteTable() {
+        Map<String, PropertyMetadata> columns = new HashMap<>();
+        // 1. Zbuduj łańcuch od najwyższego rodzica do obecnej klasy
+        Deque<EntityMetadata> chain = new ArrayDeque<>();
+        EntityMetadata cur = this;
+        while (cur != null) {
+            chain.push(cur); // push wrzuca na stos, więc rodzic będzie na wierzchu przy zdejmowaniu
+            cur = cur.getInheritanceMetadata().getParent();
+        }
+
+        while (!chain.isEmpty()) {
+            EntityMetadata m = chain.pop();
+            columns.putAll(m.getProperties());
+        }
+
+        return columns;
+    }
 
     public List<PropertyMetadata> getColumnsForConcreteTable() {
         List<PropertyMetadata> ids = new ArrayList<>();

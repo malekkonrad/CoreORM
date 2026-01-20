@@ -2,8 +2,6 @@ package pl.edu.agh.dp.core.jdbc;
 
 import pl.edu.agh.dp.core.persister.RowMapper;
 
-import java.sql.Connection;
-import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.List;
 import java.util.Optional;
@@ -27,7 +25,7 @@ public interface JdbcExecutor {
 
     void close() throws SQLException;
 
-    void createTable(String sql) ;
+    void executeStatement(String sql) ;
     void dropTable(String sql) throws SQLException;
 
 }

@@ -1,18 +1,14 @@
 package pl.edu.agh.dp.core.schema;
 
 
-import pl.edu.agh.dp.core.exceptions.IntegrityException;
+import javafx.util.Pair;
 import pl.edu.agh.dp.core.jdbc.ConnectionProvider;
 import pl.edu.agh.dp.core.jdbc.JdbcExecutor;
 import pl.edu.agh.dp.core.jdbc.JdbcExecutorImpl;
 import pl.edu.agh.dp.core.mapping.*;
 import pl.edu.agh.dp.core.persister.EntityPersister;
-import pl.edu.agh.dp.core.persister.EntityPersisterImpl;
 
-import java.sql.Connection;
-import java.sql.Statement;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 
@@ -49,22 +45,18 @@ public class SchemaGenerator {
             EntityPersister entityPersister = entityPersisters.get(metadata.getEntityClass());
 
             if (entityPersister != null) {
-                String sql = entityPersister.getInheritanceStrategy().create(jdbcExecutor);
-                String[] strings = sql.split("__SPLIT__");
-                if (strings.length != 2) {
-                    throw new IntegrityException("Oops... Invalid SQL statement: " + sql);
-                }
-                sql = strings[0];
-                constraints.add(strings[1]);
+                Pair<String, String> sqlConstraint = entityPersister.getInheritanceStrategy().create();
+                String sql = sqlConstraint.getKey();
+                constraints.add(sqlConstraint.getValue());
+
                 System.out.println("Executing SQL for " + metadata.getEntityClass().getSimpleName() + ": " + sql);
-                jdbcExecutor.createTable(sql);
+                jdbcExecutor.executeStatement(sql);
             }
         }
 
         for (String constraint : constraints) {
             System.out.println("Executing SQL for " + constraint);
-            // TODO change to add constraint
-            jdbcExecutor.createTable(constraint);
+            jdbcExecutor.executeStatement(constraint);
         }
             // 2.  tabele pośrednie ManyToMany
 //            for (EntityMetadata meta : entities) {
@@ -75,10 +67,6 @@ public class SchemaGenerator {
 //                    }
 //                }
 //            }
-
-//        } catch (Exception e) {
-//            throw new RuntimeException("Error while generating schema", e);
-//        }
     }
 
     private int getInheritanceDepth(Class<?> clazz) {

@@ -24,9 +24,11 @@ public class AssociationMetadata {
     private Class<?> targetEntity;
     private String field;
     private String mappedBy;
+    private Boolean hasForeignKey;
     private String joinTable; // TODO maybe change to EntityMetadata or skip
     private List<PropertyMetadata> joinColumns;
     private List<PropertyMetadata> targetJoinColumns;
+    private EntityMetadata associationTable;
 
     public PropertyMetadata getFieldProperty() {
         PropertyMetadata fieldMeta = null;

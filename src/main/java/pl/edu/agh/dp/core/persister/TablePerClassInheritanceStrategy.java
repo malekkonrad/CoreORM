@@ -7,6 +7,7 @@ import pl.edu.agh.dp.core.mapping.AssociationMetadata;
 import pl.edu.agh.dp.core.mapping.EntityMetadata;
 import pl.edu.agh.dp.core.mapping.PropertyMetadata;
 import pl.edu.agh.dp.core.util.ReflectionUtils;
+import javafx.util.Pair;
 
 import java.sql.Date;
 import java.sql.ResultSet;
@@ -21,79 +22,45 @@ public class TablePerClassInheritanceStrategy extends AbstractInheritanceStrateg
     }
 
     @Override
-    public String create(JdbcExecutor jdbcExecutor) {
-
+    public Pair<String, String> create() {
+        assert this.entityMetadata != null;
 
         StringBuilder sb = new StringBuilder();
 
-        // 1. Obsługa tworzenia samej sekwencji
-        assert this.entityMetadata != null;
-        EntityMetadata rootMetadata = this.entityMetadata.getInheritanceMetadata().getRootClass();
-        // FIXME why do we create a sequence and not using the SERIAL type?
-//
-//        if (rootMetadata == entityMetadata) {
-//            String sequenceName = this.entityMetadata.getTableName() + "_id_seq";
-//            // START 1 INCREMENT 1 to standard
-//            String seq =  "CREATE SEQUENCE " + sequenceName + " START 1 INCREMENT 1;\n";
-//            System.out.println(seq);
-//            jdbcExecutor.createTable(seq);
-//        }
-//
-//        String rootTableName = rootMetadata.getTableName();
-//        String sequenceName = rootTableName + "_id_seq"; // np. animal_id_seq
+        EntityMetadata rootMetadata = entityMetadata.getInheritanceMetadata().getRootClass();
+        // fix Properties and IdColumns to contain all the fields of the class
+        entityMetadata.setProperties(entityMetadata.getAllColumnsForConcreteTable());
+        entityMetadata.setIdColumns(entityMetadata.getIdColumnsForConcreteTable());
 
-        sb.append("CREATE TABLE ").append(this.entityMetadata.getTableName()).append(" (\n");
-
-        List<String> columnDefs = new ArrayList<>();
-        List<String> constraints = new ArrayList<>();
-
-        // Pobieramy ID, żeby wiedzieć, która kolumna to ID
-        Collection<PropertyMetadata> rootIds = rootMetadata.getIdColumns().values();
-        List<String> idColumnNames = new ArrayList<>();
-        for (PropertyMetadata idProp : rootIds) {
-            idColumnNames.add(idProp.getColumnName());
-        }
-
-        for (PropertyMetadata col : this.entityMetadata.getColumnsForConcreteTable()) {
-            StringBuilder colDef = new StringBuilder();
-
-            // Sprawdzamy, czy to ID i dodajemy sekwencję (TYLKO DLA POSTGRES)
-            if (idColumnNames.contains(col.getColumnName())) {
-                colDef.append(col.toSqlColumn());
-//                colDef.append("    ").append(col.getColumnName()).append(" ").append("BIGINT");
-//                colDef.append(" DEFAULT nextval('").append(sequenceName).append("') PRIMARY KEY ");
+        // FIXME complex key not supported for inheritance
+        if (entityMetadata.getIdColumns().isEmpty()) {
+            throw new IntegrityException("No id"); // sanity check
+        } else if (entityMetadata.getIdColumns().size() == 1) {
+            PropertyMetadata idProperty = entityMetadata.getIdColumns().values().iterator().next();
+            // must be autoincremented
+            if (!idProperty.isAutoIncrement()) {
+                throw new IntegrityException("Id column must be auto-increment");
             }
-            else{
-                colDef.append(col.toSqlColumn());
-//                colDef.append("    ").append(col.getColumnName()).append(" ").append(col.getSqlType());
-            }
-
-            columnDefs.add(colDef.toString());
+        } else if (entityMetadata != rootMetadata) {
+            throw new IntegrityException("Complex id not supported for Table per class inheritance");
         }
 
-        // FIXME it's temporary
-        for (PropertyMetadata pm : this.entityMetadata.getFkColumns().values()) {
-            columnDefs.add(pm.toSqlColumn());
+        // create sequence for all the subclasses to have the same id
+        String rootTableName = rootMetadata.getTableName();
+        String sequenceName = rootTableName + "_id_seq";
+        if (rootMetadata == entityMetadata) {
+            // create sequence only once
+            String seq =  "CREATE SEQUENCE " + sequenceName + " START 1 INCREMENT 1;\n";
+            sb.append(seq);
         }
-        for (PropertyMetadata pm : this.entityMetadata.getFkColumns().values()) {
-            constraints.add("ALTER TABLE " + entityMetadata.getTableName() + " ADD " + pm.toSqlConstraint() + ";\n");
-        }
-        // end of FIXME
-
-        sb.append(String.join(",\n", columnDefs));
-        sb.append(",\n ");
-
-        // create Primary Key
-        sb.append(rootMetadata.toSqlPrimaryKey());
-
-        sb.append("\n);");
-
-        // FIXME handle it better
-        sb.append("__SPLIT__");
-        sb.append(String.join("", constraints));
-        sb.append(" ");
-
-        return sb.toString();
+        // change default in id to the sequence
+        PropertyMetadata rootId = entityMetadata.getIdColumns().values().iterator().next();
+        rootId.setSqlType("BIGINT"); // TODO maybe change based on the base type
+        rootId.setDefaultValue("nextval('" + sequenceName + "')");
+        // add table to the creation
+        sb.append(entityMetadata.getSqlTable());
+        // return table and it's constraints
+        return new Pair<>(sb.toString(), entityMetadata.getSqlConstraints());
     }
 
     @Override
@@ -119,28 +86,50 @@ public class TablePerClassInheritanceStrategy extends AbstractInheritanceStrateg
                 }
             }
         }
+        // TODO dirty quick test
+        String assStmt = "";
+        List<String> targetRef = new ArrayList<>();
+        List<String> currentRef = new ArrayList<>();
 
         // handle relationships
         for (AssociationMetadata am : entityMetadata.getAssociationMetadata().values()) {
             Object value = ReflectionUtils.getFieldValue(entity, am.getField());
             if (value != null) {
-                System.out.println("Inserting relationship value");
-                // TODO it's dirty
-                var entityPersisters = session.getEntityPersisters();
-                var persister = entityPersisters.get(value.getClass());
-                persister.insert(value, session);
-                // TODO change join column to reflect the fkColumns
                 // set fk id
-                for (PropertyMetadata pm : entityMetadata.getFkColumns().values()) {
-                    String ref = pm.getReferences();
-                    if (ref.startsWith(persister.getEntityMetadata().getTableName())) {
-                        String fieldName = ref.substring(
-                                ref.indexOf('(') + 1,
-                                ref.indexOf(')')
-                        );
-                        Object field = ReflectionUtils.getFieldValue(value, fieldName);
-                        columns.add(pm.getColumnName());
-                        values.add(field);
+                if (am.getHasForeignKey()) {
+                    if (am.getType() == AssociationMetadata.Type.MANY_TO_MANY) {
+                        EntityMetadata assTable = am.getAssociationTable();
+//                        Collection<PropertyMetadata> fkColumns = assTable.getFkColumns().values();
+//                        List<String> assColumns = new ArrayList<>();
+//                        for (PropertyMetadata fkColumn : fkColumns) {
+//                            assColumns.add(fkColumn.getColumnName());
+//                        }
+//                        String stmt = "INSERT INTO " + assTable.getTableName() +
+//                                    " (" + String.join(", ", assColumns) + " )" +
+//                                    " VALUES (" + "?,".repeat(assColumns.size() - 1) + "?);";
+//                        System.out.println(stmt);
+                        List<String> assColumns = new ArrayList<>();
+                        for (PropertyMetadata pm : am.getJoinColumns()) {
+                            currentRef.add(pm.getReferencedName());
+//                            Object field = ReflectionUtils.getFieldValue(value, pm.getReferencedName());
+                            assColumns.add(pm.getColumnName());
+//                            assValues.add(field);
+                        }
+                        for (PropertyMetadata pm : am.getTargetJoinColumns()) {
+                            targetRef.add(pm.getReferencedName());
+//                            Object field = ReflectionUtils.getFieldValue(value, pm.getReferencedName());
+                            assColumns.add(pm.getColumnName());
+//                            assValues.add(field);
+                        }
+                        assStmt = "INSERT INTO " + assTable.getTableName() +
+                                    " (" + String.join(", ", assColumns) + " )" +
+                                    " VALUES (" + "?,".repeat(assColumns.size() - 1) + "?);";
+                    } else {
+                        for (PropertyMetadata pm : am.getJoinColumns()) {
+                            Object field = ReflectionUtils.getFieldValue(value, pm.getReferencedName());
+                            columns.add(pm.getColumnName());
+                            values.add(field);
+                        }
                     }
                 }
             }
@@ -200,6 +189,21 @@ public class TablePerClassInheritanceStrategy extends AbstractInheritanceStrateg
                     System.out.println("seting id in " + entity.toString()+ " value: " + generatedId);
                     ReflectionUtils.setFieldValue(entity, idProp.getName(), generatedId);
                 }
+            }
+            //TODO dirty fix
+            if (!assStmt.isEmpty()) {
+                List<Object> assValues = new ArrayList<>();
+                for (String fieldName : currentRef) {
+                    Object field = ReflectionUtils.getFieldValue(entity, fieldName);
+                    assValues.add(field);
+                }
+                for (String fieldName : targetRef) {
+                    Object field = ReflectionUtils.getFieldValue(values, fieldName);
+                    assValues.add(field);
+                }
+                System.out.println(assStmt);
+                System.out.println(assValues);
+//                jdbc.insert(assStmt, assValues.toArray());
             }
         } catch (Exception e) {
             System.out.println(e.getMessage());

@@ -85,6 +85,10 @@ public abstract class AbstractInheritanceStrategy implements InheritanceStrategy
         }
     }
 
+    protected String buildAssociationTableStatement(EntityMetadata meta) {
+        return "";
+    }
+
     /**
      * Helper: Buduje WHERE clause dla ID
      */

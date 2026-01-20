@@ -13,6 +13,10 @@ public final class ReflectionUtils {
                 .anyMatch(f -> f.getName().equals(fieldName));
     }
 
+    public static boolean doesClassContainField(Class<?> clazz, String fieldName) {
+        return Arrays.stream(clazz.getDeclaredFields()).anyMatch(f -> f.getName().equals(fieldName));
+    }
+
 
     public static Object getFieldValue(Object target, String fieldName) {
         try {

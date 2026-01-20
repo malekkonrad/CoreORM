@@ -167,26 +167,28 @@ public class MetadataBuilder {
         if (f.isAnnotationPresent(JoinColumn.class)) {
             JoinColumn join = f.getAnnotation(JoinColumn.class);
             columnNames = join.joinColumns();
-        } else {
-            columnNames = new String[]{f.getName()};
-        }
-        for (String name : columnNames) {
-            // just a placeholder for later
-            joinColumns.add(
-                    new PropertyMetadata(
-                            name.isBlank() ? f.getName() : name,
-                            null,
-                            null,
-                            null,
-                            false,
-                            false,
-                            false,
-                            false,
-                            false,
-                            "__UNSET__",
-                            null
-                    )
-            );
+            // FIXME clean this up
+//        } else {
+//            columnNames = new String[]{f.getName()};
+//        }
+            for (String name : columnNames) {
+                // just a placeholder for later
+                joinColumns.add(
+                        new PropertyMetadata(
+                                name.isBlank() ? f.getName() : name,
+                                null,
+                                null,
+                                null,
+                                false,
+                                false,
+                                false,
+                                false,
+                                false,
+                                "__UNSET__",
+                                null
+                        )
+                );
+            }
         }
         return joinColumns;
     }
@@ -205,9 +207,11 @@ public class MetadataBuilder {
                 f.getType(),
                 f.getName(),
                 annotation.mappedBy(),
+                null,
                 "",
                 joinColumns,
-                new ArrayList<>()
+                new ArrayList<>(),
+                null
         );
         meta.addAssociationMetadata(am);
     }
@@ -234,9 +238,11 @@ public class MetadataBuilder {
                 targetEntity,
                 f.getName(),
                 annotation.mappedBy(),
+                null,
                 "",
                 joinColumns,
-                new ArrayList<>()
+                new ArrayList<>(),
+                null
         );
         meta.addAssociationMetadata(am);
     }
@@ -245,19 +251,24 @@ public class MetadataBuilder {
         ManyToOne annotation = f.getAnnotation(ManyToOne.class);
         Type genericFieldType = f.getGenericType();
         if(genericFieldType instanceof ParameterizedType){
-            throw new IntegrityException("Invalid type: '" + f.getType().getSimpleName() + "' in many to one relationship.\n" +
+            throw new IntegrityException(
+                    "Invalid type: '" + f.getType().getSimpleName() + "' in many to one relationship.\n" +
+                    "Source class: " + meta.getEntityClass().getName() + "\n" +
+                    "Field: " + f.getName() + "\n" +
                     "Many to one expects only a table class not parameterized collection type.");
         }
         List<PropertyMetadata> joinColumns = determineJoinColumns(meta, f);
 
         AssociationMetadata am = new AssociationMetadata(
-                AssociationMetadata.Type.MANY_TO_MANY,
+                AssociationMetadata.Type.MANY_TO_ONE,
                 f.getType(),
                 f.getName(),
                 annotation.mappedBy(),
+                null,
                 "",
                 joinColumns,
-                new ArrayList<>()
+                new ArrayList<>(),
+                null
         );
         meta.addAssociationMetadata(am);
     }
@@ -284,9 +295,11 @@ public class MetadataBuilder {
                 targetEntity,
                 f.getName(),
                 annotation.mappedBy(),
+                null,
                 "",
                 joinColumns,
-                new ArrayList<>()
+                new ArrayList<>(),
+                null
         );
         meta.addAssociationMetadata(am);
     }

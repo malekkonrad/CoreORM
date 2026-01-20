@@ -33,7 +33,7 @@ public class JdbcExecutorImpl implements JdbcExecutor {
     }
 
     @Override
-    public void createTable(String sql) {
+    public void executeStatement(String sql) {
         if (sql == null) {
             System.err.println("sql is null");
             return;
@@ -41,8 +41,7 @@ public class JdbcExecutorImpl implements JdbcExecutor {
         try(Statement statement = connection.createStatement()) {
             statement.executeUpdate(sql);
         }catch(SQLException e){
-//            throw new SQLException(e.getMessage());
-            System.out.println("Sth in jdbcExecutorImpl.createTable");
+            System.out.println("Sth in jdbcExecutorImpl.executeStatement");
             System.err.println(e.getMessage());
         }
     }
