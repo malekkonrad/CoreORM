@@ -22,6 +22,7 @@ public class SessionImpl implements Session {
     @Getter
     private final Map<Class<?>, EntityPersister> entityPersisters;
 
+    private final Set<Object> cachedEntities = new HashSet<>();
     private final Set<Object> newEntities = new LinkedHashSet<>();
     private final Set<Object> dirtyEntities = new HashSet<>();
     private final Set<Object> removedEntities = new HashSet<>();
@@ -41,6 +42,10 @@ public class SessionImpl implements Session {
         Collection<AssociationMetadata> associationMetadata = entityMetadata.getAssociationMetadata().values();
         // don't add if exists
         if (newEntities.contains(entity)) {
+            return;
+        }
+        // don't add if cached
+        if (cachedEntities.contains(entity)) {
             return;
         }
         // no relationships, simple add
@@ -160,12 +165,14 @@ public class SessionImpl implements Session {
     @Override
     public <T> T find(Class<T> entityClass, Object id) {
         Object entity = entityPersisters.get(entityClass).findById(id, this);
+        cachedEntities.add(entity);
         return entityClass.cast(entity);
     }
 
     @Override
     public <T> List<T> findAll(Class<T> entityClass) {
         List<T> entity = entityPersisters.get(entityClass).findAll(entityClass, this);
+        cachedEntities.addAll(entity);
         return entity;
     }
 
@@ -184,6 +191,7 @@ public class SessionImpl implements Session {
         flush();
         try {
             jdbcExecutor.commit();  // commit
+            cachedEntities.addAll(newEntities);
             newEntities.clear(); // clear after successful rollback
             dirtyEntities.clear();
             removedEntities.clear();
