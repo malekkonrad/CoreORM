@@ -395,20 +395,34 @@ public class RelationshipTest {
         Student student1 = new Student();
         student1.setName("John");
 
+        Student student2 = new Student();
+        student2.setName("Kowalski");
+
         Course course1 = new Course();
         course1.setTitle("Math");
 
         Course course2 = new Course();
         course2.setTitle("Physics");
 
-        session.save(course1);
-        session.save(course2);
+        Course course3 = new Course();
+        course3.setTitle("Computer Science");
+
+//        session.save(course1);
+//        session.save(course2);
+
+        course3.setStudents(new ArrayList<>(){{
+            add(student1); add(student2);
+        }});
 
         student1.setCourses(new ArrayList<>(){{
             add(course1); add(course2);
         }});
 
-        session.save(student1);
+        course1.setStudents(new ArrayList<>(){{
+            add(student2);
+        }});
+
+        session.save(course3);
         session.commit();
     }
 

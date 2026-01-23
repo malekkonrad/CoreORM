@@ -88,6 +88,7 @@ public class TablePerClassInheritanceStrategy extends AbstractInheritanceStrateg
         }
         // TODO dirty quick test
         String assStmt = "";
+        String assFieldname = "";
         List<String> targetRef = new ArrayList<>();
         List<String> currentRef = new ArrayList<>();
 
@@ -98,6 +99,7 @@ public class TablePerClassInheritanceStrategy extends AbstractInheritanceStrateg
                 // set fk id
                 if (am.getHasForeignKey()) {
                     if (am.getType() == AssociationMetadata.Type.MANY_TO_MANY) {
+                        assFieldname = am.getField();
                         EntityMetadata assTable = am.getAssociationTable();
 //                        Collection<PropertyMetadata> fkColumns = assTable.getFkColumns().values();
 //                        List<String> assColumns = new ArrayList<>();
@@ -109,14 +111,14 @@ public class TablePerClassInheritanceStrategy extends AbstractInheritanceStrateg
 //                                    " VALUES (" + "?,".repeat(assColumns.size() - 1) + "?);";
 //                        System.out.println(stmt);
                         List<String> assColumns = new ArrayList<>();
-                        for (PropertyMetadata pm : am.getJoinColumns()) {
-                            currentRef.add(pm.getReferencedName());
+                        for (PropertyMetadata pm : am.getTargetJoinColumns()) {
+                            targetRef.add(pm.getReferencedName());
 //                            Object field = ReflectionUtils.getFieldValue(value, pm.getReferencedName());
                             assColumns.add(pm.getColumnName());
 //                            assValues.add(field);
                         }
-                        for (PropertyMetadata pm : am.getTargetJoinColumns()) {
-                            targetRef.add(pm.getReferencedName());
+                        for (PropertyMetadata pm : am.getJoinColumns()) {
+                            currentRef.add(pm.getReferencedName());
 //                            Object field = ReflectionUtils.getFieldValue(value, pm.getReferencedName());
                             assColumns.add(pm.getColumnName());
 //                            assValues.add(field);
@@ -192,18 +194,28 @@ public class TablePerClassInheritanceStrategy extends AbstractInheritanceStrateg
             }
             //TODO dirty fix
             if (!assStmt.isEmpty()) {
-                List<Object> assValues = new ArrayList<>();
-                for (String fieldName : currentRef) {
-                    Object field = ReflectionUtils.getFieldValue(entity, fieldName);
-                    assValues.add(field);
-                }
-                for (String fieldName : targetRef) {
-                    Object field = ReflectionUtils.getFieldValue(values, fieldName);
-                    assValues.add(field);
-                }
                 System.out.println(assStmt);
-                System.out.println(assValues);
-//                jdbc.insert(assStmt, assValues.toArray());
+                List<List<Object>> assAssValues = new ArrayList<>();
+                for (String fieldName : currentRef) {
+                    System.out.println(fieldName + " from " + entity.getClass().getSimpleName());
+                    Object field = ReflectionUtils.getFieldValue(entity, fieldName);
+                    assAssValues.add(new ArrayList<>(){{add(field);}});
+                }
+                Collection<?> assField = (Collection<?>) ReflectionUtils.getFieldValue(entity, assFieldname);
+                for (Object value : assField) {
+                    // first is the example, copy it and fill with the other values
+                    assAssValues.add(new ArrayList<>(){{addAll(assAssValues.get(0));}});
+                    List<Object> assValues = assAssValues.get(assAssValues.size() - 1);
+                    for (String fieldName : targetRef) {
+                        System.out.println(fieldName + " from " + value.getClass().getSimpleName());
+                        Object field = ReflectionUtils.getFieldValue(value, fieldName);
+                        assValues.add(field);
+                    }
+                }
+                assAssValues.remove(0);
+                for (var el : assAssValues) {
+                    jdbc.insert(assStmt, el.toArray());
+                }
             }
         } catch (Exception e) {
             System.out.println(e.getMessage());

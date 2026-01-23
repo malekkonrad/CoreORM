@@ -111,13 +111,42 @@ public class SessionImpl implements Session {
                     newEntities.add(entity);
                 } else if (am.getType() == AssociationMetadata.Type.MANY_TO_MANY) {
                     System.out.println("Inserting * to *");
-                    newEntities.add(entity);
-                    // TODO same as MANY to ONE, add to collection
+                    // fill all the data
                     assert value instanceof Collection;
-                    for (Object relationshipEntity : (Collection)value) { // relationship must be some Collection
-                        this.save(relationshipEntity);
+                    for (Object relationshipEntity : (Collection)value) {
+                        Object field = ReflectionUtils.getFieldValue(relationshipEntity, am.getMappedBy());
+                        if (field == null) {
+                            throw new IntegrityException(
+                                    "Field cannot be null.\n" +
+                                    "Source class: " + relationshipEntity.getClass().getName() + "\n" +
+                                    "Field: " + am.getMappedBy() + "\n" +
+                                    "Field is set to null, but it should be initialized."
+                            );
+                        }
+                        assert field instanceof Collection;
+                        boolean isBackrefered = false;
+                        for (Object reverseEntity : (Collection)field) {
+                            if (reverseEntity == entity) {
+                                isBackrefered = true;
+                            }
+                        }
+                        if (!isBackrefered) {
+                            System.out.println("Adding: " + relationshipEntity + " to field " + am.getMappedBy() + " to " + entity);
+                            ((Collection<T>) field).add(entity); // TODO some assert ???
+                        }
                     }
-                    // TODO add association table
+                    // actual insert
+                    if (am.getHasForeignKey()) {
+                        for (Object relationshipEntity : (Collection)value) { // relationship must be some Collection
+                            this.save(relationshipEntity);
+                        }
+                        newEntities.add(entity);
+                    } else {
+                        newEntities.add(entity);
+                        for (Object relationshipEntity : (Collection)value) { // relationship must be some Collection
+                            this.save(relationshipEntity);
+                        }
+                    }
                 } else {
                     throw new IntegrityException("Unhandled association type: " + am.getType());
                 }
