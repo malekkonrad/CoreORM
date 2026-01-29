@@ -11,6 +11,7 @@ import pl.edu.agh.dp.api.Orm;
 import pl.edu.agh.dp.api.Session;
 import pl.edu.agh.dp.api.SessionFactory;
 import pl.edu.agh.dp.api.annotations.*;
+import pl.edu.agh.dp.core.util.ReflectionUtils;
 
 import java.sql.Connection;
 import java.sql.DriverManager;
@@ -381,6 +382,8 @@ public class RelationshipTest {
         session.save(boss);
         session.commit();
 
+        System.out.println("Adding worker to the boss.");
+
         Worker subordinate = new Worker();
         subordinate.setName("Worker");
         subordinate.setBoss(boss);
@@ -503,7 +506,8 @@ public class RelationshipTest {
         config.register(Student.class, Course.class);
         sessionFactory = config.buildSessionFactory();
         session = sessionFactory.openSession();
-        Long id;
+        Long id1;
+        Long id2;
         {
             Student student1 = new Student();
             student1.setName("John");
@@ -536,19 +540,37 @@ public class RelationshipTest {
 
             session.save(course3);
             session.commit();
-            id = student1.getId();
+            id1 = student1.getId();
+            id2 = student2.getId();
         }
 
         session.close();
         session = sessionFactory.openSession();
+        List<Student> students = new ArrayList<>();
 
-        Student student1 = session.find(Student.class, id);
-        session.load(student1, "courses");
+        Student student1 = session.find(Student.class, id1);
+        student1.courses.size(); // load
+//        session.load(student1, "courses");
         System.out.println(student1.getCourses());
         for (Course c : student1.getCourses()) {
             System.out.println(c.getId());
             System.out.println(c.getTitle());
+            System.out.println(c.getStudents().size());
+            if (c.getStudents().size() == 2 && students.isEmpty()) {
+                students.addAll(c.getStudents());
+            }
         }
 
+        Student student2 = session.find(Student.class, id2);
+        student2.courses.size();
+        System.out.println(student2.getCourses());
+        for (Course c : student2.getCourses()) {
+            System.out.println(c.getId());
+            System.out.println(c.getTitle());
+        }
+
+        System.out.println("final check");
+        System.out.println(student1 + ", " + student2);
+        System.out.println(students);
     }
 }

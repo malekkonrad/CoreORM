@@ -7,9 +7,7 @@ import pl.edu.agh.dp.core.jdbc.JdbcExecutor;
 import pl.edu.agh.dp.core.jdbc.JdbcExecutorImpl;
 import pl.edu.agh.dp.core.mapping.MetadataRegistry;
 import pl.edu.agh.dp.core.persister.EntityPersister;
-import pl.edu.agh.dp.core.persister.EntityPersisterImpl;
 
-import java.util.HashMap;
 import java.util.Map;
 import java.util.Properties;
 
@@ -21,18 +19,16 @@ public class SessionFactoryImpl  implements SessionFactory {
 
     Map< Class<?>, EntityPersister> entityPersisters;
 
-    public SessionFactoryImpl(MetadataRegistry registry,
-                              Map< Class<?>, EntityPersister> entityPersisters,
-                              ConnectionProvider connectionProvider,
-                              Properties properties) {
-
+    public SessionFactoryImpl(
+            MetadataRegistry registry,
+            Map<Class<?>, EntityPersister> entityPersisters,
+            ConnectionProvider connectionProvider,
+            Properties properties
+    ) {
         this.metadataRegistry = registry;
         this.entityPersisters = entityPersisters;
         this.connectionProvider = connectionProvider;
         this.properties = properties;
-
-
-
     }
 
     public Session openSession() {
@@ -41,6 +37,4 @@ public class SessionFactoryImpl  implements SessionFactory {
         session.begin();
         return session;
     }
-
-
 }

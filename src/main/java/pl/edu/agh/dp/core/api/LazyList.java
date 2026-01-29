@@ -33,8 +33,12 @@ public class LazyList<T> implements List<T>, Lazy {
             if (!session.isOpen()) {
                 throw new IllegalStateException("Session is not open");
             }
+            System.out.println("Loading from list. Owner: " + owner.getClass().getName());
             session.load(owner, relationshipName);
+            // this is stupid but works
+            // TODO maybe on remove trigger session.delete then session should override the delegate
             delegate = (List<T>) ReflectionUtils.getFieldValue(owner, relationshipName);
+            System.out.println("Loaded delegate: " + delegate);
         }
     }
 

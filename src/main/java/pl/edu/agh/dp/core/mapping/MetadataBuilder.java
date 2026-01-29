@@ -210,6 +210,7 @@ public class MetadataBuilder {
                 null,
                 meta.getTableName(),
                 "",
+                AssociationMetadata.CollectionType.NONE,
                 joinColumns,
                 new ArrayList<>(),
                 null
@@ -221,7 +222,6 @@ public class MetadataBuilder {
         OneToMany annotation = f.getAnnotation(OneToMany.class);
         Type genericFieldType = f.getGenericType();
         Class<?> targetEntity;
-        // FIXME check for Collection
         if(genericFieldType instanceof ParameterizedType aType) {
             Type[] fieldArgTypes = aType.getActualTypeArguments();
             if (fieldArgTypes.length != 1) {
@@ -234,6 +234,24 @@ public class MetadataBuilder {
         }
         List<PropertyMetadata> joinColumns = determineJoinColumns(meta, f);
 
+        // check list or set
+        Class<?> fieldType = f.getType();
+
+        boolean isList = List.class.isAssignableFrom(fieldType);
+        boolean isSet = Set.class.isAssignableFrom(fieldType);
+
+        AssociationMetadata.CollectionType collectionType;
+        if (!isList && !isSet) {
+            throw new IntegrityException(
+                    "ManyToMany field must be of type List or Set, but found: "
+                            + fieldType.getSimpleName()
+            );
+        } else {
+            // prefer list over set
+            collectionType = isList ?
+                    AssociationMetadata.CollectionType.LIST : AssociationMetadata.CollectionType.SET;
+        }
+
         AssociationMetadata am = new AssociationMetadata(
                 AssociationMetadata.Type.ONE_TO_MANY,
                 targetEntity,
@@ -242,6 +260,7 @@ public class MetadataBuilder {
                 null,
                 meta.getTableName(),
                 "",
+                collectionType,
                 joinColumns,
                 new ArrayList<>(),
                 null
@@ -269,6 +288,7 @@ public class MetadataBuilder {
                 null,
                 meta.getTableName(),
                 "",
+                AssociationMetadata.CollectionType.NONE,
                 joinColumns,
                 new ArrayList<>(),
                 null
@@ -280,8 +300,7 @@ public class MetadataBuilder {
         ManyToMany annotation = f.getAnnotation(ManyToMany.class);
         Type genericFieldType = f.getGenericType();
         Class<?> targetEntity;
-        // FIXME check for Collection
-        if(genericFieldType instanceof ParameterizedType aType) {
+        if (genericFieldType instanceof ParameterizedType aType) {
             Type[] fieldArgTypes = aType.getActualTypeArguments();
             if (fieldArgTypes.length != 1) {
                 throw new IntegrityException("Expected only one parameterized type, but got: " + Arrays.toString(fieldArgTypes));
@@ -293,6 +312,24 @@ public class MetadataBuilder {
         }
         List<PropertyMetadata> joinColumns = determineJoinColumns(meta, f);
 
+        // check list or set
+        Class<?> fieldType = f.getType();
+
+        boolean isList = List.class.isAssignableFrom(fieldType);
+        boolean isSet = Set.class.isAssignableFrom(fieldType);
+
+        AssociationMetadata.CollectionType collectionType;
+        if (!isList && !isSet) {
+            throw new IntegrityException(
+                    "ManyToMany field must be of type List or Set, but found: "
+                            + fieldType.getSimpleName()
+            );
+        } else {
+            // prefer list over set
+            collectionType = isList ?
+                    AssociationMetadata.CollectionType.LIST : AssociationMetadata.CollectionType.SET;
+        }
+
         AssociationMetadata am = new AssociationMetadata(
                 AssociationMetadata.Type.MANY_TO_MANY,
                 targetEntity,
@@ -301,6 +338,7 @@ public class MetadataBuilder {
                 null,
                 meta.getTableName(),
                 "",
+                collectionType,
                 joinColumns,
                 new ArrayList<>(),
                 null

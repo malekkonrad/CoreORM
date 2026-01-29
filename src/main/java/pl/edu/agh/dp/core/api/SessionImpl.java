@@ -4,15 +4,11 @@ import lombok.Getter;
 import pl.edu.agh.dp.api.Session;
 import pl.edu.agh.dp.core.exceptions.IntegrityException;
 import pl.edu.agh.dp.core.jdbc.JdbcExecutor;
-import pl.edu.agh.dp.core.jdbc.JdbcExecutorImpl;
 import pl.edu.agh.dp.core.mapping.AssociationMetadata;
 import pl.edu.agh.dp.core.mapping.EntityMetadata;
-import pl.edu.agh.dp.core.mapping.PropertyMetadata;
 import pl.edu.agh.dp.core.persister.EntityPersister;
 import pl.edu.agh.dp.core.util.ReflectionUtils;
 
-import java.lang.reflect.Field;
-import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.*;
 
@@ -22,7 +18,7 @@ public class SessionImpl implements Session {
     @Getter
     private final Map<Class<?>, EntityPersister> entityPersisters;
 
-    private final Set<Object> cachedEntities = new HashSet<>();
+    private final EntitySet<Object> cachedEntities;
     private final Set<Object> newEntities = new LinkedHashSet<>();
     private final Set<Object> dirtyEntities = new HashSet<>();
     private final Set<Object> removedEntities = new HashSet<>();
@@ -33,11 +29,12 @@ public class SessionImpl implements Session {
     public SessionImpl(JdbcExecutor jdbcExecutor,  Map<Class<?>, EntityPersister> entityPersisters) {
         this.entityPersisters = entityPersisters;
         this.jdbcExecutor = jdbcExecutor;
+        this.cachedEntities = new EntitySet<>(entityPersisters);
     }
 
     @Override
     public <T> void save(T entity) {
-        // for relationships we need to separate each entity
+        // for relationships, we need to separate each entity
         EntityPersister entityPersister = entityPersisters.get(entity.getClass());
         EntityMetadata entityMetadata = entityPersister.getEntityMetadata();
         Collection<AssociationMetadata> associationMetadata = entityMetadata.getAssociationMetadata().values();
@@ -64,15 +61,12 @@ public class SessionImpl implements Session {
                     // first insert the dominating entity, later the fk one
                     if (am.getHasForeignKey()) {
                         // set opposing relationship
-                        // TODO do not set when null
                         System.out.println("Setting: " + am.getMappedBy()+ " in " + value + " to " + entity);
                         ReflectionUtils.setFieldValue(value, am.getMappedBy(), entity);
                         this.save(value);
                         newEntities.add(entity);
                     } else {
                         // set opposing relationship
-                        // TODO do not set when null
-                        // TODO error on the wrong set
                         System.out.println("Setting: " + am.getMappedBy()+ " in " + value + " to " + entity);
                         ReflectionUtils.setFieldValue(value, am.getMappedBy(), entity);
                         newEntities.add(entity);
@@ -82,17 +76,13 @@ public class SessionImpl implements Session {
                     System.out.println("Inserting 1 to *");
                     newEntities.add(entity);
                     assert value instanceof Collection;
-                    for (Object relationshipEntity : (Collection)value) { // relationship must be some Collection
-                        // TODO do not set when null
-                        // TODO error on the wrong set
+                    for (Object relationshipEntity : (Collection<?>)value) { // relationship must be some Collection
                         System.out.println("Setting: " + am.getMappedBy()+ " in " + relationshipEntity + " to " + entity);
                         ReflectionUtils.setFieldValue(relationshipEntity, am.getMappedBy(), entity);
                         this.save(relationshipEntity);
                     }
                 } else if (am.getType() == AssociationMetadata.Type.MANY_TO_ONE) {
                     System.out.println("Inserting * to 1");
-                    // TODO do not set when null
-                    // TODO error on the wrong set
                     Object field = ReflectionUtils.getFieldValue(value, am.getMappedBy());
                     if (field == null) {
                         throw new IntegrityException(
@@ -104,14 +94,15 @@ public class SessionImpl implements Session {
                     }
                     assert field instanceof Collection;
                     boolean isBackrefered = false;
-                    for (Object relationshipEntity : (Collection)field) {
+                    for (Object relationshipEntity : (Collection<?>)field) {
                         if (relationshipEntity == entity) {
                             isBackrefered = true;
+                            break;
                         }
                     }
                     if (!isBackrefered) {
                         System.out.println("Adding: " + value + " to field " + am.getMappedBy() + " to " + entity);
-                        ((Collection<T>) field).add(entity); // TODO some assert ???
+                        ((Collection<T>) field).add(entity);
                     }
                     this.save(value);
                     newEntities.add(entity);
@@ -119,7 +110,7 @@ public class SessionImpl implements Session {
                     System.out.println("Inserting * to *");
                     // fill all the data
                     assert value instanceof Collection;
-                    for (Object relationshipEntity : (Collection)value) {
+                    for (Object relationshipEntity : (Collection<?>)value) {
                         Object field = ReflectionUtils.getFieldValue(relationshipEntity, am.getMappedBy());
                         if (field == null) {
                             throw new IntegrityException(
@@ -131,25 +122,26 @@ public class SessionImpl implements Session {
                         }
                         assert field instanceof Collection;
                         boolean isBackrefered = false;
-                        for (Object reverseEntity : (Collection)field) {
+                        for (Object reverseEntity : (Collection<?>)field) {
                             if (reverseEntity == entity) {
                                 isBackrefered = true;
+                                break;
                             }
                         }
                         if (!isBackrefered) {
                             System.out.println("Adding: " + relationshipEntity + " to field " + am.getMappedBy() + " to " + entity);
-                            ((Collection<T>) field).add(entity); // TODO some assert ???
+                            ((Collection<T>) field).add(entity);
                         }
                     }
                     // actual insert
                     if (am.getHasForeignKey()) {
-                        for (Object relationshipEntity : (Collection)value) { // relationship must be some Collection
+                        for (Object relationshipEntity : (Collection<?>)value) { // relationship must be some Collection
                             this.save(relationshipEntity);
                         }
                         newEntities.add(entity);
                     } else {
                         newEntities.add(entity);
-                        for (Object relationshipEntity : (Collection)value) { // relationship must be some Collection
+                        for (Object relationshipEntity : (Collection<?>)value) { // relationship must be some Collection
                             this.save(relationshipEntity);
                         }
                     }
@@ -165,44 +157,118 @@ public class SessionImpl implements Session {
 
     @Override
     public <T> T find(Class<T> entityClass, Object id) {
-        Object entity = entityPersisters.get(entityClass).findById(id, this);
-        cachedEntities.add(entity);
+        Object entity = cachedEntities.findById(entityClass, id);
+        if (entity == null) {
+            EntityPersister persister = entityPersisters.get(entityClass);
+            entity = persister.findById(id, this);
+            // fill the relationship data
+            EntityMetadata metadata = persister.getEntityMetadata();
+            for (AssociationMetadata associationMetadata : metadata.getAssociationMetadata().values()) {
+                if (associationMetadata.getCollectionType() == AssociationMetadata.CollectionType.NONE) {
+                    continue;
+                }
+                ReflectionUtils.setFieldValue(entity, associationMetadata.getField(), associationMetadata.createLazyCollection(this, entity));
+            }
+            cachedEntities.add(entity);
+        }
         return entityClass.cast(entity);
     }
 
     @Override
     public <T> List<T> findAll(Class<T> entityClass) {
-        List<T> entity = entityPersisters.get(entityClass).findAll(entityClass, this);
-        cachedEntities.addAll(entity);
-        return entity;
+        EntityPersister persister = entityPersisters.get(entityClass);
+        List<T> entities = persister.findAll(entityClass, this);
+        for (T entity : entities) {
+            // fill the relationship data
+            EntityMetadata metadata = persister.getEntityMetadata();
+            for (AssociationMetadata associationMetadata : metadata.getAssociationMetadata().values()) {
+                if (associationMetadata.getCollectionType() == AssociationMetadata.CollectionType.NONE) {
+                    continue;
+                }
+                ReflectionUtils.setFieldValue(entity, associationMetadata.getField(), associationMetadata.createLazyCollection(this, entity));
+            }
+        }
+        entities.replaceAll(t -> (T) cachedEntities.replaceIfExistsAndAdd(t));
+        return entities;
     }
 
     @Override
     public <T> void delete(T entity) {
+        if (newEntities.contains(entity)) {
+            throw new IntegrityException(
+                    "Attempted to remove entity scheduled for saving.\n" +
+                    "Only one operation is permitted per commit.");
+        } else if (dirtyEntities.contains(entity)) {
+            throw new IntegrityException(
+                    "Attempted to remove entity scheduled for update.\n" +
+                    "Only one operation is permitted per commit.");
+        }
         removedEntities.add(entity);
     }
 
     @Override
     public <T> void update(T entity) {
+        if (newEntities.contains(entity)) {
+            throw new IntegrityException(
+                    "Attempted to remove entity scheduled for saving.\n" +
+                    "Only one operation is permitted per commit.");
+        } else if (removedEntities.contains(entity)) {
+            throw new IntegrityException(
+                    "Attempted to remove entity scheduled for deletion.\n" +
+                    "Only one operation is permitted per commit.");
+        }
         dirtyEntities.add(entity);
     }
 
     @Override
     public <T> void load(T entity, String relationshipName) {
         if (!ReflectionUtils.doesClassContainField(entity.getClass(), relationshipName)) {
-            throw new IntegrityException("Failed to load relationship");
+            throw new IntegrityException("Failed to load relationship: " + relationshipName + " in class: " + entity.getClass().getName());
+        }
+        System.out.println("Trying to load: " + entity.getClass().getName() + "." + relationshipName);
+        Object field = ReflectionUtils.getFieldValue(entity, relationshipName);
+        if (field != null) {
+            if (!(field instanceof Lazy) || ((Lazy) field).isInitialized()) {
+                System.out.println(relationshipName + " already loaded.");
+                return;
+            }
         }
         EntityMetadata metadata = entityPersisters.get(entity.getClass()).getEntityMetadata();
         AssociationMetadata associationMetadata = metadata.getAssociationMetadata().get(relationshipName);
         assert associationMetadata != null;
         Class<?> relationshipClass = associationMetadata.getTargetEntity();
+        EntityMetadata relationshipMetadata = entityPersisters.get(relationshipClass).getEntityMetadata();
 
         String joinStmt = associationMetadata.getJoinStatement();
 
         String whereStmt = metadata.getSelectByIdStatement(entity);
 
-        List<?> entities = entityPersisters.get(relationshipClass).findAll(relationshipClass, this, joinStmt, whereStmt);
-        ReflectionUtils.setFieldValue(entity, relationshipName, entities);
+        List<Object> entities = (List<Object>) entityPersisters.get(relationshipClass).findAll(relationshipClass, this, joinStmt, whereStmt);
+        // singular entity loaded
+        if (associationMetadata.getCollectionType() == AssociationMetadata.CollectionType.NONE) {
+            if (entities.isEmpty()) {
+                return;
+            } else if (entities.size() == 1) {
+                ReflectionUtils.setFieldValue(entity, relationshipName, entities.get(0));
+                return;
+            } else {
+                throw new IntegrityException("Something unexpected happened");
+            }
+        }
+        // plural entities loaded
+        Collection<Object> loaded = (Collection<Object>) associationMetadata.createCollection();
+        for (Object value : entities) {
+            // fill the relationship data
+            for (AssociationMetadata relAssMetadata : relationshipMetadata.getAssociationMetadata().values()) {
+                if (relAssMetadata.getCollectionType() == AssociationMetadata.CollectionType.NONE) {
+                    continue;
+                }
+                ReflectionUtils.setFieldValue(value, relAssMetadata.getField(), relAssMetadata.createLazyCollection(this, value));
+            }
+            value = cachedEntities.replaceIfExistsAndAdd(value);
+            loaded.add(value);
+        }
+        ReflectionUtils.setFieldValue(entity, relationshipName, loaded);
     }
 
     @Override
@@ -217,7 +283,7 @@ public class SessionImpl implements Session {
             jdbcExecutor.setAutoCommit(true); // end transaction
             jdbcExecutor.setAutoCommit(false); // begin transaction
         } catch (SQLException e) {
-            throw new RuntimeException(e); // TODO handle Exception
+            throw new IntegrityException(e.getMessage());
         }
     }
 
@@ -231,7 +297,7 @@ public class SessionImpl implements Session {
             jdbcExecutor.setAutoCommit(true); // end transaction
             jdbcExecutor.setAutoCommit(false); // begin transaction
         } catch (SQLException e) {
-            throw new RuntimeException(e); // TODO handle Exception
+            throw new IntegrityException(e.getMessage());
         }
     }
 

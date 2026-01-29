@@ -3,11 +3,12 @@ package pl.edu.agh.dp.core.mapping;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.Setter;
+import pl.edu.agh.dp.api.Session;
+import pl.edu.agh.dp.core.api.LazyList;
+import pl.edu.agh.dp.core.api.LazySet;
 import pl.edu.agh.dp.core.exceptions.IntegrityException;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Objects;
+import java.util.*;
 
 @Getter
 @Setter
@@ -21,6 +22,12 @@ public class AssociationMetadata {
         MANY_TO_MANY
     }
 
+    public enum CollectionType {
+        NONE,
+        LIST,
+        SET
+    }
+
     private Type type;
     private Class<?> targetEntity;
     private String field;
@@ -28,6 +35,7 @@ public class AssociationMetadata {
     private Boolean hasForeignKey;
     private String tableName;
     private String targetTableName;
+    private CollectionType collectionType;
     private List<PropertyMetadata> joinColumns;
     private List<PropertyMetadata> targetJoinColumns;
     private EntityMetadata associationTable;
@@ -43,6 +51,30 @@ public class AssociationMetadata {
             throw new IntegrityException("Field '" + field + "' not found.");
         }
         return fieldMeta;
+    }
+
+    public Collection<?> createLazyCollection(Session session, Object owner) {
+        if (collectionType == CollectionType.NONE) {
+            throw new IntegrityException("In this relationship, collections are not supported.");
+        } else if (collectionType == CollectionType.LIST) {
+            return new LazyList<>(session, owner, field);
+        } else if (collectionType == CollectionType.SET) {
+            return new LazySet<>(session, owner, field);
+        } else {
+            throw new IntegrityException("Collection '" + collectionType + "' is not supported.");
+        }
+    }
+
+    public Collection<?> createCollection() {
+        if (collectionType == CollectionType.NONE) {
+            throw new IntegrityException("In this relationship, collections are not supported.");
+        } else if (collectionType == CollectionType.LIST) {
+            return new ArrayList<>();
+        } else if (collectionType == CollectionType.SET) {
+            return new HashSet<>();
+        } else {
+            throw new IntegrityException("Collection '" + collectionType + "' is not supported.");
+        }
     }
 
     public String getJoinStatement() {
@@ -115,6 +147,7 @@ public class AssociationMetadata {
         sb.append("  tableName: ").append(tableName).append("\n");
         sb.append("  joinColumns: ").append(joinColumns).append("\n");
         sb.append("  targetJoinColumns: ").append(targetJoinColumns).append("\n");
+        sb.append("  collectionType: ").append(collectionType).append("\n");
         sb.append("}");
         return sb.toString();
     }
