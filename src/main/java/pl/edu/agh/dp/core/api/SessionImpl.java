@@ -28,6 +28,7 @@ public class SessionImpl implements Session {
     private final Set<Object> removedEntities = new HashSet<>();
 
     private final JdbcExecutor jdbcExecutor;
+    private boolean isOpen = false;
 
     public SessionImpl(JdbcExecutor jdbcExecutor,  Map<Class<?>, EntityPersister> entityPersisters) {
         this.entityPersisters = entityPersisters;
@@ -187,6 +188,24 @@ public class SessionImpl implements Session {
     }
 
     @Override
+    public <T> void load(T entity, String relationshipName) {
+        if (!ReflectionUtils.doesClassContainField(entity.getClass(), relationshipName)) {
+            throw new IntegrityException("Failed to load relationship");
+        }
+        EntityMetadata metadata = entityPersisters.get(entity.getClass()).getEntityMetadata();
+        AssociationMetadata associationMetadata = metadata.getAssociationMetadata().get(relationshipName);
+        assert associationMetadata != null;
+        Class<?> relationshipClass = associationMetadata.getTargetEntity();
+
+        String joinStmt = associationMetadata.getJoinStatement();
+
+        String whereStmt = metadata.getSelectByIdStatement(entity);
+
+        List<?> entities = entityPersisters.get(relationshipClass).findAll(relationshipClass, this, joinStmt, whereStmt);
+        ReflectionUtils.setFieldValue(entity, relationshipName, entities);
+    }
+
+    @Override
     public void commit() {
         flush();
         try {
@@ -236,6 +255,7 @@ public class SessionImpl implements Session {
     public void begin() {
         try {
             jdbcExecutor.setAutoCommit(false);
+            isOpen = true;
         } catch (SQLException e) {
             throw new RuntimeException(e); // TODO handle the Exception
         }
@@ -251,12 +271,17 @@ public class SessionImpl implements Session {
             removedEntities.clear();
             jdbcExecutor.setAutoCommit(true); // end transactions
             jdbcExecutor.close();
+            isOpen = false;
         }catch(Exception e){
             System.err.println("Error closing connection");
         }
 
     }
 
+    @Override
+    public boolean isOpen() {
+        return this.isOpen;
+    }
 
     @Override
     public JdbcExecutor getJdbcExecutor() {

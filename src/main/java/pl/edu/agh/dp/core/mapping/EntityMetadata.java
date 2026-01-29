@@ -4,6 +4,7 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import pl.edu.agh.dp.core.util.ReflectionUtils;
 
 import java.util.*;
 
@@ -45,7 +46,7 @@ public class EntityMetadata {
     public String toString() {
         StringBuilder sb = new StringBuilder();
         sb.append("EntityMetadata{\n");
-        sb.append("  entityClass: ").append(entityClass.getName()).append("\n");
+        sb.append("  entityClass: ").append(entityClass != null ? entityClass.getName() : "null").append("\n");
         sb.append("  tableName: ").append(tableName).append("\n");
         sb.append("  idColumns: ").append(idColumns).append("\n");
         sb.append("  properties: ").append(properties).append("\n");
@@ -54,6 +55,18 @@ public class EntityMetadata {
         sb.append("  inheritanceMetadata: ").append(inheritanceMetadata).append("\n");
         sb.append("}");
         return sb.toString();
+    }
+
+    public String getSelectByIdStatement(Object entity) {
+        List<String> conditions = new ArrayList<>();
+        for (PropertyMetadata pm : idColumns.values()) {
+            StringBuilder cond = new StringBuilder();
+            cond.append(tableName).append(".").append(pm.getColumnName());
+            cond.append(" = ");
+            cond.append(ReflectionUtils.getFieldValue(entity, pm.getName()));
+            conditions.add(cond.toString());
+        }
+        return String.join(" AND ", conditions);
     }
 
     public String getSqlTable() {

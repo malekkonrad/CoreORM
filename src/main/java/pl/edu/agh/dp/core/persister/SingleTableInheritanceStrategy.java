@@ -223,7 +223,7 @@ public class SingleTableInheritanceStrategy extends AbstractInheritanceStrategy 
     }
 
     @Override
-    public <T> List<T> findAll(Class<T> type, Session session) {
+    public <T> List<T> findAll(Class<T> type, Session session, String joinStmt, String whereStmt) {
         assert this.entityMetadata != null;
         EntityMetadata rootMetadata = this.entityMetadata.getInheritanceMetadata().getRootClass();
         String tableName = rootMetadata.getTableName();

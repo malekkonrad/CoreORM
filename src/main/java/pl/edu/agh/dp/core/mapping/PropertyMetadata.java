@@ -77,6 +77,10 @@ public class PropertyMetadata {
         return references.substring(references.indexOf('(') + 1, references.indexOf(')'));
     }
 
+    public String getReferencedTable() {
+        return references.substring(0, references.indexOf('('));
+    }
+
     public String toString() {
         StringBuffer sb = new StringBuffer();
         sb.append("[Field_name=").append(name).append(", ");

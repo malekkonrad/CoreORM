@@ -11,5 +11,5 @@ public interface InheritanceStrategy {
     void update(Object entity, Session session);
     void delete(Object entity, Session session);
     Object findById(Object id, Session session);
-    <T> List<T> findAll(Class<T> type, Session session);
+    <T> List<T> findAll(Class<T> type, Session session, String joinStmt, String whereStmt);
 }

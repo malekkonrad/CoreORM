@@ -304,6 +304,9 @@ public class MetadataRegistry {
              * later fill the target and join columns in both relationships
              */
 
+            // fill target entity table name
+            currentAm.setTargetTableName(targetAm.getTableName());
+            targetAm.setTargetTableName(currentAm.getTableName());
             // set foreign key booleans for later
             currentAm.setHasForeignKey(isForeignKeyOnCurrent);
             targetAm.setHasForeignKey(isForeignKeyOnTarget);

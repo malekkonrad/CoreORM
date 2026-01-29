@@ -114,7 +114,12 @@ public class EntityPersisterImpl implements EntityPersister {
 
     @Override
     public  <T> List<T> findAll(Class<T> entityClass, Session session) {
-        return inheritanceStrategy.findAll(entityClass, session);
+        return inheritanceStrategy.findAll(entityClass, session, "", "");
+    }
+
+    @Override
+    public <T> List<T> findAll(Class<T> entityClass, Session session, String joinStmt, String whereStmt) {
+        return inheritanceStrategy.findAll(entityClass, session, joinStmt, whereStmt);
     }
 
     @Override

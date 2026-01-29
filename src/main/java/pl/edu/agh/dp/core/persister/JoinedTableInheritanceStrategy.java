@@ -304,7 +304,7 @@ public class JoinedTableInheritanceStrategy extends AbstractInheritanceStrategy 
     }
 
     @Override
-    public <T> List<T> findAll(Class<T> type, Session session) {
+    public <T> List<T> findAll(Class<T> type, Session session, String joinStmt, String whereStmt) {
         try {
             // 1. Budujemy to samo zapytanie, ale bez WHERE id = ?
             SqlAndParams query = buildPolymorphicQuery(null);

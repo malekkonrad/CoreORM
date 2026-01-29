@@ -117,7 +117,11 @@ public class RelationshipTest {
     public static class Passport {
         @Id(autoIncrement = true)
         Long id;
-        String number;
+        String name;
+
+        @OneToOne
+        @JoinColumn(joinColumns = { "name", "citizen" }, nullable = false)
+        Citizen citizen;
     }
 
     @Getter
@@ -129,7 +133,7 @@ public class RelationshipTest {
         String name;
 
         @OneToOne
-        @JoinColumn(joinColumns = { "passport_fk" }, nullable = false)
+        @JoinColumn(joinColumns = { "name", "passport" }, nullable = false)
         Passport passport;
     }
 
@@ -434,9 +438,9 @@ public class RelationshipTest {
 
         // 1. Test success case
         Citizen citizen = new Citizen();
-        citizen.setName("Citizen One");
+        citizen.setName("John");
         Passport passport = new Passport();
-        passport.setNumber("A123");
+        passport.setName("John");
         citizen.setPassport(passport);
 
         // Assuming cascade save works for OneToOne or we save manually
@@ -456,5 +460,95 @@ public class RelationshipTest {
             session.save(citizen2);
             session.commit();
         });
+    }
+
+    @Test
+    void loadRelationship() {
+        config.register(Department.class, Employee.class);
+        sessionFactory = config.buildSessionFactory();
+        session = sessionFactory.openSession();
+        Long departmentId;
+
+        {
+            Department dept = new Department();
+            dept.setName("IT");
+            dept.setEmployees(new ArrayList<>());
+
+            Employee emp1 = new Employee();
+            emp1.setName("Alice");
+            emp1.setDepartment(dept);
+
+            Employee emp2 = new Employee();
+            emp2.setName("Bob");
+            emp2.setDepartment(dept);
+
+            session.save(emp1);
+            session.save(emp2);
+            session.commit();
+
+            departmentId = dept.getId();
+        }
+
+        session.close();
+        session = sessionFactory.openSession();
+
+        Department dept = session.find(Department.class, departmentId);
+        System.out.println(dept);
+        session.load(dept, "employees");
+        System.out.println(dept.getEmployees());
+    }
+
+    @Test
+    void loadMany2Many() {
+        config.register(Student.class, Course.class);
+        sessionFactory = config.buildSessionFactory();
+        session = sessionFactory.openSession();
+        Long id;
+        {
+            Student student1 = new Student();
+            student1.setName("John");
+
+            Student student2 = new Student();
+            student2.setName("Kowalski");
+
+            Course course1 = new Course();
+            course1.setTitle("Math");
+
+            Course course2 = new Course();
+            course2.setTitle("Physics");
+
+            Course course3 = new Course();
+            course3.setTitle("Computer Science");
+
+            course3.setStudents(new ArrayList<>() {{
+                add(student1);
+                add(student2);
+            }});
+
+            student1.setCourses(new ArrayList<>() {{
+                add(course1);
+                add(course2);
+            }});
+
+            course1.setStudents(new ArrayList<>() {{
+                add(student2);
+            }});
+
+            session.save(course3);
+            session.commit();
+            id = student1.getId();
+        }
+
+        session.close();
+        session = sessionFactory.openSession();
+
+        Student student1 = session.find(Student.class, id);
+        session.load(student1, "courses");
+        System.out.println(student1.getCourses());
+        for (Course c : student1.getCourses()) {
+            System.out.println(c.getId());
+            System.out.println(c.getTitle());
+        }
+
     }
 }

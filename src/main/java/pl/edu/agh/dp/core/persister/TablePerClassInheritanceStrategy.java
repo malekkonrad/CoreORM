@@ -487,7 +487,7 @@ public class TablePerClassInheritanceStrategy extends AbstractInheritanceStrateg
 //    }
 
     @Override
-    public <T> List<T> findAll(Class<T> type, Session session) {
+    public <T> List<T> findAll(Class<T> type, Session session, String joinStmt, String whereStmt) {
         // 1. Znajdujemy wszystkie podklasy (Husky, Cat, Dog...)
         List<EntityMetadata> concreteSubclasses = getAllConcreteSubclasses(this.entityMetadata);
 
@@ -511,6 +511,8 @@ public class TablePerClassInheritanceStrategy extends AbstractInheritanceStrateg
                     .map(PropertyMetadata::getColumnName)
                     .collect(Collectors.toSet());
 
+            String tableName = subMeta.getTableName();
+
             sqlBuilder.append("SELECT ");
 
             // Iterujemy po WSZYSTKICH możliwych kolumnach hierarchii
@@ -518,7 +520,7 @@ public class TablePerClassInheritanceStrategy extends AbstractInheritanceStrateg
             for (String colName : allPossibleColumns) {
                 if (subTableColumns.contains(colName)) {
                     // Tabela ma tę kolumnę -> wybieramy ją
-                    selectionParts.add(colName);
+                    selectionParts.add(tableName + "." + colName);
                 } else {
                     // Tabela nie ma tej kolumny -> wstawiamy NULL i aliasujemy nazwą kolumny
                     // (alias jest ważny, żeby ResultSet wiedział jak nazwać kolumnę)
@@ -531,12 +533,19 @@ public class TablePerClassInheritanceStrategy extends AbstractInheritanceStrateg
             // Dodajemy DTYPE
             sqlBuilder.append(", '").append(subMeta.getEntityClass().getName()).append("' as DTYPE")
                     .append(" FROM ")
-                    .append(subMeta.getTableName());
+                    .append(tableName);
+
+            // Dodajemy join statement
+            sqlBuilder.append(" ").append(joinStmt);
 
             if (i < concreteSubclasses.size() - 1) {
                 sqlBuilder.append(" UNION ALL ");
             }
         }
+
+        // dodajemy where statement
+        sqlBuilder.append(" WHERE ");
+        sqlBuilder.append(whereStmt);
 
         String sql = sqlBuilder.toString();
         System.out.println("TPC findAll SQL: " + sql);
