@@ -35,9 +35,13 @@ public class EntityMetadata {
         fkColumns.put(pm.getName(), pm);
     }
 
+    public void addFkPropertyAll(Map<String, PropertyMetadata> pms) {fkColumns.putAll(pms);}
+
     public void addIdProperty(PropertyMetadata pm) {
         idColumns.put(pm.getName(), pm);
     }
+
+    public void addIdPropertyAll(Map<String, PropertyMetadata> pms) {idColumns.putAll(pms);}
 
     public void addAssociationMetadata(AssociationMetadata am) {
         associationMetadata.put(am.getField(), am);
@@ -94,7 +98,7 @@ public class EntityMetadata {
     public String getSqlConstraints() {
         StringBuilder sb = new StringBuilder();
         for (PropertyMetadata pm : fkColumns.values()) {
-            sb.append("ALTER TABLE ").append(tableName).append(" ADD ").append(pm.toSqlConstraint()).append(";\n");
+            sb.append("ALTER TABLE ").append(tableName).append(" ADD ").append(pm.toSqlConstraint(tableName)).append(";\n");
         }
         // create association constraints
         for (AssociationMetadata am : associationMetadata.values()) {
@@ -167,6 +171,24 @@ public class EntityMetadata {
         return columns;
     }
 
+    public Map<String, PropertyMetadata> getFkColumnsForJoinedTable() {
+        Map<String, PropertyMetadata> result = new HashMap<>();
+        if (inheritanceMetadata.getRootClass() != null
+                && !inheritanceMetadata.isRoot()
+                && inheritanceMetadata.getParent() != null) // FIXME is parent really necessary here, we could just point to the root
+        {
+            EntityMetadata root = inheritanceMetadata.getRootClass();
+            EntityMetadata parent = inheritanceMetadata.getParent();
+
+            for (PropertyMetadata pm : root.getIdColumns().values()) {
+                PropertyMetadata clone = pm.clone();
+                clone.setReferences(parent.tableName + "(" + pm.getColumnName() + ")"); // FIXME why not point to the root
+                result.put(clone.getName(), clone);
+            }
+        }
+        return result;
+    }
+
     public Map<String, PropertyMetadata> getIdColumnsForSingleTable() {
 
         EntityMetadata root = getInheritanceMetadata().getRootClass();
@@ -182,8 +204,6 @@ public class EntityMetadata {
             EntityMetadata m = stack.pop();
 
             // Pobieramy kolumny z dziecka
-//            collectColumnsFromMetadata(m, ids, columns);
-            // TODO children should not have any more ids
             idColumns.putAll(m.getIdColumns());
 
             stack.addAll(m.getInheritanceMetadata().getChildren());

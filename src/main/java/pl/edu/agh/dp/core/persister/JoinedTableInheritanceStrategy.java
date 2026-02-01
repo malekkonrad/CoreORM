@@ -20,8 +20,6 @@ public class JoinedTableInheritanceStrategy extends AbstractInheritanceStrategy 
 
     @Override
     public Pair<String, String> create() {
-        // TODO non-root should not have id properties
-        // TODO non-root should not have any other id properties
         StringBuilder sb = new StringBuilder();
 
         assert entityMetadata != null;
@@ -52,49 +50,49 @@ public class JoinedTableInheritanceStrategy extends AbstractInheritanceStrategy 
 //        if (!primaryKeys.isEmpty()) {
 //            sb.append(",\n PRIMARY KEY (").append(String.join(", ", primaryKeys)).append(")");
 //        }
-
-        // Add foreign key to parent table if this is a child entity
-        InheritanceMetadata inhMeta = entityMetadata.getInheritanceMetadata();
-        // change not parent but root - root must have id, but this id will point to parent
-        if (inhMeta.getRootClass() != null && !inhMeta.isRoot()) {
-            EntityMetadata root = inhMeta.getRootClass();
-
-            if (inhMeta.getParent() != null) {
-                EntityMetadata parent = inhMeta.getParent();
-
-                // Foreign key references parent's primary key
-                Map<String, PropertyMetadata> rootIds = root.getIdColumns();
-                for (PropertyMetadata prop : rootIds.values()) {
-                    entityMetadata.addIdProperty(prop);
-                }
-                List<String> fkColumns = new ArrayList<>();
-                List<String> refColumns = new ArrayList<>();
-
-                for (PropertyMetadata idProp : rootIds.values()) {
-                    fkColumns.add(idProp.getColumnName());
-                    refColumns.add(idProp.getColumnName());
-                }
-
-                // adding ids to parent and root table
-                for (String fkColumn : fkColumns) {
-                    String sqlType = root.getIdColumns().get(fkColumn).getSqlType();
-                    sb.append(",\n    ").append(fkColumn).append(" ").append(sqlType);
-                }
-
-                sb.append(",\n    PRIMARY KEY (")
-                        .append(String.join(", ", fkColumns))
-                        .append(")");
-
-                sb.append(",\n    FOREIGN KEY (")
-                        .append(String.join(", ", fkColumns))
-                        .append(") REFERENCES ")
-                        .append(parent.getTableName())
-                        .append(" (")
-                        .append(String.join(", ", refColumns))
-                        .append(")");
-            }
-        }
-        sb.append("\n);");
+//
+//        // Add foreign key to parent table if this is a child entity
+//        InheritanceMetadata inhMeta = entityMetadata.getInheritanceMetadata();
+//        // change not parent but root - root must have id, but this id will point to parent
+//        if (inhMeta.getRootClass() != null && !inhMeta.isRoot()) {
+//            EntityMetadata root = inhMeta.getRootClass();
+//
+//            if (inhMeta.getParent() != null) {
+//                EntityMetadata parent = inhMeta.getParent();
+//
+//                // Foreign key references parent's primary key
+//                Map<String, PropertyMetadata> rootIds = root.getIdColumns();
+//                for (PropertyMetadata prop : rootIds.values()) {
+//                    entityMetadata.addIdProperty(prop);
+//                }
+//                List<String> fkColumns = new ArrayList<>();
+//                List<String> refColumns = new ArrayList<>();
+//
+//                for (PropertyMetadata idProp : rootIds.values()) {
+//                    fkColumns.add(idProp.getColumnName());
+//                    refColumns.add(idProp.getColumnName());
+//                }
+//
+//                // adding ids to parent and root table
+//                for (String fkColumn : fkColumns) {
+//                    String sqlType = root.getIdColumns().get(fkColumn).getSqlType();
+//                    sb.append(",\n    ").append(fkColumn).append(" ").append(sqlType);
+//                }
+//
+//                sb.append(",\n    PRIMARY KEY (")
+//                        .append(String.join(", ", fkColumns))
+//                        .append(")");
+//
+//                sb.append(",\n    FOREIGN KEY (")
+//                        .append(String.join(", ", fkColumns))
+//                        .append(") REFERENCES ")
+//                        .append(parent.getTableName())
+//                        .append(" (")
+//                        .append(String.join(", ", refColumns))
+//                        .append(")");
+//            }
+//        }
+//        sb.append("\n);");
 
         sb.append(entityMetadata.getSqlTable());
 
@@ -167,6 +165,9 @@ public class JoinedTableInheritanceStrategy extends AbstractInheritanceStrategy 
                     values.add(generatedId);
                 }
 
+                // relationships
+                fillRelationshipData(entity, columns, values);
+
                 StringBuilder sql = new StringBuilder();
                 sql.append("INSERT INTO ")
                         .append(meta.getTableName())
@@ -198,6 +199,9 @@ public class JoinedTableInheritanceStrategy extends AbstractInheritanceStrategy 
                     }
                 }
             }
+
+            // association tables
+            insertAssociationTables(jdbc, entity);
 
             return generatedId;
 
@@ -316,6 +320,14 @@ public class JoinedTableInheritanceStrategy extends AbstractInheritanceStrategy 
             // 1. Budujemy to samo zapytanie, ale bez WHERE id = ?
             SqlAndParams query = buildPolymorphicQuery(null);
 
+            // Dodajemy join statement
+            query.sql += " " + joinStmt;
+
+            // additional where
+            if (!whereStmt.isBlank()) {
+                query.sql += " AND " + whereStmt;
+            }
+
             System.out.println("Joined findAll SQL: " + query.sql);
 
             JdbcExecutor jdbc = session.getJdbcExecutor();
@@ -418,6 +430,7 @@ public class JoinedTableInheritanceStrategy extends AbstractInheritanceStrategy 
 
     private Object mapRow(ResultSet rs) throws SQLException {
         try {
+            assert entityMetadata != null;
             EntityMetadata root = entityMetadata.getInheritanceMetadata().getRootClass();
 
             // 1. Pobierz DTYPE z tabeli ROOT
@@ -483,6 +496,8 @@ public class JoinedTableInheritanceStrategy extends AbstractInheritanceStrategy 
                 if (prop.getName() == null) {
                     continue;
                 }
+
+                if (Objects.equals(prop.getColumnName(), "DTYPE")) continue; // FIXME this is so dirty
 
                 String columnAlias = currentMeta.getTableName() + "_" + prop.getColumnName();
 

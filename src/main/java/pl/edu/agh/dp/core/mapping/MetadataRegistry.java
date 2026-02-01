@@ -19,7 +19,7 @@ public class MetadataRegistry {
         entities = new HashMap<>();
 
         for (Class<?> clazz : entitiesClasses){
-            EntityMetadata entity =  MetadataBuilder.buildEntityMetadata(clazz);
+            EntityMetadata entity = MetadataBuilder.buildEntityMetadata(clazz);
             entities.put(clazz, entity);
         }
 
@@ -498,6 +498,35 @@ public class MetadataRegistry {
             m.getInheritanceMetadata().setRootClass(r);
         }
 
+        // check if children do not have new id properties
+        for (EntityMetadata m : entities.values()) {
+            if (!m.getInheritanceMetadata().isRoot()) {
+                if (!m.getIdColumns().isEmpty()) {
+                    throw new IntegrityException(
+                            "Only root classes are allowed to have id's.\n" +
+                            "Class: '" + m.getEntityClass().getName() + "' has additional id fields: " + m.getIdColumns().keySet() + "\n" +
+                            "Remove them or move them to the root class."
+                    );
+                }
+            }
+        }
+
+        // check if all the inheritance is matching in the inheritance tree
+        for (EntityMetadata m : entities.values()) {
+            if (!m.getInheritanceMetadata().isRoot()) {
+                InheritanceType currentType = m.getInheritanceMetadata().getType();
+                InheritanceType rootType = m.getInheritanceMetadata().getRootClass().getInheritanceMetadata().getType();
+                if (currentType != rootType) {
+                    throw new IntegrityException(
+                            "Mismatching inheritance types.\n" +
+                            "Class: '" + m.getEntityClass().getName() + "' has inheritance: " + currentType + "\n" +
+                            "But it's root class: '" + m.getInheritanceMetadata().getRootClass().getEntityClass().getName() + "' has inheritance: " + rootType +"\n" +
+                            "Inheritance strategy should match in the line of inheritance."
+                    );
+                }
+            }
+        }
+
         // discriminator
         for (EntityMetadata m : entities.values()) {
             // Uruchamiamy logikę tylko dla Roota, bo on zarządza dyskryminatorem dla całej tabeli
@@ -515,10 +544,12 @@ public class MetadataRegistry {
                 m.setProperties(m.getAllColumnsForConcreteTable());
                 m.setIdColumns(m.getIdColumnsForConcreteTable());
             } else if (type == InheritanceType.SINGLE_TABLE) {
+                // fix Properties and IdColumns to contain all the fields of the class
                 m.setProperties(m.getAllColumnsForSingleTable());
                 m.setIdColumns(m.getIdColumnsForSingleTable());
             } else if (type == InheritanceType.JOINED) {
-
+                m.addIdPropertyAll(m.getFkColumnsForJoinedTable());
+                m.addFkPropertyAll(m.getFkColumnsForJoinedTable());
             } else {
                 throw new IntegrityException("Unhandled inheritance strategy: " + type);
             }
@@ -533,11 +564,11 @@ public class MetadataRegistry {
             }
             current = current.getSuperclass();
         }
-        // Default SINGLE_TABLE
+        // Default TABLE_PER_CLASS
         if (clazz.getSuperclass() != Object.class && clazz.getSuperclass().isAnnotationPresent(Entity.class)) {
-            return InheritanceType.TABLE_PER_CLASS;
+            return InheritanceType.JOINED;
         }
-        return InheritanceType.TABLE_PER_CLASS; // FIXME: zastanawiam się co w przypadku braku dziedziczenia - NoInheritance???
+        return InheritanceType.JOINED;
     }
 
     private boolean isEntity(Class<?> clazz) {
