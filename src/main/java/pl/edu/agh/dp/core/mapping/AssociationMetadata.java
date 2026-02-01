@@ -110,26 +110,16 @@ public class AssociationMetadata {
             return joinStmt.toString();
         }
 
-        // select non-empty joinColumns
-        List<PropertyMetadata> columns = joinColumns;
-        PropertyMetadata firstPm = columns.get(0);
-        String tableName = this.tableName;
-        if (firstPm.getColumnName() == null) {
-            columns = targetJoinColumns;
-            firstPm = columns.get(0);
-            tableName = targetTableName;
-        }
-        if (firstPm.getColumnName() == null) {
-            throw new IntegrityException("Invalid join Columns.");
-        }
         // append table name
-        joinStmt.append(firstPm.getReferencedTable()).append(" ON ");
+        joinStmt.append(this.tableName).append(" ON ");
 
         List<String> conditions = new ArrayList<>();
-        for (PropertyMetadata pm : columns) {
+        for (int i = 0; i < joinColumns.size(); i++) {
+            PropertyMetadata pm = joinColumns.get(i);
+            PropertyMetadata targetPm = targetJoinColumns.get(i);
             conditions.add(
-                    pm.getReferencedTable() + "." + pm.getReferencedName() + " = "
-                    + tableName + "." + pm.getColumnName()
+                    tableName + "." + pm.getColumnName() + " = "
+                    + targetTableName + "." + targetPm.getColumnName()
             );
         }
         joinStmt.append(String.join(" AND ", conditions));
@@ -145,6 +135,7 @@ public class AssociationMetadata {
         sb.append("  targetEntity: ").append(targetEntity.getName()).append("\n");
         sb.append("  mappedBy: ").append(mappedBy).append("\n");
         sb.append("  tableName: ").append(tableName).append("\n");
+        sb.append("  targetTableName: ").append(targetTableName).append("\n");
         sb.append("  joinColumns: ").append(joinColumns).append("\n");
         sb.append("  targetJoinColumns: ").append(targetJoinColumns).append("\n");
         sb.append("  collectionType: ").append(collectionType).append("\n");

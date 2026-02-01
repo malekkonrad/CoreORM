@@ -254,7 +254,12 @@ public class SessionImpl implements Session {
             if (entities.isEmpty()) {
                 return;
             } else if (entities.size() == 1) {
-                ReflectionUtils.setFieldValue(entity, relationshipName, entities.get(0));
+                Object value = entities.get(0);
+                ReflectionUtils.setFieldValue(entity, relationshipName, value);
+                if (associationMetadata.getType() == AssociationMetadata.Type.ONE_TO_ONE) {
+                    // backref only possible for one to one
+                    ReflectionUtils.setFieldValue(value, associationMetadata.getMappedBy(), entity);
+                }
                 return;
             } else {
                 throw new IntegrityException("Something unexpected happened");

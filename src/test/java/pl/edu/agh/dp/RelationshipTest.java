@@ -446,14 +446,8 @@ public class RelationshipTest {
         passport.setName("John");
         citizen.setPassport(passport);
 
-        // Assuming cascade save works for OneToOne or we save manually
-        // If not, we might need: session.save(passport);
-
         session.save(citizen);
         session.commit();
-
-        // 2. Test nullable=false failure
-        // We need a fresh session or transaction usually, but let's try in same session
 
         Citizen citizen2 = new Citizen();
         citizen2.setName("Citizen Two (No Passport)");
@@ -463,6 +457,13 @@ public class RelationshipTest {
             session.save(citizen2);
             session.commit();
         });
+
+        session.close();
+        session = sessionFactory.openSession();
+
+        Citizen citizen1 = session.find(Citizen.class, citizen.getId());
+        session.load(citizen1, "passport");
+        System.out.println(citizen1.getPassport().getCitizen());
     }
 
     @Test
@@ -495,11 +496,20 @@ public class RelationshipTest {
         session.close();
         session = sessionFactory.openSession();
 
-        Department dept = session.find(Department.class, departmentId);
-        System.out.println(dept);
-        session.load(dept, "employees");
-        System.out.println(dept.getEmployees());
-        System.out.println(dept.employees.get(0).department); // department is back loaded
+        {
+            Department dept = session.find(Department.class, departmentId);
+            System.out.println(dept);
+            session.load(dept, "employees");
+            System.out.println(dept.getEmployees());
+            System.out.println(dept.employees.get(0).department); // department is back loaded
+        }
+
+        session.close();
+        session = sessionFactory.openSession();
+
+        Employee employee = session.find(Employee.class, 1L);
+        session.load(employee, "department");
+        System.out.println(employee.getDepartment());
     }
 
     @Test

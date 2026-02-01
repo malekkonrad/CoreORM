@@ -98,9 +98,11 @@ public abstract class AbstractInheritanceStrategy implements InheritanceStrategy
                         continue;
                     } else {
                         for (PropertyMetadata pm : am.getJoinColumns()) {
-                            Object field = ReflectionUtils.getFieldValue(value, pm.getReferencedName());
-                            columns.add(pm.getColumnName());
-                            values.add(field);
+                            if (pm.getReferences() != null) {
+                                Object field = ReflectionUtils.getFieldValue(value, pm.getReferencedName());
+                                columns.add(pm.getColumnName());
+                                values.add(field);
+                            }
                         }
                     }
                 }

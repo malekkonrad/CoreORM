@@ -48,13 +48,6 @@ public class MetadataRegistry {
         if (entityMetadata.getAssociationMetadata().isEmpty()) {
             return;
         }
-        // TODO nullable fkey when the fkey is in the other table
-        // TODO multiple fkeys when the the other table has a composite key
-        // TODO default factory
-        // TODO load strategy (lazy, eager)
-        // TODO load strategy (join, selectin)
-        // TODO passive deletes
-        // TODO on delete, on update, on insert
         // foreign keys are fkColumns - they are just field names, with some default keys settings
         // association columns are just placeholders with field names
         // remember to remove or change the idColumns if necessary
@@ -68,7 +61,6 @@ public class MetadataRegistry {
         // check if relationship has correct reverse type
         // check if not both of them are marked as Id when it's not many to many relationship
         // check if join could be determined or do we need join columns
-        // TODO check other join columns for foreign keys
         for (AssociationMetadata currentAm : entityMetadata.getAssociationMetadata().values()) {
             // skip if the association is filled in (check target columns)
             if (!currentAm.getTargetJoinColumns().isEmpty()) {
@@ -212,7 +204,7 @@ public class MetadataRegistry {
                            "Multiple relationships exist between source and target classes.\n" +
                            "Source Class: " + clazz.getName() + "\n" +
                            "Target Class: " + targetEntity.getName() + "\n" +
-                           "Detected additional assosiations: " + ambiguousAssociations + "\n" + // TODO better error
+                           "Detected additional assosiations: " + ambiguousAssociations + "\n" +
                            "Please specify 'JoinColumns' to disambiguate the join condition."
                    );
                 }
@@ -321,7 +313,22 @@ public class MetadataRegistry {
                 if (targetIdColumns.size() == 1) {
                     fkColumn.setReferences(targetEntityMetadata.tableName + "(" + targetIdColumns.get(0).getColumnName() + ")");
                     fkColumn.setColumnName(fkColumn.getColumnName() + "_fkey");
-                    currentAm.setJoinColumns(new ArrayList<PropertyMetadata>(){{add(fkColumn);}});
+
+                    currentAm.setJoinColumns(new ArrayList<PropertyMetadata>(){{
+                        add(fkColumn);
+                        for (String field : currentJoinColumns) {
+                            add(entityMetadata.getProperties().get(field));
+                        }
+                    }});
+                    AssociationMetadata finalTargetAm = targetAm;
+                    targetAm.setJoinColumns(new ArrayList<>(){{
+                        PropertyMetadata pm = targetIdColumns.get(0).clone();
+                        pm.setName(finalTargetAm.getField());
+                        add(pm);
+                        for (String field : currentJoinColumns) {
+                            add(targetEntityMetadata.getProperties().get(field));
+                        }
+                    }});
                     // remove fkey from target
                     targetEntityMetadata.fkColumns.remove(targetAm.getField());
                     // fill target join columns
@@ -342,7 +349,21 @@ public class MetadataRegistry {
                 if (idColumns.size() == 1) {
                     targetFkColumn.setReferences(entityMetadata.tableName + "(" + idColumns.get(0).getColumnName() + ")");
                     targetFkColumn.setColumnName(targetFkColumn.getColumnName() + "_fkey");
-                    targetAm.setJoinColumns(new ArrayList<PropertyMetadata>(){{add(targetFkColumn);}});
+
+                    targetAm.setJoinColumns(new ArrayList<PropertyMetadata>(){{
+                        add(targetFkColumn);
+                        for (String field : targetJoinColumns) {
+                            add(targetEntityMetadata.getProperties().get(field));
+                        }
+                    }});
+                    currentAm.setJoinColumns(new ArrayList<>(){{
+                        PropertyMetadata pm = idColumns.get(0).clone();
+                        pm.setName(currentAm.getField());
+                        add(pm);
+                        for (String field : targetJoinColumns) {
+                            add(entityMetadata.getProperties().get(field));
+                        }
+                    }});
                     // remove fkey from current
                     entityMetadata.fkColumns.remove(currentAm.getField());
                     // fill target join columns
@@ -566,9 +587,9 @@ public class MetadataRegistry {
         }
         // Default TABLE_PER_CLASS
         if (clazz.getSuperclass() != Object.class && clazz.getSuperclass().isAnnotationPresent(Entity.class)) {
-            return InheritanceType.JOINED;
+            return InheritanceType.TABLE_PER_CLASS;
         }
-        return InheritanceType.JOINED;
+        return InheritanceType.TABLE_PER_CLASS;
     }
 
     private boolean isEntity(Class<?> clazz) {
