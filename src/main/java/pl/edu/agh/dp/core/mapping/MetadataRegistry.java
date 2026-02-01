@@ -26,7 +26,6 @@ public class MetadataRegistry {
         // FIXME: better function call or move this part to MetadataBuilder - (change name for MetadataFactory)?
         handleInheritance();
 
-
         // TODO update associations, with table info because now we have that information
         // TODO maybe bundle up errors ?
         for (Class<?> clazz : entitiesClasses){
@@ -405,12 +404,6 @@ public class MetadataRegistry {
             } else {
                 throw new IntegrityException("Unhandled relationship.");
             }
-
-            // add constraints fk to SQL table
-            // add NOT NULL constraint if necessary
-            //
-            // create association table for ManyToMany
-            //
         }
     }
 
@@ -471,7 +464,7 @@ public class MetadataRegistry {
     }
 
     private void handleInheritance(){
-        // get entity - add Inheritance Metadata and set type TODO maybe create special constructor for only type?
+        // get entity - add Inheritance Metadata and set type
         for (Class<?> clazz : entities.keySet()) {
             EntityMetadata entity = entities.get(clazz);
             entity.setInheritanceMetadata(new InheritanceMetadata());
@@ -508,8 +501,26 @@ public class MetadataRegistry {
         // discriminator
         for (EntityMetadata m : entities.values()) {
             // Uruchamiamy logikę tylko dla Roota, bo on zarządza dyskryminatorem dla całej tabeli
-            if (m.getInheritanceMetadata().isRoot() && !m.getInheritanceMetadata().getChildren().isEmpty() && (m.getInheritanceMetadata().getType()==InheritanceType.SINGLE_TABLE || m.getInheritanceMetadata().getType()==InheritanceType.JOINED)) {
+            // removed: && !m.getInheritanceMetadata().getChildren().isEmpty()
+            if (m.getInheritanceMetadata().isRoot() && (m.getInheritanceMetadata().getType()==InheritanceType.SINGLE_TABLE || m.getInheritanceMetadata().getType()==InheritanceType.JOINED)) {
                 handleDiscriminator(m);
+            }
+        }
+
+        // group together the columns
+        for (EntityMetadata m : entities.values()) {
+            InheritanceType type = m.getInheritanceMetadata().getType();
+            if (type == InheritanceType.TABLE_PER_CLASS) {
+                // fix Properties and IdColumns to contain all the fields of the class
+                m.setProperties(m.getAllColumnsForConcreteTable());
+                m.setIdColumns(m.getIdColumnsForConcreteTable());
+            } else if (type == InheritanceType.SINGLE_TABLE) {
+                m.setProperties(m.getAllColumnsForSingleTable());
+                m.setIdColumns(m.getIdColumnsForSingleTable());
+            } else if (type == InheritanceType.JOINED) {
+
+            } else {
+                throw new IntegrityException("Unhandled inheritance strategy: " + type);
             }
         }
     }
@@ -530,12 +541,14 @@ public class MetadataRegistry {
     }
 
     private boolean isEntity(Class<?> clazz) {
-        return clazz.isAnnotationPresent(Entity.class);
+        return clazz.isAnnotationPresent(Entity.class) || entities.containsKey(clazz);
     }
 
     private void handleDiscriminator(EntityMetadata root) {
         Class<?> rootClass = root.getEntityClass();
         InheritanceMetadata inhMetadata = root.getInheritanceMetadata();
+
+        // TODO check if field DTYPE is in the class and warn about it
 
         // 1. column name
         String discriminatorColName = "DTYPE";
@@ -549,6 +562,7 @@ public class MetadataRegistry {
         // 2. Stwórz "Wirtualną" kolumnę w metadanych Roota
         // Dzięki temu getColumnsForSingleTable() zwróci ją automatycznie do SQL-a
         PropertyMetadata discriminatorProperty = new PropertyMetadata();
+        discriminatorProperty.setName(discriminatorColName);
         discriminatorProperty.setColumnName(discriminatorColName);
         discriminatorProperty.setType(String.class); // Zakładamy String
         discriminatorProperty.setSqlType("VARCHAR");
@@ -557,7 +571,9 @@ public class MetadataRegistry {
         // Ważne: to pole nie ma Field w Javie, więc generator SQL musi to obsłużyć
         // (nie próbować robić field.get() przy insertach w ciemno)
 
-        root.getProperties().put(discriminatorColName, discriminatorProperty); // FIXME idk if it works
+
+        root.addProperty(discriminatorProperty);
+//        root.getProperties().put(discriminatorColName, discriminatorProperty);
 
         // 3. Mapowanie Klasa <-> Wartość (dla roota i wszystkich dzieci)
         Map<Class<?>, String> classToDisc = new HashMap<>();

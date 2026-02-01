@@ -46,6 +46,9 @@ public class SchemaGenerator {
 
             if (entityPersister != null) {
                 Pair<String, String> sqlConstraint = entityPersister.getInheritanceStrategy().create();
+                if (sqlConstraint == null) {
+                    continue;
+                }
                 String sql = sqlConstraint.getKey();
                 constraints.add(sqlConstraint.getValue());
 

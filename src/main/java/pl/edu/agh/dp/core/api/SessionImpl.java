@@ -36,6 +36,11 @@ public class SessionImpl implements Session {
     public <T> void save(T entity) {
         // for relationships, we need to separate each entity
         EntityPersister entityPersister = entityPersisters.get(entity.getClass());
+        if (entityPersister == null) {
+            throw new IntegrityException(
+                    "Could not found mapper for class: " + entity.getClass().getName()
+            );
+        }
         EntityMetadata entityMetadata = entityPersister.getEntityMetadata();
         Collection<AssociationMetadata> associationMetadata = entityMetadata.getAssociationMetadata().values();
         // don't add if exists
@@ -261,6 +266,12 @@ public class SessionImpl implements Session {
             // fill the relationship data
             for (AssociationMetadata relAssMetadata : relationshipMetadata.getAssociationMetadata().values()) {
                 if (relAssMetadata.getCollectionType() == AssociationMetadata.CollectionType.NONE) {
+                    if (Objects.equals(relationshipName, relAssMetadata.getMappedBy())) {
+                        // this relationship called the load, so we backreference it
+                        // this only is true if Collection type is NONE, cause it's not a collection and we are sure
+                        // all the objects are already loaded (cause it's been called by it)
+                        ReflectionUtils.setFieldValue(value, relAssMetadata.getField(), entity);
+                    }
                     continue;
                 }
                 ReflectionUtils.setFieldValue(value, relAssMetadata.getField(), relAssMetadata.createLazyCollection(this, value));
@@ -279,6 +290,7 @@ public class SessionImpl implements Session {
             cachedEntities.addAll(newEntities);
             newEntities.clear(); // clear after successful rollback
             dirtyEntities.clear();
+            cachedEntities.removeAll(removedEntities);
             removedEntities.clear();
             jdbcExecutor.setAutoCommit(true); // end transaction
             jdbcExecutor.setAutoCommit(false); // begin transaction

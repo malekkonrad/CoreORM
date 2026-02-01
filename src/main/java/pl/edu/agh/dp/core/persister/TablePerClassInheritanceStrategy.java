@@ -28,11 +28,8 @@ public class TablePerClassInheritanceStrategy extends AbstractInheritanceStrateg
         StringBuilder sb = new StringBuilder();
 
         EntityMetadata rootMetadata = entityMetadata.getInheritanceMetadata().getRootClass();
-        // fix Properties and IdColumns to contain all the fields of the class
-        entityMetadata.setProperties(entityMetadata.getAllColumnsForConcreteTable());
-        entityMetadata.setIdColumns(entityMetadata.getIdColumnsForConcreteTable());
 
-        // FIXME complex key not supported for inheritance
+        // TODO complex key not supported for inheritance
         if (entityMetadata.getIdColumns().isEmpty()) {
             throw new IntegrityException("No id"); // sanity check
         } else if (entityMetadata.getIdColumns().size() == 1) {
@@ -41,7 +38,7 @@ public class TablePerClassInheritanceStrategy extends AbstractInheritanceStrateg
             if (!idProperty.isAutoIncrement()) {
                 throw new IntegrityException("Id column must be auto-increment");
             }
-        } else if (entityMetadata != rootMetadata) {
+        } else if (entityMetadata != rootMetadata) { // FIXME is this even correct
             throw new IntegrityException("Complex id not supported for Table per class inheritance");
         }
 
@@ -75,7 +72,7 @@ public class TablePerClassInheritanceStrategy extends AbstractInheritanceStrateg
         boolean isCompositeKey = idColumns.size() > 1;
 
         Set<String> idProvided = new HashSet<>();
-        for (PropertyMetadata pm : entityMetadata.getColumnsForConcreteTable()) {
+        for (PropertyMetadata pm : entityMetadata.getProperties().values()) {
             Object value = ReflectionUtils.getFieldValue(entity, pm.getName());
             // TODO handle null in the value, cause it could be set to null explicitly
             if (value != null) {
@@ -84,58 +81,17 @@ public class TablePerClassInheritanceStrategy extends AbstractInheritanceStrateg
                 if (pm.isId()) {
                     idProvided.add(pm.getName());
                 }
-            }
-        }
-        // TODO dirty quick test
-        String assStmt = "";
-        String assFieldname = "";
-        List<String> targetRef = new ArrayList<>();
-        List<String> currentRef = new ArrayList<>();
-
-        // handle relationships
-        for (AssociationMetadata am : entityMetadata.getAssociationMetadata().values()) {
-            Object value = ReflectionUtils.getFieldValue(entity, am.getField());
-            if (value != null) {
-                // set fk id
-                if (am.getHasForeignKey()) {
-                    if (am.getType() == AssociationMetadata.Type.MANY_TO_MANY) {
-                        assFieldname = am.getField();
-                        EntityMetadata assTable = am.getAssociationTable();
-//                        Collection<PropertyMetadata> fkColumns = assTable.getFkColumns().values();
-//                        List<String> assColumns = new ArrayList<>();
-//                        for (PropertyMetadata fkColumn : fkColumns) {
-//                            assColumns.add(fkColumn.getColumnName());
-//                        }
-//                        String stmt = "INSERT INTO " + assTable.getTableName() +
-//                                    " (" + String.join(", ", assColumns) + " )" +
-//                                    " VALUES (" + "?,".repeat(assColumns.size() - 1) + "?);";
-//                        System.out.println(stmt);
-                        List<String> assColumns = new ArrayList<>();
-                        for (PropertyMetadata pm : am.getTargetJoinColumns()) {
-                            targetRef.add(pm.getReferencedName());
-//                            Object field = ReflectionUtils.getFieldValue(value, pm.getReferencedName());
-                            assColumns.add(pm.getColumnName());
-//                            assValues.add(field);
-                        }
-                        for (PropertyMetadata pm : am.getJoinColumns()) {
-                            currentRef.add(pm.getReferencedName());
-//                            Object field = ReflectionUtils.getFieldValue(value, pm.getReferencedName());
-                            assColumns.add(pm.getColumnName());
-//                            assValues.add(field);
-                        }
-                        assStmt = "INSERT INTO " + assTable.getTableName() +
-                                    " (" + String.join(", ", assColumns) + " )" +
-                                    " VALUES (" + "?,".repeat(assColumns.size() - 1) + "?);";
-                    } else {
-                        for (PropertyMetadata pm : am.getJoinColumns()) {
-                            Object field = ReflectionUtils.getFieldValue(value, pm.getReferencedName());
-                            columns.add(pm.getColumnName());
-                            values.add(field);
-                        }
-                    }
+            } else {
+                if (!pm.isNullable() && !pm.isAutoIncrement()) {
+                    throw new IntegrityException(
+                            "In entity: " + entity + "\n" +
+                            "Field: '" + pm.getName() + "' is not nullable"
+                    );
                 }
             }
         }
+        // relationships
+        fillRelationshipData(entity, columns, values);
 
         if (isCompositeKey) {
             if (idProvided.size() != idColumns.size()) {
@@ -192,31 +148,10 @@ public class TablePerClassInheritanceStrategy extends AbstractInheritanceStrateg
                     ReflectionUtils.setFieldValue(entity, idProp.getName(), generatedId);
                 }
             }
-            //TODO dirty fix
-            if (!assStmt.isEmpty()) {
-                System.out.println(assStmt);
-                List<List<Object>> assAssValues = new ArrayList<>();
-                for (String fieldName : currentRef) {
-                    System.out.println(fieldName + " from " + entity.getClass().getSimpleName());
-                    Object field = ReflectionUtils.getFieldValue(entity, fieldName);
-                    assAssValues.add(new ArrayList<>(){{add(field);}});
-                }
-                Collection<?> assField = (Collection<?>) ReflectionUtils.getFieldValue(entity, assFieldname);
-                for (Object value : assField) {
-                    // first is the example, copy it and fill with the other values
-                    assAssValues.add(new ArrayList<>(){{addAll(assAssValues.get(0));}});
-                    List<Object> assValues = assAssValues.get(assAssValues.size() - 1);
-                    for (String fieldName : targetRef) {
-                        System.out.println(fieldName + " from " + value.getClass().getSimpleName());
-                        Object field = ReflectionUtils.getFieldValue(value, fieldName);
-                        assValues.add(field);
-                    }
-                }
-                assAssValues.remove(0);
-                for (var el : assAssValues) {
-                    jdbc.insert(assStmt, el.toArray());
-                }
-            }
+
+            // association tables
+            insertAssociationTables(jdbc, entity);
+
         } catch (Exception e) {
             System.out.println(e.getMessage());
             throw new RuntimeException("Error inserting entity " + entity, e);
@@ -234,7 +169,7 @@ public class TablePerClassInheritanceStrategy extends AbstractInheritanceStrateg
         List<Object> values = new ArrayList<>();
 
         // Wszystkie pola z hierarchii (pomiń ID)
-        for (PropertyMetadata prop : entityMetadata.getColumnsForConcreteTable()) {
+        for (PropertyMetadata prop : entityMetadata.getProperties().values()) {
             if (prop.isId()) {
                 continue; // ID nie jest aktualizowane
             }
@@ -244,28 +179,26 @@ public class TablePerClassInheritanceStrategy extends AbstractInheritanceStrateg
             values.add(value);
         }
 
-        EntityMetadata rootMetadata = entityMetadata.getInheritanceMetadata().getRootClass();
-
         // WHERE clause
-        Object idValue = getIdValue(entity);
-        String whereClause = buildWhereClause(rootMetadata);
-        Object[] idParams = prepareIdParams(idValue);
-
-        // Połącz parametry
-        List<Object> allParams = new ArrayList<>(values);
-        allParams.addAll(Arrays.asList(idParams));
+//        Object idValue = getIdValue(entity);
+//        String whereClause = buildWhereClause(entityMetadata);
+//        Object[] idParams = prepareIdParams(idValue);
+//
+//        // Połącz parametry
+//        List<Object> allParams = new ArrayList<>(values);
+//        allParams.addAll(Arrays.asList(idParams));
 
         StringBuilder sql = new StringBuilder();
         sql.append("UPDATE ").append(tableName)
                 .append(" SET ").append(String.join(", ", setColumns))
-                .append(" WHERE ").append(whereClause);
+                .append(" WHERE ").append(entityMetadata.getSelectByIdStatement(entity));
 
         System.out.println("TablePerClass UPDATE SQL: " + sql);
-        System.out.println("Values: " + allParams);
+        System.out.println("Values: " + values);
 
         try {
             JdbcExecutor jdbc = session.getJdbcExecutor();
-            jdbc.update(sql.toString(), allParams.toArray());
+            jdbc.update(sql.toString(), values.toArray());
         } catch (Exception e) {
             throw new RuntimeException("Error updating entity " + entity, e);
         }
@@ -276,20 +209,20 @@ public class TablePerClassInheritanceStrategy extends AbstractInheritanceStrateg
         assert entityMetadata != null;
         String tableName = entityMetadata.getTableName();
 
-        EntityMetadata rootMetadata = this.entityMetadata.getInheritanceMetadata().getRootClass();
+//        EntityMetadata rootMetadata = this.entityMetadata.getInheritanceMetadata().getRootClass();
+//
+//        Object idValue = getIdValue(entity);
+//        String whereClause = buildWhereClause(rootMetadata);
+//        Object[] idParams = prepareIdParams(idValue);
 
-        Object idValue = getIdValue(entity);
-        String whereClause = buildWhereClause(rootMetadata);
-        Object[] idParams = prepareIdParams(idValue);
-
-        String sql = "DELETE FROM " + tableName + " WHERE " + whereClause;
+        String sql = "DELETE FROM " + tableName + " WHERE " + entityMetadata.getSelectByIdStatement(entity);
 
         System.out.println("TablePerClass DELETE SQL: " + sql);
-        System.out.println("ID: " + idValue);
+        System.out.println("ID: " + getIdValue(entity));
 
         try {
             JdbcExecutor jdbc = session.getJdbcExecutor();
-            jdbc.update(sql, idParams);
+            jdbc.update(sql);
         } catch (Exception e) {
             throw new RuntimeException("Error deleting entity " + entity, e);
         }
@@ -495,7 +428,7 @@ public class TablePerClassInheritanceStrategy extends AbstractInheritanceStrateg
         // Np. [id, name, age, how, cat_name]
         Set<String> allPossibleColumns = new LinkedHashSet<>();
         for (EntityMetadata meta : concreteSubclasses) {
-            for (PropertyMetadata pm : meta.getColumnsForConcreteTable()) {
+            for (PropertyMetadata pm : meta.getProperties().values()) {
                 allPossibleColumns.add(pm.getColumnName());
             }
         }
@@ -507,7 +440,7 @@ public class TablePerClassInheritanceStrategy extends AbstractInheritanceStrateg
             EntityMetadata subMeta = concreteSubclasses.get(i);
 
             // Zbiór kolumn, które ta konkretna tabela faktycznie posiada
-            Set<String> subTableColumns = subMeta.getColumnsForConcreteTable().stream()
+            Set<String> subTableColumns = subMeta.getProperties().values().stream()
                     .map(PropertyMetadata::getColumnName)
                     .collect(Collectors.toSet());
 
@@ -544,8 +477,10 @@ public class TablePerClassInheritanceStrategy extends AbstractInheritanceStrateg
         }
 
         // dodajemy where statement
-        sqlBuilder.append(" WHERE ");
-        sqlBuilder.append(whereStmt);
+        if (!whereStmt.isBlank()) {
+            sqlBuilder.append(" WHERE ");
+            sqlBuilder.append(whereStmt);
+        }
 
         String sql = sqlBuilder.toString();
         System.out.println("TPC findAll SQL: " + sql);

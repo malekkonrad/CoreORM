@@ -20,36 +20,38 @@ public class JoinedTableInheritanceStrategy extends AbstractInheritanceStrategy 
 
     @Override
     public Pair<String, String> create() {
+        // TODO non-root should not have id properties
+        // TODO non-root should not have any other id properties
         StringBuilder sb = new StringBuilder();
 
         assert entityMetadata != null;
-        sb.append("CREATE TABLE ").append(entityMetadata.getTableName()).append(" (\n");
-
-        List<String> columnDefs = new ArrayList<>();
-        List<String> primaryKeys = new ArrayList<>();
-
-        // IDs first because POSTGRES fuck you
-        for (PropertyMetadata prop : entityMetadata.getProperties().values()) {
-            if (prop.isId()) {
-                columnDefs.add(prop.toSqlColumn());
-                primaryKeys.add(prop.getColumnName());
-            }
-        }
-
-        // Add columns defined in this class only (not inherited ones)
-        for (PropertyMetadata prop : entityMetadata.getProperties().values()) {
-            if (prop.isId()) {
-                continue;
-            }
-            columnDefs.add(prop.toSqlColumn());
-        }
-
-        sb.append(String.join(",\n", columnDefs));
-
-        // Add primary key constraint - for root
-        if (!primaryKeys.isEmpty()) {
-            sb.append(",\n PRIMARY KEY (").append(String.join(", ", primaryKeys)).append(")");
-        }
+//        sb.append("CREATE TABLE ").append(entityMetadata.getTableName()).append(" (\n");
+//
+//        List<String> columnDefs = new ArrayList<>();
+//        List<String> primaryKeys = new ArrayList<>();
+//
+//        // IDs first because POSTGRES fuck you
+//        for (PropertyMetadata prop : entityMetadata.getProperties().values()) {
+//            if (prop.isId()) {
+//                columnDefs.add(prop.toSqlColumn());
+//                primaryKeys.add(prop.getColumnName());
+//            }
+//        }
+//
+//        // Add columns defined in this class only (not inherited ones)
+//        for (PropertyMetadata prop : entityMetadata.getProperties().values()) {
+//            if (prop.isId()) {
+//                continue;
+//            }
+//            columnDefs.add(prop.toSqlColumn());
+//        }
+//
+//        sb.append(String.join(",\n", columnDefs));
+//
+//        // Add primary key constraint - for root
+//        if (!primaryKeys.isEmpty()) {
+//            sb.append(",\n PRIMARY KEY (").append(String.join(", ", primaryKeys)).append(")");
+//        }
 
         // Add foreign key to parent table if this is a child entity
         InheritanceMetadata inhMeta = entityMetadata.getInheritanceMetadata();
@@ -61,11 +63,14 @@ public class JoinedTableInheritanceStrategy extends AbstractInheritanceStrategy 
                 EntityMetadata parent = inhMeta.getParent();
 
                 // Foreign key references parent's primary key
-                Collection<PropertyMetadata> rootIds = root.getIdColumns().values();
+                Map<String, PropertyMetadata> rootIds = root.getIdColumns();
+                for (PropertyMetadata prop : rootIds.values()) {
+                    entityMetadata.addIdProperty(prop);
+                }
                 List<String> fkColumns = new ArrayList<>();
                 List<String> refColumns = new ArrayList<>();
 
-                for (PropertyMetadata idProp : rootIds) {
+                for (PropertyMetadata idProp : rootIds.values()) {
                     fkColumns.add(idProp.getColumnName());
                     refColumns.add(idProp.getColumnName());
                 }
@@ -91,7 +96,9 @@ public class JoinedTableInheritanceStrategy extends AbstractInheritanceStrategy 
         }
         sb.append("\n);");
 
-        return new Pair<>(sb.toString(), "");
+        sb.append(entityMetadata.getSqlTable());
+
+        return new Pair<>(sb.toString(), entityMetadata.getSqlConstraints());
     }
 
     private List<EntityMetadata> buildInheritanceChain() {

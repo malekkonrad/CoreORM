@@ -10,6 +10,7 @@ import pl.edu.agh.dp.api.annotations.Id;
 @Setter
 @NoArgsConstructor
 //@Entity
+// TODO error if different type is specified
 public class Cat extends Animal {
     private String catName;
 }

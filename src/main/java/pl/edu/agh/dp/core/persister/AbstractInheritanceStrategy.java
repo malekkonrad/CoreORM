@@ -1,21 +1,20 @@
 package pl.edu.agh.dp.core.persister;
 
-import lombok.AllArgsConstructor;
 import lombok.NoArgsConstructor;
-import pl.edu.agh.dp.core.jdbc.Dialect;
 import pl.edu.agh.dp.core.jdbc.JdbcExecutor;
+import pl.edu.agh.dp.core.mapping.AssociationMetadata;
 import pl.edu.agh.dp.core.mapping.EntityMetadata;
-import pl.edu.agh.dp.core.mapping.MetadataRegistry;
 import pl.edu.agh.dp.core.mapping.PropertyMetadata;
+import pl.edu.agh.dp.core.util.ReflectionUtils;
 
 import java.sql.ResultSet;
-import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.OffsetDateTime;
 import java.util.*;
+import java.util.stream.Stream;
 
 @NoArgsConstructor(force = true)
 public abstract class AbstractInheritanceStrategy implements InheritanceStrategy {
@@ -73,20 +72,101 @@ public abstract class AbstractInheritanceStrategy implements InheritanceStrategy
 
         if (idColumns.size() == 1) {
             PropertyMetadata idProp = idColumns.iterator().next();
-            return pl.edu.agh.dp.core.util.ReflectionUtils.getFieldValue(entity, idProp.getName());
+            return ReflectionUtils.getFieldValue(entity, idProp.getName());
         } else {
             // Composite key - zwróć mapę
             Map<String, Object> compositeId = new HashMap<>();
             for (PropertyMetadata idProp : idColumns) {
-                Object value = pl.edu.agh.dp.core.util.ReflectionUtils.getFieldValue(entity, idProp.getName());
+                Object value = ReflectionUtils.getFieldValue(entity, idProp.getName());
                 compositeId.put(idProp.getColumnName(), value);
             }
             return compositeId;
         }
     }
 
-    protected String buildAssociationTableStatement(EntityMetadata meta) {
-        return "";
+    protected void fillRelationshipData(Object entity, List<String> columns, List<Object> values) {
+        assert entityMetadata != null;
+
+        // handle relationships
+        for (AssociationMetadata am : entityMetadata.getAssociationMetadata().values()) {
+            Object value = ReflectionUtils.getFieldValue(entity, am.getField());
+            if (value != null) {
+                // set fk id
+                if (am.getHasForeignKey()) {
+                    if (am.getType() == AssociationMetadata.Type.MANY_TO_MANY) {
+                        // Many to many is handled separately
+                        continue;
+                    } else {
+                        for (PropertyMetadata pm : am.getJoinColumns()) {
+                            Object field = ReflectionUtils.getFieldValue(value, pm.getReferencedName());
+                            columns.add(pm.getColumnName());
+                            values.add(field);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    protected void insertAssociationTables(JdbcExecutor jdbc, Object entity) {
+        assert entityMetadata != null;
+
+        // handle relationships
+        for (AssociationMetadata am : entityMetadata.getAssociationMetadata().values()) {
+            Object value = ReflectionUtils.getFieldValue(entity, am.getField());
+            if (value != null
+                 && am.getHasForeignKey()
+                 && am.getType() == AssociationMetadata.Type.MANY_TO_MANY)
+            {
+                List<String> targetRef = new ArrayList<>();
+                List<String> currentRef = new ArrayList<>();
+
+                String assFieldname = am.getField();
+                EntityMetadata assTable = am.getAssociationTable();
+
+                List<String> assColumns = new ArrayList<>();
+                for (PropertyMetadata pm : am.getTargetJoinColumns()) {
+                    targetRef.add(pm.getReferencedName());
+                    assColumns.add(pm.getColumnName());
+                }
+                for (PropertyMetadata pm : am.getJoinColumns()) {
+                    currentRef.add(pm.getReferencedName());
+                    assColumns.add(pm.getColumnName());
+                }
+                String assStmt = "INSERT INTO " + assTable.getTableName() +
+                        " (" + String.join(", ", assColumns) + " )" +
+                        " VALUES ";
+                String assValuesStmt = "(" + "?,".repeat(assColumns.size() - 1) + "?)";
+
+                System.out.println(assStmt);
+                List<List<Object>> assAssValues = new ArrayList<>();
+                for (String fieldName : currentRef) {
+                    System.out.println(fieldName + " from " + entity.getClass().getSimpleName());
+                    Object field = ReflectionUtils.getFieldValue(entity, fieldName);
+                    assAssValues.add(new ArrayList<>(){{add(field);}});
+                }
+                Collection<?> assField = (Collection<?>) ReflectionUtils.getFieldValue(entity, assFieldname);
+                for (Object relationshipEntity : assField) {
+                    // first is the example, copy it and fill with the other values
+                    assAssValues.add(new ArrayList<>(){{addAll(assAssValues.get(0));}});
+                    List<Object> assValues = assAssValues.get(assAssValues.size() - 1);
+                    for (String fieldName : targetRef) {
+                        System.out.println(fieldName + " from " + relationshipEntity.getClass().getSimpleName());
+                        Object field = ReflectionUtils.getFieldValue(relationshipEntity, fieldName);
+                        assValues.add(field);
+                    }
+                }
+                // remove first example
+                assAssValues.remove(0);
+                // flatten array
+                assStmt += String.join(", ", java.util.Collections.nCopies(assAssValues.size(), assValuesStmt)) +";";
+                List<Object> array = new ArrayList<>();
+                for (List<Object> el : assAssValues) {
+                    array.addAll(el);
+                }
+                jdbc.insert(assStmt, array.toArray());
+            }
+        }
     }
 
     /**

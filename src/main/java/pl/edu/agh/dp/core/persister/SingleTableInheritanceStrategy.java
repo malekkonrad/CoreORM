@@ -27,30 +27,33 @@ public class SingleTableInheritanceStrategy extends AbstractInheritanceStrategy 
         }
         StringBuilder sb = new StringBuilder();
 
-        sb.append("CREATE TABLE ").append(this.entityMetadata.getTableName()).append(" (\n");
-
-        List<String> columnDefs = new ArrayList<>();
-
-        for (PropertyMetadata col : this.entityMetadata.getColumnsForSingleTable()) {
-            columnDefs.add(col.toSqlColumn());
-        }
-
-        sb.append(String.join(",\n", columnDefs));
-
-        // PRIMARY KEYS
-        List<String> idColumns = new ArrayList<>();
-        Collection<PropertyMetadata> rootIds = entityMetadata.getIdColumns().values();
-        for (PropertyMetadata idProp : rootIds) {
-            idColumns.add(idProp.getColumnName());
-        }
-
-        sb.append(",\n PRIMARY KEY (")
-                .append(String.join(", ", idColumns))
-                .append(")");
-
-        sb.append("\n);");
-
-        return new Pair<>(sb.toString(), "");
+//        sb.append("CREATE TABLE ").append(this.entityMetadata.getTableName()).append(" (\n");
+//
+//        List<String> columnDefs = new ArrayList<>();
+//
+//        for (PropertyMetadata col : this.entityMetadata.getColumnsForSingleTable()) {
+//            columnDefs.add(col.toSqlColumn());
+//        }
+//
+//        sb.append(String.join(",\n", columnDefs));
+//
+//        // PRIMARY KEYS
+//        List<String> idColumns = new ArrayList<>();
+//        Collection<PropertyMetadata> rootIds = entityMetadata.getIdColumns().values();
+//        for (PropertyMetadata idProp : rootIds) {
+//            idColumns.add(idProp.getColumnName());
+//        }
+//
+//        sb.append(",\n PRIMARY KEY (")
+//                .append(String.join(", ", idColumns))
+//                .append(")");
+//
+//        sb.append("\n);");
+//
+        // add table to the creation
+        sb.append(entityMetadata.getSqlTable());
+        // return table and it's constraints
+        return new Pair<>(sb.toString(), entityMetadata.getSqlConstraints());
     }
 
     @Override
@@ -70,7 +73,7 @@ public class SingleTableInheritanceStrategy extends AbstractInheritanceStrategy 
         values.add(discriminatorValue);
 
         // Zbierz wszystkie właściwości z hierarchii dziedziczenia
-        List<PropertyMetadata> allProperties = rootMetadata.getColumnsForSingleTable();
+        List<PropertyMetadata> allProperties = rootMetadata.getAllColumnsForSingleTable().values().stream().toList();
 
         for (PropertyMetadata prop : allProperties) {
             // Pomiń kolumnę discriminatora (już dodana)
@@ -93,6 +96,9 @@ public class SingleTableInheritanceStrategy extends AbstractInheritanceStrategy 
                 values.add(null);
             }
         }
+
+        // relationships
+        fillRelationshipData(entity, columns, values);
 
         StringBuilder sql = new StringBuilder();
         sql.append("INSERT INTO ")
@@ -121,6 +127,9 @@ public class SingleTableInheritanceStrategy extends AbstractInheritanceStrategy 
                 }
             }
 
+            // association tables
+            insertAssociationTables(jdbc, entity);
+
             return generatedId;
         } catch (Exception e) {
             throw new RuntimeException("Error inserting entity " + entity, e);
@@ -137,7 +146,7 @@ public class SingleTableInheritanceStrategy extends AbstractInheritanceStrategy 
         List<Object> values = new ArrayList<>();
 
         // Zbierz wszystkie pola z hierarchii (pomiń ID i discriminator)
-        List<PropertyMetadata> allProperties = rootMetadata.getColumnsForSingleTable();
+        List<PropertyMetadata> allProperties = rootMetadata.getAllColumnsForSingleTable().values().stream().toList();
         String discriminatorColumn = rootMetadata.getInheritanceMetadata().getDiscriminatorColumnName();
 
         for (PropertyMetadata prop : allProperties) {
@@ -204,12 +213,10 @@ public class SingleTableInheritanceStrategy extends AbstractInheritanceStrategy 
 
     @Override
     public Object findById(Object id, Session session) {
-        assert this.entityMetadata != null;
-        EntityMetadata rootMetadata = this.entityMetadata.getInheritanceMetadata().getRootClass();
-        String tableName = rootMetadata.getTableName();
-        String discriminatorColumn = rootMetadata.getInheritanceMetadata().getDiscriminatorColumnName();
+        assert entityMetadata != null;
+        String tableName = entityMetadata.getTableName();
 
-        PropertyMetadata idColumn = rootMetadata.getIdColumns().values().iterator().next();
+        PropertyMetadata idColumn = entityMetadata.getIdColumns().values().iterator().next();
 
         String sql = "SELECT * FROM " + tableName + " WHERE " + idColumn.getColumnName() + " = ?";
 
@@ -252,12 +259,24 @@ public class SingleTableInheritanceStrategy extends AbstractInheritanceStrategy 
         }
         discIn = new StringBuilder(discIn.substring(0, discIn.length() - 1));
 
-        String sql = "SELECT * FROM " + tableName + " WHERE " + discriminatorColumn + " IN (" + discIn +")";
-        System.out.println("SQL: " + sql);
+        StringBuilder sqlBuilder = new StringBuilder();
+        sqlBuilder.append("SELECT * FROM ").append(tableName);
+
+        // Dodajemy join statement
+        sqlBuilder.append(" ").append(joinStmt);
+        // discriminator
+        sqlBuilder.append(" WHERE ").append(tableName).append(".").append(discriminatorColumn)
+                .append(" IN (").append(discIn).append(")");
+        // additional where
+        if (!whereStmt.isBlank()) {
+            sqlBuilder.append(" AND ").append(whereStmt);
+        }
+
+        System.out.println("SQL: " + sqlBuilder.toString());
 
         try {
             JdbcExecutor jdbc = session.getJdbcExecutor();
-            List<Object> results = jdbc.query(sql, this::mapEntity);
+            List<Object> results = jdbc.query(sqlBuilder.toString(), this::mapEntity);
 
             List<T> filtered = new ArrayList<>();
             for (Object obj : results) {
@@ -287,7 +306,7 @@ public class SingleTableInheritanceStrategy extends AbstractInheritanceStrategy 
 
             Object entity = actualClass.getDeclaredConstructor().newInstance();
 
-            List<PropertyMetadata> allColumns = rootMetadata.getColumnsForSingleTable();
+            List<PropertyMetadata> allColumns = rootMetadata.getAllColumnsForSingleTable().values().stream().toList();
 
             for (PropertyMetadata pm : allColumns) {
                 if (pm.getColumnName().equals(discriminatorColumn)) {

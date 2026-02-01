@@ -499,6 +499,7 @@ public class RelationshipTest {
         System.out.println(dept);
         session.load(dept, "employees");
         System.out.println(dept.getEmployees());
+        System.out.println(dept.employees.get(0).department); // department is back loaded
     }
 
     @Test

@@ -20,6 +20,7 @@ public class EntityMetadata {
     Map<String, PropertyMetadata> properties = new HashMap<>();
     Map<String, PropertyMetadata> fkColumns = new HashMap<>();
     Map<String, AssociationMetadata> associationMetadata =  new HashMap<>();
+    // TODO add DType
 
     // inheritance
     Class<?> rootMetadata;
@@ -101,6 +102,15 @@ public class EntityMetadata {
                 sb.append(am.getAssociationTable().getSqlConstraints());
             }
         }
+        // create indexes
+        for (PropertyMetadata pm : properties.values()) {
+            if (pm.isIndex()) {
+                sb.append("CREATE INDEX ");
+                sb.append("idx_").append(tableName).append("_").append(pm.getColumnName());
+                sb.append(" ON ");
+                sb.append(tableName).append("(").append(pm.getColumnName()).append(");\n");
+            }
+        }
         return sb.toString();
     }
 
@@ -125,15 +135,46 @@ public class EntityMetadata {
         return result;
     }
 
-    public List<PropertyMetadata> getColumnsForSingleTable() {
-        // Listy na oddzielne typy kolumn
-        List<PropertyMetadata> ids = new ArrayList<>();
-        List<PropertyMetadata> others = new ArrayList<>();
+    public Map<String, PropertyMetadata> getAllColumnsForSingleTable() {
 
         EntityMetadata root = getInheritanceMetadata().getRootClass();
 
         // 1. Pobierz kolumny z ROOT (id i zwykłe)
-        collectColumnsFromMetadata(root, ids, others);
+
+//        collectColumnsFromMetadata(root, ids, columns);
+        Map<String, PropertyMetadata> columns = new HashMap<>(root.getProperties());
+
+        // 2. Przejdź przez drzewo dzieci
+        Deque<EntityMetadata> stack = new ArrayDeque<>(root.getInheritanceMetadata().getChildren());
+        while (!stack.isEmpty()) {
+            EntityMetadata m = stack.pop();
+
+            // set subclass field nullable
+            for (String field : m.getProperties().keySet()) {
+                if (!root.getProperties().containsKey(field)) {
+                    m.getProperties().get(field).setNullable(true);
+                }
+            }
+            // set correct table name
+            // TODO warn about different table name
+            m.setTableName(root.getTableName());
+
+            columns.putAll(m.getProperties());
+
+            stack.addAll(m.getInheritanceMetadata().getChildren());
+        }
+
+        return columns;
+    }
+
+    public Map<String, PropertyMetadata> getIdColumnsForSingleTable() {
+
+        EntityMetadata root = getInheritanceMetadata().getRootClass();
+
+        // 1. Pobierz kolumny z ROOT (id i zwykłe)
+
+//        collectColumnsFromMetadata(root, ids, columns);
+        Map<String, PropertyMetadata> idColumns = new HashMap<>(root.getIdColumns());
 
         // 2. Przejdź przez drzewo dzieci
         Deque<EntityMetadata> stack = new ArrayDeque<>(root.getInheritanceMetadata().getChildren());
@@ -141,14 +182,14 @@ public class EntityMetadata {
             EntityMetadata m = stack.pop();
 
             // Pobieramy kolumny z dziecka
-            collectColumnsFromMetadata(m, ids, others);
+//            collectColumnsFromMetadata(m, ids, columns);
+            // TODO children should not have any more ids
+            idColumns.putAll(m.getIdColumns());
 
             stack.addAll(m.getInheritanceMetadata().getChildren());
         }
 
-        // 3. Złącz listy: najpierw ID, potem reszta
-        ids.addAll(others);
-        return ids;
+        return idColumns;
     }
 
     public Map<String, PropertyMetadata> getIdColumnsForConcreteTable() {

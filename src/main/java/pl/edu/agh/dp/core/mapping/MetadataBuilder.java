@@ -360,7 +360,7 @@ public class MetadataBuilder {
         int precision = 0;
         boolean isUnique = false;
         boolean isNullable = false;
-        boolean isIndex = false; // TODO create index on table later
+        boolean isIndex = false;
         Object defaultValue = "__UNSET__";
         if (f.isAnnotationPresent(Column.class)) {
             Column column = f.getAnnotation(Column.class);
