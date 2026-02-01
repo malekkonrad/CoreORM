@@ -14,8 +14,19 @@ public final class ReflectionUtils {
     }
 
     public static boolean doesClassContainField(Class<?> clazz, String fieldName) {
-        return Arrays.stream(clazz.getDeclaredFields()).anyMatch(f -> f.getName().equals(fieldName));
+        Class<?> current = clazz;
+
+        while (current != null && current != Object.class) {
+            if (Arrays.stream(current.getDeclaredFields())
+                    .anyMatch(f -> f.getName().equals(fieldName))) {
+                return true;
+            }
+            current = current.getSuperclass();
+        }
+
+        return false;
     }
+
 
 
     public static Object getFieldValue(Object target, String fieldName) {

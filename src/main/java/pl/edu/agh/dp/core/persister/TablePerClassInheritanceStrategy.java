@@ -3,8 +3,8 @@ package pl.edu.agh.dp.core.persister;
 import pl.edu.agh.dp.api.Session;
 import pl.edu.agh.dp.core.exceptions.IntegrityException;
 import pl.edu.agh.dp.core.jdbc.JdbcExecutor;
-import pl.edu.agh.dp.core.mapping.AssociationMetadata;
 import pl.edu.agh.dp.core.mapping.EntityMetadata;
+import pl.edu.agh.dp.core.mapping.TargetStatement;
 import pl.edu.agh.dp.core.mapping.PropertyMetadata;
 import pl.edu.agh.dp.core.util.ReflectionUtils;
 import javafx.util.Pair;
@@ -56,8 +56,8 @@ public class TablePerClassInheritanceStrategy extends AbstractInheritanceStrateg
         rootId.setDefaultValue("nextval('" + sequenceName + "')");
         // add table to the creation
         sb.append(entityMetadata.getSqlTable());
-        // return table and it's constraints
-        return new Pair<>(sb.toString(), entityMetadata.getSqlConstraints());
+        // return table and but skip the constraints cause it's TPC
+        return new Pair<>(sb.toString(), "");
     }
 
     @Override
@@ -91,7 +91,7 @@ public class TablePerClassInheritanceStrategy extends AbstractInheritanceStrateg
             }
         }
         // relationships
-        fillRelationshipData(entity, columns, values);
+        fillRelationshipData(entity, entityMetadata, columns, values);
 
         if (isCompositeKey) {
             if (idProvided.size() != idColumns.size()) {
@@ -420,7 +420,7 @@ public class TablePerClassInheritanceStrategy extends AbstractInheritanceStrateg
 //    }
 
     @Override
-    public <T> List<T> findAll(Class<T> type, Session session, String joinStmt, String whereStmt) {
+    public <T> List<T> findAll(Class<T> type, Session session, TargetStatement joinStmt, TargetStatement whereStmt) {
         // 1. Znajdujemy wszystkie podklasy (Husky, Cat, Dog...)
         List<EntityMetadata> concreteSubclasses = getAllConcreteSubclasses(this.entityMetadata);
 
@@ -469,17 +469,17 @@ public class TablePerClassInheritanceStrategy extends AbstractInheritanceStrateg
                     .append(tableName);
 
             // Dodajemy join statement
-            sqlBuilder.append(" ").append(joinStmt);
+            sqlBuilder.append(" ").append(joinStmt.getStatement(tableName));
+
+            // dodajemy where statement
+            if (!whereStmt.isBlank()) {
+                sqlBuilder.append(" WHERE ");
+                sqlBuilder.append(whereStmt.getStatement());
+            }
 
             if (i < concreteSubclasses.size() - 1) {
                 sqlBuilder.append(" UNION ALL ");
             }
-        }
-
-        // dodajemy where statement
-        if (!whereStmt.isBlank()) {
-            sqlBuilder.append(" WHERE ");
-            sqlBuilder.append(whereStmt);
         }
 
         String sql = sqlBuilder.toString();

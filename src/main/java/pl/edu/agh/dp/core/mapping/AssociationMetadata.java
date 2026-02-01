@@ -40,6 +40,31 @@ public class AssociationMetadata {
     private List<PropertyMetadata> targetJoinColumns;
     private EntityMetadata associationTable;
 
+    public AssociationMetadata(AssociationMetadata other) {
+        this.type = other.type;
+        this.targetEntity = other.targetEntity;
+        this.field = other.field;
+        this.mappedBy = other.mappedBy;
+        this.hasForeignKey = other.hasForeignKey;
+        this.tableName = other.tableName;
+        this.targetTableName = other.targetTableName;
+        this.collectionType = other.collectionType;
+
+        this.joinColumns = other.joinColumns == null
+                ? null
+                : other.joinColumns.stream()
+                .map(PropertyMetadata::new)
+                .toList();
+
+        this.targetJoinColumns = other.targetJoinColumns == null
+                ? null
+                : other.targetJoinColumns.stream()
+                .map(PropertyMetadata::new)
+                .toList();
+
+        this.associationTable = other.associationTable; // intentional shared reference
+    }
+
     public PropertyMetadata getFieldProperty() {
         PropertyMetadata fieldMeta = null;
         for (PropertyMetadata pm : joinColumns) {
@@ -77,7 +102,7 @@ public class AssociationMetadata {
         }
     }
 
-    public String getJoinStatement() {
+    public TargetStatement getJoinStatement() {
         StringBuilder joinStmt = new StringBuilder();
         joinStmt.append("INNER JOIN ");
 
@@ -107,11 +132,11 @@ public class AssociationMetadata {
             }
             joinStmt.append(String.join(" AND ", conditions));
 
-            return joinStmt.toString();
+            return new TargetStatement(joinStmt.toString(), null);
         }
 
         // append table name
-        joinStmt.append(this.tableName).append(" ON ");
+        joinStmt.append(tableName).append(" ON ");
 
         List<String> conditions = new ArrayList<>();
         for (int i = 0; i < joinColumns.size(); i++) {
@@ -119,11 +144,11 @@ public class AssociationMetadata {
             PropertyMetadata targetPm = targetJoinColumns.get(i);
             conditions.add(
                     tableName + "." + pm.getColumnName() + " = "
-                    + targetTableName + "." + targetPm.getColumnName()
+                    + TargetStatement.getTargetName() + "." + targetPm.getColumnName()
             );
         }
         joinStmt.append(String.join(" AND ", conditions));
-        return joinStmt.toString();
+        return new TargetStatement(joinStmt.toString(), targetTableName);
     }
 
     @Override

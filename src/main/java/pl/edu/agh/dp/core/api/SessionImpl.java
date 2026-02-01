@@ -6,6 +6,7 @@ import pl.edu.agh.dp.core.exceptions.IntegrityException;
 import pl.edu.agh.dp.core.jdbc.JdbcExecutor;
 import pl.edu.agh.dp.core.mapping.AssociationMetadata;
 import pl.edu.agh.dp.core.mapping.EntityMetadata;
+import pl.edu.agh.dp.core.mapping.TargetStatement;
 import pl.edu.agh.dp.core.persister.EntityPersister;
 import pl.edu.agh.dp.core.util.ReflectionUtils;
 
@@ -228,7 +229,7 @@ public class SessionImpl implements Session {
     @Override
     public <T> void load(T entity, String relationshipName) {
         if (!ReflectionUtils.doesClassContainField(entity.getClass(), relationshipName)) {
-            throw new IntegrityException("Failed to load relationship: " + relationshipName + " in class: " + entity.getClass().getName());
+            throw new IntegrityException("Failed to load relationship: '" + relationshipName + "' in class: " + entity.getClass().getName());
         }
         System.out.println("Trying to load: " + entity.getClass().getName() + "." + relationshipName);
         Object field = ReflectionUtils.getFieldValue(entity, relationshipName);
@@ -244,9 +245,10 @@ public class SessionImpl implements Session {
         Class<?> relationshipClass = associationMetadata.getTargetEntity();
         EntityMetadata relationshipMetadata = entityPersisters.get(relationshipClass).getEntityMetadata();
 
-        String joinStmt = associationMetadata.getJoinStatement();
+        TargetStatement joinStmt = associationMetadata.getJoinStatement();
 
-        String whereStmt = metadata.getSelectByIdStatement(entity);
+        TargetStatement whereStmt = metadata.getSelectByIdStatement(entity);
+        whereStmt.setRootTableName(metadata.getInheritanceMetadata().getRootClass().getTableName());
 
         List<Object> entities = (List<Object>) entityPersisters.get(relationshipClass).findAll(relationshipClass, this, joinStmt, whereStmt);
         // singular entity loaded

@@ -4,14 +4,9 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 import pl.edu.agh.dp.api.Session;
-import pl.edu.agh.dp.core.exceptions.IntegrityException;
-import pl.edu.agh.dp.core.jdbc.JdbcExecutor;
 import pl.edu.agh.dp.core.mapping.EntityMetadata;
-import pl.edu.agh.dp.core.mapping.PropertyMetadata;
-import pl.edu.agh.dp.core.util.ReflectionUtils;
+import pl.edu.agh.dp.core.mapping.TargetStatement;
 
-import java.lang.reflect.Field;
-import java.sql.*;
 import java.util.*;
 
 @Getter
@@ -114,11 +109,11 @@ public class EntityPersisterImpl implements EntityPersister {
 
     @Override
     public  <T> List<T> findAll(Class<T> entityClass, Session session) {
-        return inheritanceStrategy.findAll(entityClass, session, "", "");
+        return inheritanceStrategy.findAll(entityClass, session, new TargetStatement("", null), new TargetStatement("", null));
     }
 
     @Override
-    public <T> List<T> findAll(Class<T> entityClass, Session session, String joinStmt, String whereStmt) {
+    public <T> List<T> findAll(Class<T> entityClass, Session session, TargetStatement joinStmt, TargetStatement whereStmt) {
         return inheritanceStrategy.findAll(entityClass, session, joinStmt, whereStmt);
     }
 

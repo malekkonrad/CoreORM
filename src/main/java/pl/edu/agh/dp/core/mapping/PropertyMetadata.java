@@ -21,7 +21,6 @@ public class PropertyMetadata implements Cloneable {
     private String columnName;              // "first_name"
     private Class<?> type;                  // String.class
     private String sqlType;                 // VARCHAR(255)
-    @Setter
     boolean isId = false;           // false
     boolean autoIncrement = true;   // false
     boolean isUnique = false;       // false
@@ -29,6 +28,20 @@ public class PropertyMetadata implements Cloneable {
     boolean isIndex = false;        // false
     Object defaultValue = "__UNSET__";     // default to unset
     String references = null;       // if foreign key
+
+    public PropertyMetadata(PropertyMetadata other) {
+        this.name = other.getName();
+        this.columnName = other.getColumnName();
+        this.type = other.getType();
+        this.sqlType = other.getSqlType();
+        this.isId = other.isId();
+        this.autoIncrement = other.isAutoIncrement();
+        this.isUnique = other.isUnique();
+        this.isNullable = other.isNullable();
+        this.isIndex = other.isIndex();
+        this.defaultValue = other.getDefaultValue();
+        this.references = other.getReferences();
+    }
 
     public String toSqlColumn() {
         StringBuffer sb = new StringBuffer();

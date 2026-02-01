@@ -62,16 +62,16 @@ public class EntityMetadata {
         return sb.toString();
     }
 
-    public String getSelectByIdStatement(Object entity) {
+    public TargetStatement getSelectByIdStatement(Object entity) {
         List<String> conditions = new ArrayList<>();
         for (PropertyMetadata pm : idColumns.values()) {
             StringBuilder cond = new StringBuilder();
-            cond.append(tableName).append(".").append(pm.getColumnName());
+            cond.append(TargetStatement.getTargetName()).append(".").append(pm.getColumnName());
             cond.append(" = ");
             cond.append(ReflectionUtils.getFieldValue(entity, pm.getName()));
             conditions.add(cond.toString());
         }
-        return String.join(" AND ", conditions);
+        return new TargetStatement(String.join(" AND ", conditions), tableName);
     }
 
     public String getSqlTable() {
@@ -212,41 +212,140 @@ public class EntityMetadata {
         return idColumns;
     }
 
-    public Map<String, PropertyMetadata> getIdColumnsForConcreteTable() {
-        Map<String, PropertyMetadata> columns = new HashMap<>();
-        // 1. Zbuduj łańcuch od najwyższego rodzica do obecnej klasy
+    public void setMetadataForConcreteTable() {
         Deque<EntityMetadata> chain = new ArrayDeque<>();
         EntityMetadata cur = this;
         while (cur != null) {
-            chain.push(cur); // push wrzuca na stos, więc rodzic będzie na wierzchu przy zdejmowaniu
+            chain.push(cur);
             cur = cur.getInheritanceMetadata().getParent();
         }
 
         while (!chain.isEmpty()) {
             EntityMetadata m = chain.pop();
-            columns.putAll(m.getIdColumns());
+            idColumns.putAll(m.getIdColumns());
+            properties.putAll(m.getProperties());
+            associationMetadata.putAll(m.getAssociationMetadata());
         }
-
-        return columns;
     }
 
-    public Map<String, PropertyMetadata> getAllColumnsForConcreteTable() {
-        Map<String, PropertyMetadata> columns = new HashMap<>();
-        // 1. Zbuduj łańcuch od najwyższego rodzica do obecnej klasy
+    public void setMetadataForSingleTable() {
+        EntityMetadata root = getInheritanceMetadata().getRootClass();
+        tableName = root.tableName;
+
+        Deque<EntityMetadata> stack = new ArrayDeque<>();
+        stack.add(root);
+        while (!stack.isEmpty()) {
+            EntityMetadata m = stack.pop();
+
+            // set subclass field nullable
+            for (String field : m.getProperties().keySet()) {
+                if (!root.getProperties().containsKey(field)) {
+                    m.getProperties().get(field).setNullable(true);
+                }
+            }
+
+            idColumns.putAll(m.getIdColumns());
+            properties.putAll(m.getProperties());
+            associationMetadata.putAll(m.getAssociationMetadata());
+
+            stack.addAll(m.getInheritanceMetadata().getChildren());
+        }
+    }
+
+    public void correctRelationshipsJoined() {
         Deque<EntityMetadata> chain = new ArrayDeque<>();
         EntityMetadata cur = this;
         while (cur != null) {
-            chain.push(cur); // push wrzuca na stos, więc rodzic będzie na wierzchu przy zdejmowaniu
+            chain.push(cur);
             cur = cur.getInheritanceMetadata().getParent();
         }
 
         while (!chain.isEmpty()) {
             EntityMetadata m = chain.pop();
-            columns.putAll(m.getProperties());
+            associationMetadata.putAll(m.getAssociationMetadata());
+        }
+    }
+
+    public void correctRelationshipsSingle() {
+        EntityMetadata root = getInheritanceMetadata().getRootClass();
+
+        Deque<EntityMetadata> stack = new ArrayDeque<>();
+        stack.add(root);
+        while (!stack.isEmpty()) {
+            EntityMetadata m = stack.pop();
+            fkColumns.putAll(m.getFkColumns());
+
+            stack.addAll(m.getInheritanceMetadata().getChildren());
         }
 
-        return columns;
+        correctRelationshipsTableNames();
     }
+
+    public void correctRelationshipsConcrete() {
+        Deque<EntityMetadata> chain = new ArrayDeque<>();
+        EntityMetadata cur = this;
+        while (cur != null) {
+            chain.push(cur);
+            cur = cur.getInheritanceMetadata().getParent();
+        }
+
+        while (!chain.isEmpty()) {
+            EntityMetadata m = chain.pop();
+            fkColumns.putAll(m.getFkColumns());
+        }
+
+        correctRelationshipsTableNames();
+    }
+
+    public void correctRelationshipsTableNames() {
+        Map<String, AssociationMetadata> result = new HashMap<>();
+        if (associationMetadata != null) {
+            associationMetadata.forEach(
+                    (key, value) -> {
+                        AssociationMetadata am = new AssociationMetadata(value);
+                        am.setTableName(tableName);
+                        result.put(key, am);
+                    }
+            );
+            associationMetadata = result;
+        }
+    }
+
+//    public Map<String, PropertyMetadata> getIdColumnsForConcreteTable() {
+//        Map<String, PropertyMetadata> columns = new HashMap<>();
+//        // 1. Zbuduj łańcuch od najwyższego rodzica do obecnej klasy
+//        Deque<EntityMetadata> chain = new ArrayDeque<>();
+//        EntityMetadata cur = this;
+//        while (cur != null) {
+//            chain.push(cur); // push wrzuca na stos, więc rodzic będzie na wierzchu przy zdejmowaniu
+//            cur = cur.getInheritanceMetadata().getParent();
+//        }
+//
+//        while (!chain.isEmpty()) {
+//            EntityMetadata m = chain.pop();
+//            columns.putAll(m.getIdColumns());
+//        }
+//
+//        return columns;
+//    }
+//
+//    public Map<String, PropertyMetadata> getAllColumnsForConcreteTable() {
+//        Map<String, PropertyMetadata> columns = new HashMap<>();
+//        // 1. Zbuduj łańcuch od najwyższego rodzica do obecnej klasy
+//        Deque<EntityMetadata> chain = new ArrayDeque<>();
+//        EntityMetadata cur = this;
+//        while (cur != null) {
+//            chain.push(cur); // push wrzuca na stos, więc rodzic będzie na wierzchu przy zdejmowaniu
+//            cur = cur.getInheritanceMetadata().getParent();
+//        }
+//
+//        while (!chain.isEmpty()) {
+//            EntityMetadata m = chain.pop();
+//            columns.putAll(m.getProperties());
+//        }
+//
+//        return columns;
+//    }
 
     public List<PropertyMetadata> getColumnsForConcreteTable() {
         List<PropertyMetadata> ids = new ArrayList<>();

@@ -4,6 +4,7 @@ import javafx.util.Pair;
 import pl.edu.agh.dp.api.Session;
 import pl.edu.agh.dp.core.jdbc.JdbcExecutor;
 import pl.edu.agh.dp.core.mapping.EntityMetadata;
+import pl.edu.agh.dp.core.mapping.TargetStatement;
 import pl.edu.agh.dp.core.mapping.PropertyMetadata;
 import pl.edu.agh.dp.core.util.ReflectionUtils;
 
@@ -98,7 +99,7 @@ public class SingleTableInheritanceStrategy extends AbstractInheritanceStrategy 
         }
 
         // relationships
-        fillRelationshipData(entity, columns, values);
+        fillRelationshipData(entity, entityMetadata, columns, values);
 
         StringBuilder sql = new StringBuilder();
         sql.append("INSERT INTO ")
@@ -230,7 +231,7 @@ public class SingleTableInheritanceStrategy extends AbstractInheritanceStrategy 
     }
 
     @Override
-    public <T> List<T> findAll(Class<T> type, Session session, String joinStmt, String whereStmt) {
+    public <T> List<T> findAll(Class<T> type, Session session, TargetStatement joinStmt, TargetStatement whereStmt) {
         assert this.entityMetadata != null;
         EntityMetadata rootMetadata = this.entityMetadata.getInheritanceMetadata().getRootClass();
         String tableName = rootMetadata.getTableName();
@@ -263,13 +264,13 @@ public class SingleTableInheritanceStrategy extends AbstractInheritanceStrategy 
         sqlBuilder.append("SELECT * FROM ").append(tableName);
 
         // Dodajemy join statement
-        sqlBuilder.append(" ").append(joinStmt);
+        sqlBuilder.append(" ").append(joinStmt.getStatement());
         // discriminator
         sqlBuilder.append(" WHERE ").append(tableName).append(".").append(discriminatorColumn)
                 .append(" IN (").append(discIn).append(")");
         // additional where
         if (!whereStmt.isBlank()) {
-            sqlBuilder.append(" AND ").append(whereStmt);
+            sqlBuilder.append(" AND ").append(whereStmt.getStatement());
         }
 
         System.out.println("SQL: " + sqlBuilder.toString());

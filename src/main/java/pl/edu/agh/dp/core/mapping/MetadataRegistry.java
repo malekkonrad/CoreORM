@@ -32,6 +32,20 @@ public class MetadataRegistry {
             fillAssociationData(clazz);
         }
 
+        // correct relationship after inheritance
+        for (Class<?> clazz : entitiesClasses){
+            EntityMetadata entity = entities.get(clazz);
+            if (entity.getInheritanceMetadata().getType() == InheritanceType.TABLE_PER_CLASS) {
+                entity.correctRelationshipsConcrete();
+            } else if (entity.getInheritanceMetadata().getType() == InheritanceType.SINGLE_TABLE) {
+                entity.correctRelationshipsSingle();
+            } else if (entity.getInheritanceMetadata().getType() == InheritanceType.JOINED) {
+                entity.correctRelationshipsJoined();
+            } else {
+                throw new IntegrityException("Unhandled inheritance type: " + entity.getInheritanceMetadata().getType());
+            }
+        }
+
         for (Class<?> clazz : entitiesClasses){
             EntityMetadata entity = entities.get(clazz);
             System.out.println(entity);
@@ -562,12 +576,14 @@ public class MetadataRegistry {
             InheritanceType type = m.getInheritanceMetadata().getType();
             if (type == InheritanceType.TABLE_PER_CLASS) {
                 // fix Properties and IdColumns to contain all the fields of the class
-                m.setProperties(m.getAllColumnsForConcreteTable());
-                m.setIdColumns(m.getIdColumnsForConcreteTable());
+                m.setMetadataForConcreteTable();
+//                m.setProperties(m.getAllColumnsForConcreteTable());
+//                m.setIdColumns(m.getIdColumnsForConcreteTable());
             } else if (type == InheritanceType.SINGLE_TABLE) {
                 // fix Properties and IdColumns to contain all the fields of the class
-                m.setProperties(m.getAllColumnsForSingleTable());
-                m.setIdColumns(m.getIdColumnsForSingleTable());
+                m.setMetadataForSingleTable();
+//                m.setProperties(m.getAllColumnsForSingleTable());
+//                m.setIdColumns(m.getIdColumnsForSingleTable());
             } else if (type == InheritanceType.JOINED) {
                 m.addIdPropertyAll(m.getFkColumnsForJoinedTable());
                 m.addFkPropertyAll(m.getFkColumnsForJoinedTable());

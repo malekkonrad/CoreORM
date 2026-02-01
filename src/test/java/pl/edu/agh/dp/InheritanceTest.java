@@ -36,7 +36,6 @@ public class InheritanceTest {
     @Getter
     @Setter
     @NoArgsConstructor
-    // TODO error if different type is specified
     public static class Cat extends Animal {
         private String catName;
     }

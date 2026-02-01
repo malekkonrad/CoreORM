@@ -4,7 +4,7 @@ import javafx.util.Pair;
 import pl.edu.agh.dp.api.Session;
 import pl.edu.agh.dp.core.jdbc.JdbcExecutor;
 import pl.edu.agh.dp.core.mapping.EntityMetadata;
-import pl.edu.agh.dp.core.mapping.InheritanceMetadata;
+import pl.edu.agh.dp.core.mapping.TargetStatement;
 import pl.edu.agh.dp.core.mapping.PropertyMetadata;
 import pl.edu.agh.dp.core.util.ReflectionUtils;
 
@@ -166,7 +166,7 @@ public class JoinedTableInheritanceStrategy extends AbstractInheritanceStrategy 
                 }
 
                 // relationships
-                fillRelationshipData(entity, columns, values);
+                fillRelationshipData(entity, meta, columns, values);
 
                 StringBuilder sql = new StringBuilder();
                 sql.append("INSERT INTO ")
@@ -315,17 +315,19 @@ public class JoinedTableInheritanceStrategy extends AbstractInheritanceStrategy 
     }
 
     @Override
-    public <T> List<T> findAll(Class<T> type, Session session, String joinStmt, String whereStmt) {
+    public <T> List<T> findAll(Class<T> type, Session session, TargetStatement joinStmt, TargetStatement whereStmt) {
+        assert entityMetadata != null;
         try {
             // 1. Budujemy to samo zapytanie, ale bez WHERE id = ?
             SqlAndParams query = buildPolymorphicQuery(null);
 
             // Dodajemy join statement
-            query.sql += " " + joinStmt;
+            query.sql += " " + joinStmt.getStatement();
 
             // additional where
             if (!whereStmt.isBlank()) {
-                query.sql += " AND " + whereStmt;
+
+                query.sql += " WHERE " + whereStmt.getStatement(whereStmt.getRootTableName());
             }
 
             System.out.println("Joined findAll SQL: " + query.sql);

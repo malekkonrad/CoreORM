@@ -84,13 +84,13 @@ public abstract class AbstractInheritanceStrategy implements InheritanceStrategy
         }
     }
 
-    protected void fillRelationshipData(Object entity, List<String> columns, List<Object> values) {
+    protected void fillRelationshipData(Object entity, EntityMetadata meta, List<String> columns, List<Object> values) {
         assert entityMetadata != null;
 
         // handle relationships
-        for (AssociationMetadata am : entityMetadata.getAssociationMetadata().values()) {
+        for (AssociationMetadata am : meta.getAssociationMetadata().values()) {
             Object value = ReflectionUtils.getFieldValue(entity, am.getField());
-            if (value != null) {
+            if (value != null && meta.getFkColumns().containsKey(am.getField())) { // check if value belongs to the sql table
                 // set fk id
                 if (am.getHasForeignKey()) {
                     if (am.getType() == AssociationMetadata.Type.MANY_TO_MANY) {
