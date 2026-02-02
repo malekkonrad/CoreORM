@@ -27,7 +27,7 @@ public class ComplexTest {
     @Getter
     @Setter
     @NoArgsConstructor
-    @Inheritance(strategy = InheritanceType.JOINED)
+    @Inheritance(strategy = InheritanceType.SINGLE_TABLE)
     public static class AnimalOwner {
         @Id(autoIncrement = true)
         Long id2;
@@ -46,7 +46,7 @@ public class ComplexTest {
     @Getter
     @Setter
     @NoArgsConstructor
-    @Inheritance(strategy = InheritanceType.TABLE_PER_CLASS)
+    @Inheritance(strategy = InheritanceType.JOINED)
     public static class Animal {
         @Id(autoIncrement = true)
         Long id;

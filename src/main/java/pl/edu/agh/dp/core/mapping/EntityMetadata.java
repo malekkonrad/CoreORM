@@ -76,7 +76,7 @@ public class EntityMetadata {
 
     public String getSqlTable() {
         StringBuilder sb = new StringBuilder();
-        sb.append("CREATE TABLE ").append(tableName);
+        sb.append("CREATE TABLE IF NOT EXISTS ").append(tableName);
         sb.append(" (\n");
         for (PropertyMetadata pm : properties.values()) {
             sb.append(pm.toSqlColumn()).append(",\n");

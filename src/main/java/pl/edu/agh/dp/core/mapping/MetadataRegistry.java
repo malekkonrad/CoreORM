@@ -443,9 +443,10 @@ public class MetadataRegistry {
                     associationTable.setIdColumns(columns);
                     associationTable.setFkColumns(columns);
 
-                    // set the dominant side of the relationship
-                    currentAm.setHasForeignKey(true);
-                    targetAm.setHasForeignKey(false);
+                    // set the dominant side of the relationship to the table per class
+                    boolean preferTablePerClass = entityMetadata.getInheritanceMetadata().getType() == InheritanceType.TABLE_PER_CLASS;
+                    currentAm.setHasForeignKey(preferTablePerClass);
+                    targetAm.setHasForeignKey(!preferTablePerClass);
 
                     currentAm.setAssociationTable(associationTable);
                     targetAm.setAssociationTable(associationTable);
