@@ -10,6 +10,8 @@ import pl.edu.agh.dp.core.persister.EntityPersister;
 import pl.edu.agh.dp.core.persister.EntityPersisterImpl;
 import pl.edu.agh.dp.core.schema.SchemaDropper;
 import pl.edu.agh.dp.core.schema.SchemaGenerator;
+import pl.edu.agh.dp.core.schema.SchemaUpdater;
+import pl.edu.agh.dp.core.schema.SchemaValidator;
 
 import java.util.*;
 
@@ -53,13 +55,15 @@ public class ConfigurationImpl implements Configuration {
         });
 
 
-        // 4. Creating schema - TODO add option to not create new db if there is no changes
+        // 4. Creating schema
         String schemaAuto = properties.getProperty("orm.schema.auto", "none");
         if ("drop-create".equalsIgnoreCase(schemaAuto)) {
-            new SchemaDropper(cp).drop();   // np. DROP TABLE / DROP SCHEMA
+            new SchemaDropper(cp).drop();   // DROP TABLE / DROP SCHEMA
             new SchemaGenerator(registry, cp, entityPersisters).generate();
         } else if ("create".equalsIgnoreCase(schemaAuto)) {
             new SchemaGenerator(registry, cp, entityPersisters).generate();
+        } else if ("validate".equalsIgnoreCase(schemaAuto)) {
+            new SchemaValidator(registry, cp).validate();
         }
 
         // 5. SessionFactory -> creation of EntityPersisters inside
