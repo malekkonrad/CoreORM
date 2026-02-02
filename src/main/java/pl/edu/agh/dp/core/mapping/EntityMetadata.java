@@ -92,6 +92,16 @@ public class EntityMetadata {
                 sb.append(am.getAssociationTable().getSqlTable());
             }
         }
+        sb.append("\n");
+        // create indexes
+        for (PropertyMetadata pm : properties.values()) {
+            if (pm.isIndex()) {
+                sb.append("CREATE INDEX ");
+                sb.append("idx_").append(tableName).append("_").append(pm.getColumnName());
+                sb.append(" ON ");
+                sb.append(tableName).append("(").append(pm.getColumnName()).append(");\n");
+            }
+        }
         return sb.toString();
     }
 
@@ -106,15 +116,7 @@ public class EntityMetadata {
                 sb.append(am.getAssociationTable().getSqlConstraints());
             }
         }
-        // create indexes
-        for (PropertyMetadata pm : properties.values()) {
-            if (pm.isIndex()) {
-                sb.append("CREATE INDEX ");
-                sb.append("idx_").append(tableName).append("_").append(pm.getColumnName());
-                sb.append(" ON ");
-                sb.append(tableName).append("(").append(pm.getColumnName()).append(");\n");
-            }
-        }
+
         return sb.toString();
     }
 

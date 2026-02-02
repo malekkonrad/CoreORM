@@ -107,32 +107,30 @@ public class AssociationMetadata {
         joinStmt.append("INNER JOIN ");
 
         if (type == Type.MANY_TO_MANY) {
-            String tableName = associationTable.getTableName();
+            String associationTableName = associationTable.getTableName();
 
 
-            joinStmt.append(tableName).append(" ON ");
+            joinStmt.append(associationTableName).append(" ON ");
             List<String> conditions = new ArrayList<>();
-            for (PropertyMetadata pm : associationTable.getFkColumns().values()) {
-                if (!Objects.equals(pm.getReferencedTable(), this.targetTableName)) continue;
+            for (PropertyMetadata pm : joinColumns) {
                 conditions.add(
-                        pm.getReferencedTable() + "." + pm.getReferencedName() + " = "
-                                + tableName + "." + pm.getColumnName()
+                        TargetStatement.getTargetName() + "." + pm.getReferencedName() + " = "
+                                + associationTableName + "." + pm.getColumnName()
                 );
             }
             joinStmt.append(String.join(" AND ", conditions));
 
-            joinStmt.append(" INNER JOIN ").append(this.tableName).append(" ON ");
+            joinStmt.append(" INNER JOIN ").append(tableName).append(" ON ");
             conditions.clear();
-            for (PropertyMetadata pm : associationTable.getFkColumns().values()) {
-                if (!Objects.equals(pm.getReferencedTable(), this.tableName)) continue;
+            for (PropertyMetadata pm : targetJoinColumns) {
                 conditions.add(
-                        pm.getReferencedTable() + "." + pm.getReferencedName() + " = "
-                                + tableName + "." + pm.getColumnName()
+                        tableName + "." + pm.getReferencedName() + " = "
+                                + associationTableName + "." + pm.getColumnName()
                 );
             }
             joinStmt.append(String.join(" AND ", conditions));
 
-            return new TargetStatement(joinStmt.toString(), null);
+            return new TargetStatement(joinStmt.toString(), targetTableName);
         }
 
         // append table name
@@ -164,6 +162,7 @@ public class AssociationMetadata {
         sb.append("  joinColumns: ").append(joinColumns).append("\n");
         sb.append("  targetJoinColumns: ").append(targetJoinColumns).append("\n");
         sb.append("  collectionType: ").append(collectionType).append("\n");
+        sb.append("  associationTable: ").append(associationTable).append("\n");
         sb.append("}");
         return sb.toString();
     }

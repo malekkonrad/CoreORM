@@ -4,7 +4,6 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 import org.checkerframework.checker.units.qual.A;
-import org.checkerframework.checker.units.qual.N;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -12,10 +11,7 @@ import pl.edu.agh.dp.api.Configuration;
 import pl.edu.agh.dp.api.Orm;
 import pl.edu.agh.dp.api.Session;
 import pl.edu.agh.dp.api.SessionFactory;
-import pl.edu.agh.dp.api.annotations.Id;
-import pl.edu.agh.dp.api.annotations.Inheritance;
-import pl.edu.agh.dp.api.annotations.ManyToOne;
-import pl.edu.agh.dp.api.annotations.OneToMany;
+import pl.edu.agh.dp.api.annotations.*;
 import pl.edu.agh.dp.core.mapping.InheritanceType;
 
 import java.sql.Connection;
@@ -28,16 +24,15 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class ComplexTest {
-    // TODO test many to many
     @Getter
     @Setter
     @NoArgsConstructor
     @Inheritance(strategy = InheritanceType.SINGLE_TABLE)
     public static class AnimalOwner {
         @Id(autoIncrement = true)
-        Long id;
+        Long id2;
         String name;
-        @OneToMany
+        @ManyToMany
         List<Animal> animals;
     }
 
@@ -56,8 +51,8 @@ public class ComplexTest {
         @Id(autoIncrement = true)
         Long id;
         String name;
-        @ManyToOne
-        AnimalOwner owner;
+        @ManyToMany
+        List<AnimalOwner> owner;
     }
 
     @Getter
@@ -82,6 +77,42 @@ public class ComplexTest {
         @Id(autoIncrement = true)
         Long id;
         String name;
+        @OneToMany
+        @JoinColumn(joinColumns = { "assignment" })
+        List<Assignment> assignment;
+        @OneToMany
+        @JoinColumn(joinColumns = { "blocks" })
+        List<Block> blocks;
+    }
+
+    @Getter
+    @Setter
+    @NoArgsConstructor
+    public static class Assignment {
+        @Id(autoIncrement = true)
+        Long id;
+        String name;
+        @ManyToOne
+        @JoinColumn(joinColumns = { "version" })
+        Version version;
+        @OneToMany
+        @JoinColumn(joinColumns = { "blocks", "version" })
+        List<Block> blocks;
+    }
+
+    @Getter
+    @Setter
+    @NoArgsConstructor
+    public static class Block {
+        @Id(autoIncrement = true)
+        Long id;
+        String name;
+        @ManyToOne
+        @JoinColumn(joinColumns = { "version" })
+        Version version;
+        @ManyToOne
+        @JoinColumn(joinColumns = { "assignment", "version" })
+        Assignment assignment;
     }
 
     String url = System.getenv("DB_URL") != null
@@ -124,6 +155,58 @@ public class ComplexTest {
     }
 
     @Test
+    public void versionTest() {
+        config.register(Version.class, Assignment.class, Block.class);
+        sessionFactory = config.buildSessionFactory();
+        session = sessionFactory.openSession();
+
+        {
+            Version version = new Version();
+            version.name = "v1";
+
+            Version version2 = new Version();
+            version2.name = "v2";
+
+            Assignment assignment = new Assignment();
+            assignment.name = "ass1";
+
+            Block block = new Block();
+            block.name = "b1";
+
+            Block block2 = new Block();
+            block2.name = "b2";
+
+            version.blocks = new ArrayList<>();
+            version2.blocks = new ArrayList<>();
+            version.assignment = new ArrayList<>();
+            version2.assignment = new ArrayList<>();
+
+            session.save(version);
+            session.save(version2);
+
+            assignment.version = version;
+            assignment.blocks = new ArrayList<>(){{
+                add(block);add(block2);
+            }};
+            block.version = version;
+            block2.version = version2;
+
+            session.save(assignment);
+            session.commit();
+        }
+
+        session.close();
+        session = sessionFactory.openSession();
+
+        {
+            Assignment assignment = session.find(Assignment.class, 1L);
+            assignment.blocks.size();
+            assertEquals(1, assignment.blocks.size());
+            assertNotNull(assignment.blocks.get(0).assignment);
+        }
+    }
+
+    @Test
     public void complexTest() {
         config.register(AnimalOwner.class, Animal.class, Cat.class, Dog.class);
         sessionFactory = config.buildSessionFactory();
@@ -136,10 +219,12 @@ public class ComplexTest {
             dog.setName("Dog1");
             dog.setColor("black");
             dog.setAge(10);
+            dog.setOwner(new ArrayList<>());
 
             Cat cat = new Cat();
             cat.setCatName("Asteroid destroyer");
             cat.setName("Cat1");
+            cat.setOwner(new ArrayList<>());
 
             AnimalOwner owner = new AnimalOwner();
             owner.setName("John");
@@ -151,7 +236,7 @@ public class ComplexTest {
             session.save(owner);
             session.commit();
 
-            ownerId = owner.getId();
+            ownerId = owner.getId2();
         }
 
         session.close();
@@ -187,10 +272,12 @@ public class ComplexTest {
             dog.setName("Dog1");
             dog.setColor("black");
             dog.setAge(10);
+            dog.setOwner(new ArrayList<>());
 
             Cat cat = new Cat();
             cat.setCatName("Asteroid destroyer");
             cat.setName("Cat1");
+            cat.setOwner(new ArrayList<>());
 
             BadAnimalOwner owner = new BadAnimalOwner();
             owner.setName("John");
@@ -203,7 +290,7 @@ public class ComplexTest {
             session.save(owner);
             session.commit();
 
-            ownerId = owner.getId();
+            ownerId = owner.getId2();
         }
 
         session.close();

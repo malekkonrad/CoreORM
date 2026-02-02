@@ -260,6 +260,7 @@ public class SessionImpl implements Session {
                 ReflectionUtils.setFieldValue(entity, relationshipName, value);
                 if (associationMetadata.getType() == AssociationMetadata.Type.ONE_TO_ONE) {
                     // backref only possible for one to one
+                    System.out.println("setting field: " + associationMetadata.getMappedBy() + " in " + value);
                     ReflectionUtils.setFieldValue(value, associationMetadata.getMappedBy(), entity);
                 }
                 return;
@@ -273,10 +274,12 @@ public class SessionImpl implements Session {
             // fill the relationship data
             for (AssociationMetadata relAssMetadata : relationshipMetadata.getAssociationMetadata().values()) {
                 if (relAssMetadata.getCollectionType() == AssociationMetadata.CollectionType.NONE) {
-                    if (Objects.equals(relationshipName, relAssMetadata.getMappedBy())) {
+                    if (Objects.equals(relationshipName, relAssMetadata.getMappedBy())
+                       && Objects.equals(relAssMetadata.getTargetTableName(), metadata.getTableName())) {
                         // this relationship called the load, so we backreference it
                         // this only is true if Collection type is NONE, cause it's not a collection and we are sure
                         // all the objects are already loaded (cause it's been called by it)
+                        System.out.println("setting field: " + relAssMetadata.getField() + " in " + value);
                         ReflectionUtils.setFieldValue(value, relAssMetadata.getField(), entity);
                     }
                     continue;

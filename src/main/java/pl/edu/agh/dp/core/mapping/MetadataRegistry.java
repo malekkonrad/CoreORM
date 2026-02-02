@@ -331,7 +331,13 @@ public class MetadataRegistry {
                     currentAm.setJoinColumns(new ArrayList<PropertyMetadata>(){{
                         add(fkColumn);
                         for (String field : currentJoinColumns) {
-                            add(entityMetadata.getProperties().get(field));
+                            if (entityMetadata.getProperties().containsKey(field)) {
+                                add(entityMetadata.getProperties().get(field));
+                            } else if (entityMetadata.getFkColumns().containsKey(field)) {
+                                add(entityMetadata.getFkColumns().get(field));
+                            } else {
+                                throw new IntegrityException("Invalid join columns, unable to determine them");
+                            }
                         }
                     }});
                     AssociationMetadata finalTargetAm = targetAm;
@@ -340,7 +346,13 @@ public class MetadataRegistry {
                         pm.setName(finalTargetAm.getField());
                         add(pm);
                         for (String field : currentJoinColumns) {
-                            add(targetEntityMetadata.getProperties().get(field));
+                            if (targetEntityMetadata.getProperties().containsKey(field)) {
+                                add(targetEntityMetadata.getProperties().get(field));
+                            } else if (targetEntityMetadata.getFkColumns().containsKey(field)) {
+                                add(targetEntityMetadata.getFkColumns().get(field));
+                            } else {
+                                throw new IntegrityException("Invalid join columns, unable to determine them");
+                            }
                         }
                     }});
                     // remove fkey from target
@@ -367,7 +379,13 @@ public class MetadataRegistry {
                     targetAm.setJoinColumns(new ArrayList<PropertyMetadata>(){{
                         add(targetFkColumn);
                         for (String field : targetJoinColumns) {
-                            add(targetEntityMetadata.getProperties().get(field));
+                            if (targetEntityMetadata.getProperties().containsKey(field)) {
+                                add(targetEntityMetadata.getProperties().get(field));
+                            } else if (targetEntityMetadata.getFkColumns().containsKey(field)) {
+                                add(targetEntityMetadata.getFkColumns().get(field));
+                            } else {
+                                throw new IntegrityException("Invalid join columns, unable to determine them");
+                            }
                         }
                     }});
                     currentAm.setJoinColumns(new ArrayList<>(){{
@@ -375,7 +393,13 @@ public class MetadataRegistry {
                         pm.setName(currentAm.getField());
                         add(pm);
                         for (String field : targetJoinColumns) {
-                            add(entityMetadata.getProperties().get(field));
+                            if (entityMetadata.getProperties().containsKey(field)) {
+                                add(entityMetadata.getProperties().get(field));
+                            } else if (entityMetadata.getFkColumns().containsKey(field)) {
+                                add(entityMetadata.getFkColumns().get(field));
+                            } else {
+                                throw new IntegrityException("Invalid join columns, unable to determine them");
+                            }
                         }
                     }});
                     // remove fkey from current

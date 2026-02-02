@@ -1,6 +1,7 @@
 package pl.edu.agh.dp.core.persister;
 
 import lombok.NoArgsConstructor;
+import pl.edu.agh.dp.core.exceptions.IntegrityException;
 import pl.edu.agh.dp.core.jdbc.JdbcExecutor;
 import pl.edu.agh.dp.core.mapping.AssociationMetadata;
 import pl.edu.agh.dp.core.mapping.EntityMetadata;
@@ -98,10 +99,22 @@ public abstract class AbstractInheritanceStrategy implements InheritanceStrategy
                         continue;
                     } else {
                         for (PropertyMetadata pm : am.getJoinColumns()) {
-                            if (pm.getReferences() != null) {
+                            if (pm.getReferences() != null && Objects.equals(am.getField(), pm.getName())) {
                                 Object field = ReflectionUtils.getFieldValue(value, pm.getReferencedName());
-                                columns.add(pm.getColumnName());
-                                values.add(field);
+                                if (columns.contains(pm.getColumnName())) {
+                                    Object oldValue = values.get(columns.indexOf(pm.getColumnName()));
+                                    if (!Objects.equals(oldValue, field)) {
+                                        throw new IntegrityException(
+                                                "Values are not set correctly.\n" +
+                                                "Class: " + meta.getEntityClass().getName() + "\n" +
+                                                "Relationship: " + am.getField() + "\n" +
+                                                "Values: [" + oldValue + ", " + field + "]"
+                                        );
+                                    }
+                                } else {
+                                    columns.add(pm.getColumnName());
+                                    values.add(field);
+                                }
                             }
                         }
                     }
@@ -128,11 +141,11 @@ public abstract class AbstractInheritanceStrategy implements InheritanceStrategy
 
                 List<String> assColumns = new ArrayList<>();
                 for (PropertyMetadata pm : am.getTargetJoinColumns()) {
-                    targetRef.add(pm.getReferencedName());
+                    currentRef.add(pm.getReferencedName());
                     assColumns.add(pm.getColumnName());
                 }
                 for (PropertyMetadata pm : am.getJoinColumns()) {
-                    currentRef.add(pm.getReferencedName());
+                    targetRef.add(pm.getReferencedName());
                     assColumns.add(pm.getColumnName());
                 }
                 String assStmt = "INSERT INTO " + assTable.getTableName() +
