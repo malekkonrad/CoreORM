@@ -10,7 +10,6 @@ import pl.edu.agh.dp.core.persister.EntityPersister;
 import pl.edu.agh.dp.core.persister.EntityPersisterImpl;
 import pl.edu.agh.dp.core.schema.SchemaDropper;
 import pl.edu.agh.dp.core.schema.SchemaGenerator;
-import pl.edu.agh.dp.core.schema.SchemaUpdater;
 import pl.edu.agh.dp.core.schema.SchemaValidator;
 
 import java.util.*;
