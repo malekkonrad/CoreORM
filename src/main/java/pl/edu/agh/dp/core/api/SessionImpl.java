@@ -4,10 +4,7 @@ import lombok.Getter;
 import pl.edu.agh.dp.api.Session;
 import pl.edu.agh.dp.core.exceptions.IntegrityException;
 import pl.edu.agh.dp.core.jdbc.JdbcExecutor;
-import pl.edu.agh.dp.core.mapping.AssociationMetadata;
-import pl.edu.agh.dp.core.mapping.EntityMetadata;
-import pl.edu.agh.dp.core.mapping.InheritanceType;
-import pl.edu.agh.dp.core.mapping.TargetStatement;
+import pl.edu.agh.dp.core.mapping.*;
 import pl.edu.agh.dp.core.persister.EntityPersister;
 import pl.edu.agh.dp.core.util.ReflectionUtils;
 
@@ -245,23 +242,26 @@ public class SessionImpl implements Session {
         assert associationMetadata != null;
         Class<?> relationshipClass = associationMetadata.getTargetEntity();
         EntityMetadata relationshipMetadata = entityPersisters.get(relationshipClass).getEntityMetadata();
+//        entityPersisters.get(relationshipClass).getInheritanceStrategy().
 
-        TargetStatement joinStmt = associationMetadata.getJoinStatement();
+//        TargetStatement joinStmt = associationMetadata.getJoinStatement();
+//
+//        TargetStatement whereStmt = metadata.getSelectByIdStatement(entity);
+//        whereStmt.setRootTableName(metadata.getInheritanceMetadata().getRootClass().getTableName());
 
-        TargetStatement whereStmt = metadata.getSelectByIdStatement(entity);
-        whereStmt.setRootTableName(metadata.getInheritanceMetadata().getRootClass().getTableName());
+        // TODO work in progress
+        PairTargetStatements pairStatements = entityPersisters.get(entity.getClass()).getInheritanceStrategy().getPairStatement(entity, relationshipName);
 
-        // TODO prepare whereStmt and joinStmt for correct Inheritance
-        if (metadata.getInheritanceMetadata().getType() == InheritanceType.JOINED) {
-            whereStmt.setTargetTableName(whereStmt.getRootTableName());
-        } else if (metadata.getInheritanceMetadata().getType() == InheritanceType.TABLE_PER_CLASS) {
-            whereStmt.setRootTableName(whereStmt.getTargetTableName()); // TODO polymorphic does not work
-//            System.out.println("TESTING");
-//            System.out.println(metadata.getTableName());
-//            System.out.println(joinStmt);
-        }
+//        if (metadata.getInheritanceMetadata().getType() == InheritanceType.JOINED) {
+//            whereStmt.setTargetTableName(whereStmt.getRootTableName());
+//        } else if (metadata.getInheritanceMetadata().getType() == InheritanceType.TABLE_PER_CLASS) {
+//            whereStmt.setRootTableName(whereStmt.getTargetTableName());
+////            System.out.println("TESTING");
+////            System.out.println(metadata.getTableName());
+////            System.out.println(joinStmt);
+//        }
 
-        List<Object> entities = (List<Object>) entityPersisters.get(relationshipClass).findAll(relationshipClass, this, joinStmt, whereStmt);
+        List<Object> entities = (List<Object>) entityPersisters.get(relationshipClass).findAll(relationshipClass, this, pairStatements);
         // singular entity loaded
         if (associationMetadata.getCollectionType() == AssociationMetadata.CollectionType.NONE) {
             if (entities.isEmpty()) {

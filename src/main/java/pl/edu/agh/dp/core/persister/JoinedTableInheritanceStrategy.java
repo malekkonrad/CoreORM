@@ -3,9 +3,7 @@ package pl.edu.agh.dp.core.persister;
 import javafx.util.Pair;
 import pl.edu.agh.dp.api.Session;
 import pl.edu.agh.dp.core.jdbc.JdbcExecutor;
-import pl.edu.agh.dp.core.mapping.EntityMetadata;
-import pl.edu.agh.dp.core.mapping.TargetStatement;
-import pl.edu.agh.dp.core.mapping.PropertyMetadata;
+import pl.edu.agh.dp.core.mapping.*;
 import pl.edu.agh.dp.core.util.ReflectionUtils;
 
 import java.sql.ResultSet;
@@ -16,6 +14,19 @@ public class JoinedTableInheritanceStrategy extends AbstractInheritanceStrategy 
 
     public JoinedTableInheritanceStrategy(EntityMetadata entityMetadata) {
         super(entityMetadata);
+    }
+
+    @Override
+    public PairTargetStatements getPairStatement(Object entity, String relationshipName) {
+        assert entityMetadata != null;
+        AssociationMetadata associationMetadata = entityMetadata.getAssociationMetadata().get(relationshipName);
+
+        TargetStatement joinStmt = associationMetadata.getJoinStatement();
+        TargetStatement whereStmt = entityMetadata.getSelectByIdStatement(entity);
+//        // joined root is the actual root
+        whereStmt.setTargetTableName(entityMetadata.getInheritanceMetadata().getRootClass().getTableName());
+
+        return new PairTargetStatements(whereStmt, joinStmt);
     }
 
     @Override
@@ -315,7 +326,9 @@ public class JoinedTableInheritanceStrategy extends AbstractInheritanceStrategy 
     }
 
     @Override
-    public <T> List<T> findAll(Class<T> type, Session session, TargetStatement joinStmt, TargetStatement whereStmt) {
+    public <T> List<T> findAll(Class<T> type, Session session, PairTargetStatements pairTargetStatements) {
+        TargetStatement joinStmt = pairTargetStatements.getJoinStatements().get(0);
+        TargetStatement whereStmt = pairTargetStatements.getWhereStatements().get(0);
         assert entityMetadata != null;
         try {
             // 1. Budujemy to samo zapytanie, ale bez WHERE id = ?
@@ -327,7 +340,7 @@ public class JoinedTableInheritanceStrategy extends AbstractInheritanceStrategy 
             // additional where
             if (!whereStmt.isBlank()) {
 
-                query.sql += " WHERE " + whereStmt.getStatement(whereStmt.getRootTableName());
+                query.sql += " WHERE " + whereStmt.getStatement();
             }
 
             System.out.println("Joined findAll SQL: " + query.sql);

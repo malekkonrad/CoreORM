@@ -5,6 +5,7 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 import pl.edu.agh.dp.api.Session;
 import pl.edu.agh.dp.core.mapping.EntityMetadata;
+import pl.edu.agh.dp.core.mapping.PairTargetStatements;
 import pl.edu.agh.dp.core.mapping.TargetStatement;
 
 import java.util.*;
@@ -109,12 +110,12 @@ public class EntityPersisterImpl implements EntityPersister {
 
     @Override
     public  <T> List<T> findAll(Class<T> entityClass, Session session) {
-        return inheritanceStrategy.findAll(entityClass, session, new TargetStatement("", null), new TargetStatement("", null));
+        return inheritanceStrategy.findAll(entityClass, session, new PairTargetStatements());
     }
 
     @Override
-    public <T> List<T> findAll(Class<T> entityClass, Session session, TargetStatement joinStmt, TargetStatement whereStmt) {
-        return inheritanceStrategy.findAll(entityClass, session, joinStmt, whereStmt);
+    public <T> List<T> findAll(Class<T> entityClass, Session session, PairTargetStatements pairTargetStatements) {
+        return inheritanceStrategy.findAll(entityClass, session, pairTargetStatements);
     }
 
     @Override

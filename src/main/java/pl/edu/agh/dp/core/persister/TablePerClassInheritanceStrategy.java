@@ -3,9 +3,7 @@ package pl.edu.agh.dp.core.persister;
 import pl.edu.agh.dp.api.Session;
 import pl.edu.agh.dp.core.exceptions.IntegrityException;
 import pl.edu.agh.dp.core.jdbc.JdbcExecutor;
-import pl.edu.agh.dp.core.mapping.EntityMetadata;
-import pl.edu.agh.dp.core.mapping.TargetStatement;
-import pl.edu.agh.dp.core.mapping.PropertyMetadata;
+import pl.edu.agh.dp.core.mapping.*;
 import pl.edu.agh.dp.core.util.ReflectionUtils;
 import javafx.util.Pair;
 
@@ -19,6 +17,19 @@ public class TablePerClassInheritanceStrategy extends AbstractInheritanceStrateg
 
     public TablePerClassInheritanceStrategy(EntityMetadata metadata) {
         super(metadata);
+    }
+
+    @Override
+    public PairTargetStatements getPairStatement(Object entity, String relationshipName) {
+        assert entityMetadata != null;
+        AssociationMetadata associationMetadata = entityMetadata.getAssociationMetadata().get(relationshipName);
+
+        TargetStatement joinStmt = associationMetadata.getJoinStatement();
+        TargetStatement whereStmt = entityMetadata.getSelectByIdStatement(entity);
+//        // table per class is it's own root
+        whereStmt.setTargetTableName(entityMetadata.getTableName());
+
+        return new PairTargetStatements(whereStmt, joinStmt);
     }
 
     @Override
@@ -369,58 +380,10 @@ public class TablePerClassInheritanceStrategy extends AbstractInheritanceStrateg
         }
     }
 
-
-
-
-//    @Override
-//    public <T> List<T> findAll(Class<T> type, Session session) {
-//        // 1. Pobieramy metadane dla klasy, o którą pytamy (np. Dog)
-//        EntityMetadata parentMeta = this.entityMetadata;
-//
-//        // 2. Znajdujemy wszystkie podklasy (włącznie z 'type'), które mają swoje tabele
-//        List<EntityMetadata> concreteSubclasses = getAllConcreteSubclasses(parentMeta);
-//
-//        // 3. Ustalamy wspólne kolumny (tylko te, które ma klasa 'type' / Dog)
-//        assert parentMeta != null;
-//        List<String> columnsToSelect = parentMeta.getColumnsForConcreteTable()
-//                .stream()
-//                .map(PropertyMetadata::getColumnName)
-//                .collect(Collectors.toList());
-//
-//        String columnsSql = String.join(", ", columnsToSelect);
-//
-//        // 4. Budujemy UNION ALL
-//        StringBuilder sqlBuilder = new StringBuilder();
-//
-//        for (int i = 0; i < concreteSubclasses.size(); i++) {
-//            EntityMetadata subMeta = concreteSubclasses.get(i);
-//
-//            sqlBuilder.append("SELECT ")
-//                    .append(columnsSql)
-//                    // WAŻNE: Wstrzykujemy nazwę klasy jako sztuczną kolumnę DTYPE
-//                    .append(", '").append(subMeta.getEntityClass().getName()).append("' as DTYPE")
-//                    .append(" FROM ")
-//                    .append(subMeta.getTableName());
-//
-//            if (i < concreteSubclasses.size() - 1) {
-//                sqlBuilder.append(" UNION ALL ");
-//            }
-//        }
-//
-//        String sql = sqlBuilder.toString();
-//        System.out.println("TPC SQL: " + sql);
-//
-//        try {
-//            JdbcExecutor jdbc = session.getJdbcExecutor();
-//            // Używamy specjalnego mappera, który czyta DTYPE
-//            return jdbc.query(sql, rs -> mapPolymorphicEntity(rs, type));
-//        } catch (Exception e) {
-//            throw new RuntimeException("Error finding all entities in TPC", e);
-//        }
-//    }
-
     @Override
-    public <T> List<T> findAll(Class<T> type, Session session, TargetStatement joinStmt, TargetStatement whereStmt) {
+    public <T> List<T> findAll(Class<T> type, Session session, PairTargetStatements pairTargetStatements) {
+        TargetStatement joinStmt = pairTargetStatements.getJoinStatements().get(0);
+        TargetStatement whereStmt = pairTargetStatements.getWhereStatements().get(0);
         // 1. Znajdujemy wszystkie podklasy (Husky, Cat, Dog...)
         List<EntityMetadata> concreteSubclasses = getAllConcreteSubclasses(this.entityMetadata);
 

@@ -3,9 +3,7 @@ package pl.edu.agh.dp.core.persister;
 import javafx.util.Pair;
 import pl.edu.agh.dp.api.Session;
 import pl.edu.agh.dp.core.jdbc.JdbcExecutor;
-import pl.edu.agh.dp.core.mapping.EntityMetadata;
-import pl.edu.agh.dp.core.mapping.TargetStatement;
-import pl.edu.agh.dp.core.mapping.PropertyMetadata;
+import pl.edu.agh.dp.core.mapping.*;
 import pl.edu.agh.dp.core.util.ReflectionUtils;
 
 import java.lang.reflect.Field;
@@ -18,6 +16,19 @@ public class SingleTableInheritanceStrategy extends AbstractInheritanceStrategy 
 
     public SingleTableInheritanceStrategy(EntityMetadata metadata) {
         super(metadata);
+    }
+
+    @Override
+    public PairTargetStatements getPairStatement(Object entity, String relationshipName) {
+        assert entityMetadata != null;
+        AssociationMetadata associationMetadata = entityMetadata.getAssociationMetadata().get(relationshipName);
+
+        TargetStatement joinStmt = associationMetadata.getJoinStatement();
+        TargetStatement whereStmt = entityMetadata.getSelectByIdStatement(entity);
+        // single table root, could be itself
+        whereStmt.setRootTableName(entityMetadata.getInheritanceMetadata().getRootClass().getTableName());
+
+        return new PairTargetStatements(whereStmt, joinStmt);
     }
 
     @Override
@@ -231,7 +242,9 @@ public class SingleTableInheritanceStrategy extends AbstractInheritanceStrategy 
     }
 
     @Override
-    public <T> List<T> findAll(Class<T> type, Session session, TargetStatement joinStmt, TargetStatement whereStmt) {
+    public <T> List<T> findAll(Class<T> type, Session session, PairTargetStatements pairTargetStatements) {
+        TargetStatement joinStmt = pairTargetStatements.getJoinStatements().get(0);
+        TargetStatement whereStmt = pairTargetStatements.getWhereStatements().get(0);
         assert this.entityMetadata != null;
         EntityMetadata rootMetadata = this.entityMetadata.getInheritanceMetadata().getRootClass();
         String tableName = rootMetadata.getTableName();
