@@ -15,6 +15,8 @@ public interface JdbcExecutor {
     int update(String sql, Object... params);
 
     Long insert(String sql, Object... params);
+    
+    Long insert(String sql, String idColumnName, Object... params);
 
 
     void commit() throws SQLException;

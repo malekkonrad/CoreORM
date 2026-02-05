@@ -205,7 +205,7 @@ public class TablePerClassInheritanceStrategy extends AbstractInheritanceStrateg
         StringBuilder sql = new StringBuilder();
         sql.append("UPDATE ").append(tableName)
                 .append(" SET ").append(String.join(", ", setColumns))
-                .append(" WHERE ").append(entityMetadata.getSelectByIdStatement(entity));
+                .append(" WHERE ").append(entityMetadata.getSelectByIdStatement(entity).getStatement(tableName));
 
         System.out.println("TablePerClass UPDATE SQL: " + sql);
         System.out.println("Values: " + values);
@@ -229,7 +229,7 @@ public class TablePerClassInheritanceStrategy extends AbstractInheritanceStrateg
 //        String whereClause = buildWhereClause(rootMetadata);
 //        Object[] idParams = prepareIdParams(idValue);
 
-        String sql = "DELETE FROM " + tableName + " WHERE " + entityMetadata.getSelectByIdStatement(entity);
+        String sql = "DELETE FROM " + tableName + " WHERE " + entityMetadata.getSelectByIdStatement(entity).getStatement(tableName);
 
         System.out.println("TablePerClass DELETE SQL: " + sql);
         System.out.println("ID: " + getIdValue(entity));

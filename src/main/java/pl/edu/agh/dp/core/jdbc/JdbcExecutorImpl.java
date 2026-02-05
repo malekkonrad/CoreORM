@@ -106,21 +106,54 @@ public class JdbcExecutorImpl implements JdbcExecutor {
 
     @Override
     public Long insert(String sql, Object... params) {
-        try (PreparedStatement ps = connection.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
+        return insert(sql, "id", params);
+    }
+    
+    @Override
+    public Long insert(String sql, String idColumnName, Object... params) {
+        // Sprawdź czy to PostgreSQL
+        boolean isPostgres = false;
+        try {
+            isPostgres = connection.getMetaData().getDatabaseProductName().toLowerCase().contains("postgres");
+        } catch (SQLException ignored) {}
+        
+        String sqlToExecute = sql;
+        if (isPostgres && !sql.toLowerCase().contains("returning")) {
+            sqlToExecute = sql + " RETURNING " + idColumnName;
+        }
+        
+        try (PreparedStatement ps = isPostgres 
+                ? connection.prepareStatement(sqlToExecute)
+                : connection.prepareStatement(sql, new String[]{idColumnName})) {
             setParameters(ps, params);
-            int rows = ps.executeUpdate();
-            System.out.println("→ Rows affected: " + rows);
-            System.out.println("→ SQL: " + sql);
+            
+            System.out.println("→ SQL: " + sqlToExecute);
             System.out.println("→ AutoCommit: " + connection.getAutoCommit());
             
-            try (ResultSet keys = ps.getGeneratedKeys()) {
-                if (keys.next()) {
-                    return keys.getLong(1);
+            if (isPostgres) {
+                // PostgreSQL: wykonaj query i pobierz id z ResultSet
+                try (ResultSet rs = ps.executeQuery()) {
+                    if (rs.next()) {
+                        long id = rs.getLong(1);
+                        System.out.println("→ Generated ID: " + id);
+                        return id;
+                    }
+                    throw new SQLException("No generated key returned");
                 }
-                throw new SQLException("No generated key returned");
+            } else {
+                // Inne bazy (H2, MySQL, etc.): standardowy sposób
+                int rows = ps.executeUpdate();
+                System.out.println("→ Rows affected: " + rows);
+                
+                try (ResultSet keys = ps.getGeneratedKeys()) {
+                    if (keys.next()) {
+                        return keys.getLong(1);
+                    }
+                    throw new SQLException("No generated key returned");
+                }
             }
         } catch (SQLException e) {
-            throw new RuntimeException("Insert failed: " + sql, e);
+            throw new RuntimeException("Insert failed: " + sqlToExecute, e);
         }
     }
 
