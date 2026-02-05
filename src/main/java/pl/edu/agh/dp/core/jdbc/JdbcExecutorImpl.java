@@ -111,6 +111,7 @@ public class JdbcExecutorImpl implements JdbcExecutor {
     
     @Override
     public Long insert(String sql, String idColumnName, Object... params) {
+        boolean doReturnKey = !idColumnName.isBlank();
         // Sprawdź czy to PostgreSQL
         boolean isPostgres = false;
         try {
@@ -119,13 +120,14 @@ public class JdbcExecutorImpl implements JdbcExecutor {
         
         String sqlToExecute = sql;
         // return generated id if postgres and idColumnName is not empty (id is not complex)
-        if (isPostgres && !sql.toLowerCase().contains("returning") && !idColumnName.isBlank()) {
+        if (isPostgres && !sql.toLowerCase().contains("returning") && doReturnKey) {
             sqlToExecute = sql + " RETURNING " + idColumnName;
         }
         
-        try (PreparedStatement ps = isPostgres 
+        try (PreparedStatement ps = isPostgres
                 ? connection.prepareStatement(sqlToExecute)
-                : connection.prepareStatement(sql, new String[]{idColumnName})) {
+                : doReturnKey ? connection.prepareStatement(sql, new String[]{idColumnName})
+                              : connection.prepareStatement(sql)) {
             setParameters(ps, params);
             
             System.out.println("→ SQL: " + sqlToExecute);
@@ -147,10 +149,15 @@ public class JdbcExecutorImpl implements JdbcExecutor {
                 System.out.println("→ Rows affected: " + rows);
                 
                 try (ResultSet keys = ps.getGeneratedKeys()) {
-                    if (keys.next()) {
-                        return keys.getLong(1);
+                    if (doReturnKey) {
+                        if (keys.next()) {
+                            return keys.getLong(1);
+                        } else {
+                            throw new SQLException("No generated key returned");
+                        }
+                    } else {
+                        return null;
                     }
-                    throw new SQLException("No generated key returned");
                 }
             }
         } catch (SQLException e) {
