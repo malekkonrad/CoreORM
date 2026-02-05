@@ -289,6 +289,52 @@ public class RelationshipTest {
     }
 
     @Test
+    void testSelfReferenceWithUpdate() {
+        config.register(Worker.class);
+        sessionFactory = config.buildSessionFactory();
+        session = sessionFactory.openSession();
+
+        Long bossId;
+        Long workerId;
+
+        {
+            Worker boss = new Worker();
+            boss.setName("Boss");
+            boss.setWorkers(new ArrayList<>());
+
+            Worker subordinate = new Worker();
+            subordinate.setName("Worker");
+
+            session.save(subordinate);
+            session.save(boss);
+            session.commit();
+
+            bossId = boss.getId();
+            workerId = subordinate.getId();
+        }
+
+        session.close();
+        session = sessionFactory.openSession();
+
+        {
+            Worker boss = session.find(Worker.class, bossId);
+            Worker subordinate = session.find(Worker.class, workerId);
+
+            subordinate.setBoss(boss);
+            session.update(subordinate);
+            session.commit();
+
+        }
+        session.close();
+        session = sessionFactory.openSession();
+        {
+            Worker boss = session.find(Worker.class, bossId);
+
+            assertEquals(1, boss.workers.size());
+        }
+    }
+
+    @Test
     void testSelfReference() {
         config.register(Worker.class);
         sessionFactory = config.buildSessionFactory();

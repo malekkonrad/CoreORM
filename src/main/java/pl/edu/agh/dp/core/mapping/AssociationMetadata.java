@@ -15,6 +15,8 @@ import java.util.*;
 @AllArgsConstructor
 public class AssociationMetadata {
 
+    public static final String alias = "a1";
+
     public enum Type {
         ONE_TO_ONE,
         ONE_TO_MANY,
@@ -133,15 +135,17 @@ public class AssociationMetadata {
             return new TargetStatement(joinStmt.toString(), targetTableName);
         }
 
+        // add alias if necessary
+        String alias = tableName == targetTableName ? AssociationMetadata.alias : tableName;
         // append table name
-        joinStmt.append(tableName).append(" ON ");
+        joinStmt.append(tableName).append(" AS ").append(alias).append(" ON ");
 
         List<String> conditions = new ArrayList<>();
         for (int i = 0; i < joinColumns.size(); i++) {
             PropertyMetadata pm = joinColumns.get(i);
             PropertyMetadata targetPm = targetJoinColumns.get(i);
             conditions.add(
-                    tableName + "." + pm.getColumnName() + " = "
+                    alias + "." + pm.getColumnName() + " = "
                     + TargetStatement.getTargetName() + "." + targetPm.getColumnName()
             );
         }
