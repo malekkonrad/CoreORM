@@ -27,6 +27,7 @@ public class SingleTableInheritanceStrategy extends AbstractInheritanceStrategy 
         TargetStatement whereStmt = entityMetadata.getSelectByIdStatement(entity);
         // single table root, could be itself
         whereStmt.setRootTableName(entityMetadata.getInheritanceMetadata().getRootClass().getTableName());
+        whereStmt.setTargetTableName(joinStmt.getRootTableName());
 
         return new PairTargetStatements(whereStmt, joinStmt);
     }

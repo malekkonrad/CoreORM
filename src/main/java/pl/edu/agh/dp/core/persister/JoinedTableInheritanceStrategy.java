@@ -25,6 +25,7 @@ public class JoinedTableInheritanceStrategy extends AbstractInheritanceStrategy 
         TargetStatement whereStmt = entityMetadata.getSelectByIdStatement(entity);
 //        // joined root is the actual root
         whereStmt.setTargetTableName(entityMetadata.getInheritanceMetadata().getRootClass().getTableName());
+        whereStmt.setTargetTableName(joinStmt.getRootTableName());
 
         return new PairTargetStatements(whereStmt, joinStmt);
     }

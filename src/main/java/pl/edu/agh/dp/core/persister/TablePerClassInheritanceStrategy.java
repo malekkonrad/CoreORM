@@ -28,6 +28,7 @@ public class TablePerClassInheritanceStrategy extends AbstractInheritanceStrateg
         TargetStatement whereStmt = entityMetadata.getSelectByIdStatement(entity);
 //        // table per class is it's own root
         whereStmt.setTargetTableName(entityMetadata.getTableName());
+        whereStmt.setTargetTableName(joinStmt.getRootTableName());
 
         return new PairTargetStatements(whereStmt, joinStmt);
     }

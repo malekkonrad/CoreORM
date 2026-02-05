@@ -15,7 +15,7 @@ import java.util.*;
 @AllArgsConstructor
 public class AssociationMetadata {
 
-    public static final String alias = "a1";
+    public static final String alias = "boss";
 
     public enum Type {
         ONE_TO_ONE,
@@ -122,25 +122,26 @@ public class AssociationMetadata {
             }
             joinStmt.append(String.join(" AND ", conditions));
 
-            joinStmt.append(" INNER JOIN ").append(tableName).append(" ON ");
+            joinStmt.append(" INNER JOIN ").append(tableName).append(" AS ").append(alias).append(" ON ");
             conditions.clear();
             for (PropertyMetadata pm : targetJoinColumns) {
                 conditions.add(
-                        tableName + "." + pm.getReferencedName() + " = "
+                        alias + "." + pm.getReferencedName() + " = "
                                 + associationTableName + "." + pm.getColumnName()
                 );
             }
             joinStmt.append(String.join(" AND ", conditions));
 
-            return new TargetStatement(joinStmt.toString(), targetTableName);
+            return new TargetStatement(joinStmt.toString(), targetTableName, alias);
         }
 
         // add alias if necessary
-        boolean isAlias = tableName == targetTableName;
-        String alias = isAlias ? AssociationMetadata.alias : targetTableName;
+//        boolean isAlias = tableName == targetTableName;
+//        String alias = isAlias ? AssociationMetadata.alias : tableName;
         // append table name
         joinStmt.append(tableName);
-        if (isAlias) joinStmt.append(" AS ").append(alias);
+//        if (isAlias)
+            joinStmt.append(" AS ").append(alias);
         joinStmt.append(" ON ");
 
         List<String> conditions = new ArrayList<>();
@@ -148,12 +149,12 @@ public class AssociationMetadata {
             PropertyMetadata pm = joinColumns.get(i);
             PropertyMetadata targetPm = targetJoinColumns.get(i);
             conditions.add(
-                    tableName + "." + pm.getColumnName() + " = "
-                    + (isAlias ? alias : TargetStatement.getTargetName()) + "." + targetPm.getColumnName()
+                    alias + "." + pm.getColumnName() + " = "
+                    + TargetStatement.getTargetName() + "." + targetPm.getColumnName()
             );
         }
         joinStmt.append(String.join(" AND ", conditions));
-        return new TargetStatement(joinStmt.toString(), alias);
+        return new TargetStatement(joinStmt.toString(), targetTableName, alias);
     }
 
     @Override
