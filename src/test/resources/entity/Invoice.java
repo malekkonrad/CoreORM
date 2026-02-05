@@ -1,9 +1,11 @@
-package pl.edu.agh.dp.demo.entity;
+package pl.edu.agh.dp.entity;
 
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
-import pl.edu.agh.dp.api.annotations.*;
+import pl.edu.agh.dp.api.annotations.Column;
+import pl.edu.agh.dp.api.annotations.DiscriminatorValue;
+import pl.edu.agh.dp.api.annotations.Entity;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -15,6 +17,7 @@ import java.time.LocalDate;
 @Setter
 @NoArgsConstructor
 @DiscriminatorValue("INVOICE")
+@Entity
 public class Invoice extends Report {
 
     private String invoiceNumber;

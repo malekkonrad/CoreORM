@@ -1,4 +1,4 @@
-package pl.edu.agh.dp.demo.entity;
+package pl.edu.agh.dp.entity;
 
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -11,19 +11,30 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Pracownik - dziedziczy z Person (JOINED).
+ * Pracownik - samodzielna encja (bez dziedziczenia).
  * 
  * Demonstruje:
- * - Dziedziczenie JOINED (extends Person)
- * - Self-reference (manager/subordinates)
- * - Many-to-One (department)
- * - Many-to-Many (projects, skills)
- * - One-to-Many (managedProjects)
+ * - Self-reference (manager/subordinates) - relacja do samego siebie
+ * - Many-to-One (department) - wiele pracowników w jednym dziale
  */
 @Getter
 @Setter
 @NoArgsConstructor
-public class Employee extends Person {
+@Entity
+public class Employee {
+
+    @Id(autoIncrement = true)
+    private Long id;
+
+    @Column(nullable = false)
+    private String firstName;
+
+    @Column(nullable = false)
+    private String lastName;
+
+    private String email;
+
+    private String phone;
 
     @Column(nullable = false, unique = true)
     private String employeeCode;
@@ -44,6 +55,7 @@ public class Employee extends Person {
     private Employee manager;
 
     // ==================== MANY-TO-ONE ====================
-    @ManyToOne
+    @ManyToOne(mappedBy = "employees")
+    @JoinColumn(joinColumns = {"department"}, nullable = true)
     private Department department;
 }

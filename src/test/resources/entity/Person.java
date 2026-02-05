@@ -1,9 +1,10 @@
-package pl.edu.agh.dp.demo.entity;
+package pl.edu.agh.dp.entity;
 
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 import pl.edu.agh.dp.api.annotations.Column;
+import pl.edu.agh.dp.api.annotations.Entity;
 import pl.edu.agh.dp.api.annotations.Id;
 import pl.edu.agh.dp.api.annotations.Inheritance;
 import pl.edu.agh.dp.core.mapping.InheritanceType;
@@ -15,8 +16,10 @@ import pl.edu.agh.dp.core.mapping.InheritanceType;
 @Getter
 @Setter
 @NoArgsConstructor
+@Entity
 @Inheritance(strategy = InheritanceType.JOINED)
 public class Person {
+
     @Id(autoIncrement = true)
     private Long id;
 
@@ -27,6 +30,5 @@ public class Person {
     private String lastName;
 
     private String email;
-
     private String phone;
 }

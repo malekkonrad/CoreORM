@@ -1,9 +1,10 @@
-package pl.edu.agh.dp.demo.entity;
+package pl.edu.agh.dp.entity;
 
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 import pl.edu.agh.dp.api.annotations.Column;
+import pl.edu.agh.dp.api.annotations.Entity;
 
 /**
  * Powiadomienie push - dziedziczy z Notification (TABLE_PER_CLASS).
@@ -11,6 +12,7 @@ import pl.edu.agh.dp.api.annotations.Column;
 @Getter
 @Setter
 @NoArgsConstructor
+@Entity
 public class PushNotification extends Notification {
 
     @Column(nullable = false)

@@ -1,4 +1,4 @@
-package pl.edu.agh.dp.demo.entity;
+package pl.edu.agh.dp.entity;
 
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -12,13 +12,15 @@ import java.util.List;
  * Departament/Dział firmy.
  * 
  * Demonstruje:
- * - One-to-Many (employees)
- * - Self-reference (parentDepartment/subDepartments)
+ * - One-to-Many (employees) - jeden dział ma wielu pracowników
+ * - Self-reference (parentDepartment/subDepartments) - hierarchia działów
  */
 @Getter
 @Setter
 @NoArgsConstructor
+@Entity
 public class Department {
+
     @Id(autoIncrement = true)
     private Long id;
 
@@ -30,7 +32,8 @@ public class Department {
     private String description;
 
     // ==================== ONE-TO-MANY ====================
-    @OneToMany
+    @OneToMany(mappedBy = "department")
+    @JoinColumn(joinColumns = {"employees"})
     private List<Employee> employees = new ArrayList<>();
 
     // ==================== SELF-REFERENCE ====================

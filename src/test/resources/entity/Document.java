@@ -1,9 +1,12 @@
-package pl.edu.agh.dp.demo.entity;
+package pl.edu.agh.dp.entity;
 
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
-import pl.edu.agh.dp.api.annotations.*;
+import pl.edu.agh.dp.api.annotations.DiscriminatorValue;
+import pl.edu.agh.dp.api.annotations.Entity;
+import pl.edu.agh.dp.api.annotations.Id;
+import pl.edu.agh.dp.api.annotations.Inheritance;
 import pl.edu.agh.dp.core.mapping.InheritanceType;
 
 import java.time.LocalDate;
@@ -17,16 +20,20 @@ import java.time.LocalDate;
 @NoArgsConstructor
 @Inheritance(strategy = InheritanceType.SINGLE_TABLE)
 @DiscriminatorValue("DOCUMENT")
+@Entity
 public class Document {
     @Id(autoIncrement = true)
     private Long id;
 
-    @Column(nullable = false)
+//    @Column(nullable = true)
     private String title;
 
+//    @Column(nullable = true)
     private LocalDate createdDate;
 
+//    @Column(nullable = true)
     private String createdBy;
 
+//    @Column(nullable = true)
     private String content;
 }
