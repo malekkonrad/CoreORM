@@ -232,6 +232,7 @@ public class SessionImpl implements Session {
         EntityMetadata entityMetadata = entityPersister.getEntityMetadata();
         Collection<AssociationMetadata> associationMetadata = entityMetadata.getAssociationMetadata().values();
         // must not be contained in dirty
+        // TODO try to compare and don't add unchanged relationships
         if (dirtyEntities.contains(entity)) {// FIXME updating twice will not update relationships
             return;
         }
