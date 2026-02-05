@@ -221,7 +221,106 @@ public class SessionImpl implements Session {
                     "Attempted to remove entity scheduled for deletion.\n" +
                     "Only one operation is permitted per commit.");
         }
-        dirtyEntities.add(entity);
+        // TODO backref and add if changed !!!
+        // for relationships, we need to separate each entity
+        EntityPersister entityPersister = entityPersisters.get(entity.getClass());
+        if (entityPersister == null) {
+            throw new IntegrityException(
+                    "Could not found mapper for class: " + entity.getClass().getName()
+            );
+        }
+        EntityMetadata entityMetadata = entityPersister.getEntityMetadata();
+        Collection<AssociationMetadata> associationMetadata = entityMetadata.getAssociationMetadata().values();
+        // must not be contained in dirty
+        if (dirtyEntities.contains(entity)) {// FIXME updating twice will not update relationships
+            return;
+        }
+        // no relationships, simple add
+        if (associationMetadata.isEmpty()) {
+            dirtyEntities.add(entity);
+            return;
+        }
+        // there are relationships
+        for (AssociationMetadata am : associationMetadata) {
+            Object value = ReflectionUtils.getFieldValue(entity, am.getField());
+            if (value != null) {
+                if (am.getType() == AssociationMetadata.Type.ONE_TO_ONE) {
+                    System.out.println("updating 1 to 1");
+                    // set opposing relationship
+                    ReflectionUtils.setFieldValue(value, am.getMappedBy(), entity);
+                    dirtyEntities.add(entity);
+                    this.update(value);
+                } else if (am.getType() == AssociationMetadata.Type.ONE_TO_MANY) {
+                    System.out.println("updating 1 to *");
+                    dirtyEntities.add(entity);
+                    assert value instanceof Collection;
+                    for (Object relationshipEntity : (Collection<?>)value) { // relationship must be some Collection
+                        ReflectionUtils.setFieldValue(relationshipEntity, am.getMappedBy(), entity);
+                        this.update(relationshipEntity);
+                    }
+                } else if (am.getType() == AssociationMetadata.Type.MANY_TO_ONE) {
+                    System.out.println("updating * to 1");
+                    Object field = ReflectionUtils.getFieldValue(value, am.getMappedBy());
+                    if (field == null) {
+                        throw new IntegrityException(
+                                "Field cannot be null.\n" +
+                                "Source class: " + value.getClass().getName() + "\n" +
+                                "Field: " + am.getMappedBy() + "\n" +
+                                "Field is set to null, but it should be initialized."
+                        );
+                    }
+                    assert field instanceof Collection;
+                    boolean isBackrefered = false;
+                    for (Object relationshipEntity : (Collection<?>)field) {
+                        if (relationshipEntity == entity) {
+                            isBackrefered = true;
+                            break;
+                        }
+                    }
+                    if (!isBackrefered) {
+                        ((Collection<T>) field).add(entity);
+                    }
+                    this.update(value);
+                    dirtyEntities.add(entity);
+                } else if (am.getType() == AssociationMetadata.Type.MANY_TO_MANY) {
+                    System.out.println("updating * to *");
+                    // fill all the data
+                    assert value instanceof Collection;
+                    for (Object relationshipEntity : (Collection<?>)value) {
+                        Object field = ReflectionUtils.getFieldValue(relationshipEntity, am.getMappedBy());
+                        if (field == null) {
+                            throw new IntegrityException(
+                                    "Field cannot be null.\n" +
+                                    "Source class: " + relationshipEntity.getClass().getName() + "\n" +
+                                    "Field: " + am.getMappedBy() + "\n" +
+                                    "Field is set to null, but it should be initialized."
+                            );
+                        }
+                        assert field instanceof Collection;
+                        boolean isBackrefered = false;
+                        for (Object reverseEntity : (Collection<?>)field) {
+                            if (reverseEntity == entity) {
+                                isBackrefered = true;
+                                break;
+                            }
+                        }
+                        if (!isBackrefered) {
+                            ((Collection<T>) field).add(entity);
+                        }
+                    }
+                    // actual update
+                    dirtyEntities.add(entity);
+                    for (Object relationshipEntity : (Collection<?>)value) { // relationship must be some Collection
+                        this.update(relationshipEntity);
+                    }
+                } else {
+                    throw new IntegrityException("Unhandled association type: " + am.getType());
+                }
+            } else {
+                // default to add
+                dirtyEntities.add(entity);
+            }
+        }
     }
 
     @Override

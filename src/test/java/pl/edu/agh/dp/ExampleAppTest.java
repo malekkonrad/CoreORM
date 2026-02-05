@@ -21,8 +21,12 @@ import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 public class ExampleAppTest {
 
@@ -66,13 +70,10 @@ public class ExampleAppTest {
         }
     }
 
-    @Test
-    public void appTest() {
-        config.register(
-                Employee.class, Department.class
-        );
-        sessionFactory = config.buildSessionFactory();
-        session = sessionFactory.openSession();
+    public void createEmployees() {
+        Long bossId;
+        Long sub1Id;
+        Long sub2Id;
 
         {
             Employee employee = new Employee();
@@ -86,6 +87,7 @@ public class ExampleAppTest {
             employee.setPosition("succ");
             session.save(employee);
             session.commit();
+            bossId = employee.getId();
         }
 
         {
@@ -96,16 +98,118 @@ public class ExampleAppTest {
             employee.setPhone("1024957232");
             employee.setHireDate(LocalDate.now());
             employee.setSalary(new BigDecimal(34802));
-            employee.setEmployeeCode("strhen");
+            employee.setEmployeeCode("strhen2");
             employee.setPosition("succ2");
             session.save(employee);
+            session.commit();
+            sub1Id = employee.getId();
+        }
+
+        {
+            Employee employee = new Employee();
+            employee.setFirstName("Jan3");
+            employee.setLastName("Smith3");
+            employee.setEmail("jan.smith3@gmail.com");
+            employee.setPhone("1024957232");
+            employee.setHireDate(LocalDate.now());
+            employee.setSalary(new BigDecimal(34802));
+            employee.setEmployeeCode("strhen3");
+            employee.setPosition("succ3");
+            session.save(employee);
+            session.commit();
+            sub2Id = employee.getId();
+        }
+        session.close();
+        session = sessionFactory.openSession();
+    }
+
+    @Test
+    public void findAllTest() {
+        config.register(
+                Employee.class, Department.class
+        );
+        sessionFactory = config.buildSessionFactory();
+        session = sessionFactory.openSession();
+
+        Long bossId = 1L;
+        Long sub1Id = 2L;
+        Long sub2Id = 3L;
+
+        createEmployees();
+
+        {
+            List<Employee> employees = session.findAll(Employee.class);
+            Employee employee = employees.iterator().next();
+            assertNotNull(employee.getFirstName());
+            assertEquals(3, employees.size());
+        }
+    }
+
+    @Test
+    public void addSubordinateTest() {
+        config.register(
+                Employee.class, Department.class
+        );
+        sessionFactory = config.buildSessionFactory();
+        session = sessionFactory.openSession();
+
+        Long bossId = 1L;
+        Long sub1Id = 2L;
+        Long sub2Id = 3L;
+
+        createEmployees();
+
+        {
+            Employee boss = session.find(Employee.class, bossId);
+            Employee employee2 = session.find(Employee.class, sub1Id);
+            Employee employee3 = session.find(Employee.class, sub2Id);
+            boss.setSubordinates(new ArrayList<>(){{
+                add(employee2);add(employee3);
+            }});
+            session.update(boss);
             session.commit();
         }
 
         session.close();
         session = sessionFactory.openSession();
 
-        List<Employee> employees = session.findAll(Employee.class);
-        System.out.println(employees);
+        {
+            Employee boss = session.find(Employee.class, bossId);
+            assertEquals(2, boss.getSubordinates().size());
+        }
+    }
+
+    @Test
+    public void addBossTest() {
+        config.register(
+                Employee.class, Department.class
+        );
+        sessionFactory = config.buildSessionFactory();
+        session = sessionFactory.openSession();
+
+        Long bossId = 1L;
+        Long sub1Id = 2L;
+        Long sub2Id = 3L;
+
+        createEmployees();
+
+        {
+            Employee boss = session.find(Employee.class, bossId);
+            Employee employee2 = session.find(Employee.class, sub1Id);
+            Employee employee3 = session.find(Employee.class, sub2Id);
+            employee2.setManager(boss);
+            employee3.setManager(boss);
+            session.update(employee2);
+            session.update(employee3);
+            session.commit();
+        }
+
+        session.close();
+        session = sessionFactory.openSession();
+
+        {
+            Employee boss = session.find(Employee.class, bossId);
+            assertEquals(2, boss.getSubordinates().size());
+        }
     }
 }
