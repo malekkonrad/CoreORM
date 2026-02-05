@@ -118,7 +118,8 @@ public class JdbcExecutorImpl implements JdbcExecutor {
         } catch (SQLException ignored) {}
         
         String sqlToExecute = sql;
-        if (isPostgres && !sql.toLowerCase().contains("returning")) {
+        // return generated id if postgres and idColumnName is not empty (id is not complex)
+        if (isPostgres && !sql.toLowerCase().contains("returning") && !idColumnName.isBlank()) {
             sqlToExecute = sql + " RETURNING " + idColumnName;
         }
         

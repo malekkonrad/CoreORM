@@ -179,7 +179,7 @@ public abstract class AbstractInheritanceStrategy implements InheritanceStrategy
                 for (List<Object> el : assAssValues) {
                     array.addAll(el);
                 }
-                jdbc.insert(assStmt, array.toArray());
+                jdbc.insert(assStmt, "", array.toArray());
             }
         }
     }
