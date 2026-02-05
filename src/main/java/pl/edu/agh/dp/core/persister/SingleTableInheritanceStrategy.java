@@ -108,9 +108,13 @@ public class SingleTableInheritanceStrategy extends AbstractInheritanceStrategy 
                 values.add(null);
             }
         }
-
+        List<PropertyMetadata> idColumns = new ArrayList<>(entityMetadata.getIdColumns().values());
+        // get provided ids
+        Set<String> idProvided = getProvidedIds(entity);
         // relationships
         fillRelationshipData(entity, entityMetadata, columns, values);
+        // composite keys error handling
+        String idProp = getIdNameAndCheckCompositeKey(idProvided, idColumns);
 
         StringBuilder sql = new StringBuilder();
         sql.append("INSERT INTO ")
@@ -126,16 +130,16 @@ public class SingleTableInheritanceStrategy extends AbstractInheritanceStrategy 
         System.out.println(values.toString());
         try {
             JdbcExecutor jdbc = session.getJdbcExecutor();
-            Long generatedId = jdbc.insert(sql.toString(), values.toArray());
+            Long generatedId = jdbc.insert(sql.toString(), idProp, values.toArray());
             System.out.println("Generated ID: " + generatedId);
 
             // Ustaw wygenerowane ID
             int numOfIds = rootMetadata.getIdColumns().size();
             if (numOfIds == 1) {        // we have one key if there's more then for sure it's not autoincrement
-                PropertyMetadata idProp = rootMetadata.getIdColumns().values().iterator().next();
-                if (idProp.isAutoIncrement()) {
+                PropertyMetadata idPropName = rootMetadata.getIdColumns().values().iterator().next();
+                if (idPropName.isAutoIncrement()) {
                     System.out.println("seting id in " + entity.toString()+ " value: " + generatedId);
-                    ReflectionUtils.setFieldValue(entity, idProp.getName(), generatedId);
+                    ReflectionUtils.setFieldValue(entity, idPropName.getName(), generatedId);
                 }
             }
 

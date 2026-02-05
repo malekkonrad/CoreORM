@@ -11,7 +11,7 @@ import pl.edu.agh.dp.api.annotations.Entity;
 @Getter
 @Setter
 @NoArgsConstructor
-@Entity
+//@Entity
 public class Client extends Person {
     private String companyName;
     private String taxId;

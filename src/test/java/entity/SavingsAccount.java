@@ -17,7 +17,7 @@ import java.math.BigDecimal;
 @Getter
 @Setter
 @NoArgsConstructor
-@Entity
+//@Entity
 public class SavingsAccount extends Account {
 
     private BigDecimal interestRate;

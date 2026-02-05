@@ -18,7 +18,7 @@ import java.util.List;
 @Getter
 @Setter
 @NoArgsConstructor
-@Entity
+//@Entity
 public class Department {
 
     @Id(autoIncrement = true)

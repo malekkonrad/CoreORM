@@ -79,60 +79,22 @@ public class TablePerClassInheritanceStrategy extends AbstractInheritanceStrateg
         List<Object> values = new ArrayList<>();
 
         assert entityMetadata != null;
-        List<PropertyMetadata> idColumns = new ArrayList<>(entityMetadata.getIdColumns().values());
-        boolean isCompositeKey = idColumns.size() > 1;
 
-        Set<String> idProvided = new HashSet<>();
         for (PropertyMetadata pm : entityMetadata.getProperties().values()) {
             Object value = ReflectionUtils.getFieldValue(entity, pm.getName());
             // TODO handle null in the value, cause it could be set to null explicitly
             if (value != null) {
                 columns.add(pm.getColumnName());
                 values.add(value);
-                if (pm.isId()) {
-                    idProvided.add(pm.getName());
-                }
-            } else {
-                if (!pm.isNullable() && !pm.isAutoIncrement()) {
-                    throw new IntegrityException(
-                            "In entity: " + entity + "\n" +
-                            "Field: '" + pm.getName() + "' is not nullable"
-                    );
-                }
             }
         }
+        List<PropertyMetadata> idColumns = new ArrayList<>(entityMetadata.getIdColumns().values());
+        // get provided ids
+        Set<String> idProvided = getProvidedIds(entity);
         // relationships
         fillRelationshipData(entity, entityMetadata, columns, values);
-
-        if (isCompositeKey) {
-            if (idProvided.size() != idColumns.size()) {
-                List<String> compositeKey = new ArrayList<>();
-                List<String> missingIds = new ArrayList<>();
-                for (PropertyMetadata pm : idColumns) {
-                    if (!idProvided.contains(pm.getName())) {
-                        missingIds.add(pm.getName());
-                    }
-                    compositeKey.add(pm.getName());
-                }
-                throw new IntegrityException(
-                        "Not all identifiers are set. You must set all ids in composite key.\n" +
-                        "Composite key: (" + String.join(", ", compositeKey) + ")\n" +
-                        "Missing/unset fields: (" + String.join(", ", missingIds) + ")"
-                );
-            }
-        } else {
-            if (!idProvided.isEmpty() && idColumns.get(0).isAutoIncrement()) {
-                throw new IntegrityException(
-                        "You cannot set an id that is auto increment.\n" +
-                        "Tried to set: '" + idColumns.get(0).getName() + "' that is an auto incremented id.\n" +
-                        "Remove the auto increment or don't set it.");
-            } else if (idProvided.isEmpty() && !idColumns.get(0).isAutoIncrement()) {
-                throw new IntegrityException(
-                        "You must set an id that is not auto increment.\n" +
-                        "Field: '" + idColumns.get(0).getName() + "' is not set.\n" +
-                        "Add auto increment or set this field.");
-            }
-        }
+        // composite keys error handling
+        String idProp = getIdNameAndCheckCompositeKey(idProvided, idColumns);
 
         StringBuilder sql = new StringBuilder();
         sql.append("INSERT INTO ")
@@ -150,16 +112,16 @@ public class TablePerClassInheritanceStrategy extends AbstractInheritanceStrateg
         Long generatedId;
         try {
             JdbcExecutor jdbc = session.getJdbcExecutor();
-            generatedId = jdbc.insert(sql.toString(), values.toArray());
+            generatedId = jdbc.insert(sql.toString(), idProp, values.toArray());
             System.out.println("Generated ID: " + generatedId);
 
             // Ustaw wygenerowane ID
             int numOfIds = entityMetadata.getInheritanceMetadata().getRootClass().getIdColumns().size();
             if (numOfIds == 1) {        // we have one key if there's more then for sure it's not autoincrement
-                PropertyMetadata idProp = entityMetadata.getInheritanceMetadata().getRootClass().getIdColumns().values().iterator().next();
-                if (idProp.isAutoIncrement()) {
+                PropertyMetadata idPropName = entityMetadata.getInheritanceMetadata().getRootClass().getIdColumns().values().iterator().next();
+                if (idPropName.isAutoIncrement()) {
                     System.out.println("seting id in " + entity.toString()+ " value: " + generatedId);
-                    ReflectionUtils.setFieldValue(entity, idProp.getName(), generatedId);
+                    ReflectionUtils.setFieldValue(entity, idPropName.getName(), generatedId);
                 }
             }
 

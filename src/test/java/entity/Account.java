@@ -24,7 +24,7 @@ import java.time.LocalDate;
 @Getter
 @Setter
 @NoArgsConstructor
-@Entity
+//@Entity
 @Inheritance(strategy = InheritanceType.JOINED)
 public class Account {
 

@@ -177,7 +177,7 @@ public class RelationshipTest {
         }
     }
 
-//    @Test
+    @Test
     void testOneToOne() {
         config.register(DogOwner.class, Dog.class);
         sessionFactory = config.buildSessionFactory();
@@ -227,7 +227,7 @@ public class RelationshipTest {
         // Ideally we would fetch back and check, but the original test just saved.
     }
 
-//    @Test
+    @Test
     void testManyToOne() {
         config.register(Department.class, Employee.class);
         sessionFactory = config.buildSessionFactory();
@@ -288,7 +288,7 @@ public class RelationshipTest {
         // Validation could be added here
     }
 
-//    @Test
+    @Test
     void testSelfReference() {
         config.register(Worker.class);
         sessionFactory = config.buildSessionFactory();
@@ -370,7 +370,7 @@ public class RelationshipTest {
         }
     }
 
-//    @Test
+    @Test
     void testAddingExisting() {
         config.register(Worker.class);
         sessionFactory = config.buildSessionFactory();
@@ -393,7 +393,7 @@ public class RelationshipTest {
         session.commit();
     }
 
-//    @Test
+    @Test
     void testManyToMany() {
         config.register(Student.class, Course.class);
         sessionFactory = config.buildSessionFactory();
@@ -433,7 +433,7 @@ public class RelationshipTest {
         session.commit();
     }
 
-//    @Test
+    @Test
     void testOneToOneJoinColumnOptions() {
         config.register(Citizen.class, Passport.class);
         sessionFactory = config.buildSessionFactory();
@@ -466,7 +466,7 @@ public class RelationshipTest {
         System.out.println(citizen1.getPassport().getCitizen());
     }
 
-//    @Test
+    @Test
     void loadRelationship() {
         config.register(Department.class, Employee.class);
         sessionFactory = config.buildSessionFactory();
@@ -512,7 +512,7 @@ public class RelationshipTest {
         System.out.println(employee.getDepartment());
     }
 
-//    @Test
+    @Test
     void loadMany2Many() {
         config.register(Student.class, Course.class);
         sessionFactory = config.buildSessionFactory();

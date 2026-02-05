@@ -138,6 +138,12 @@ public class JoinedTableInheritanceStrategy extends AbstractInheritanceStrategy 
             assert entityMetadata != null;
             EntityMetadata root = entityMetadata.getInheritanceMetadata().getRootClass();
 
+            List<PropertyMetadata> idColumns = new ArrayList<>(root.getIdColumns().values());
+            // get provided ids
+            Set<String> idProvided = getProvidedIds(entity);
+            // composite keys error handling
+            String idProp = getIdNameAndCheckCompositeKey(idProvided, idColumns);
+
             for (EntityMetadata meta : visitingChain) {
                 List<String> columns = new ArrayList<>();
                 List<Object> values = new ArrayList<>();
@@ -193,7 +199,7 @@ public class JoinedTableInheritanceStrategy extends AbstractInheritanceStrategy 
                 System.out.println("Joined Insert SQL (" + (isRoot ? "ROOT" : "CHILD") + "): " + sql);
                 System.out.println("Values: " + values);
 
-                Long currentResult = jdbc.insert(sql.toString(), values.toArray());
+                Long currentResult = jdbc.insert(sql.toString(), isRoot ? idProp : "", values.toArray());
 
                 if (isRoot) {
                     boolean hasAutoIncrementId = meta.getIdColumns().values().stream().anyMatch(PropertyMetadata::isAutoIncrement);
@@ -201,8 +207,8 @@ public class JoinedTableInheritanceStrategy extends AbstractInheritanceStrategy 
                     if (hasAutoIncrementId) {
                         generatedId = currentResult;
 
-                        for (PropertyMetadata idProp : meta.getIdColumns().values()) {
-                            ReflectionUtils.setFieldValue(entity, idProp.getName(), generatedId);
+                        for (PropertyMetadata idPropName : meta.getIdColumns().values()) {
+                            ReflectionUtils.setFieldValue(entity, idPropName.getName(), generatedId);
                         }
                     } else {
                         String idPropName = meta.getIdColumns().values().iterator().next().getName();

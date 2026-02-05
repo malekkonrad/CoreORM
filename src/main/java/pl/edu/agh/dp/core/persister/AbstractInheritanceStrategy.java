@@ -184,6 +184,60 @@ public abstract class AbstractInheritanceStrategy implements InheritanceStrategy
         }
     }
 
+    protected Set<String> getProvidedIds(Object entity) {
+        assert entityMetadata != null;
+        Set<String> idProvided = new HashSet<>();
+        for (PropertyMetadata pm : entityMetadata.getIdColumns().values()) {
+            Object value = ReflectionUtils.getFieldValue(entity, pm.getName());
+            // TODO handle null in the value, cause it could be set to null explicitly
+            if (value != null) {
+                idProvided.add(pm.getName());
+            } else {
+                if (!pm.isNullable() && !pm.isAutoIncrement()) {
+                    throw new IntegrityException(
+                            "In entity: " + entity + "\n" +
+                            "Field: '" + pm.getName() + "' is not nullable"
+                    );
+                }
+            }
+        }
+        return idProvided;
+    }
+
+    protected String getIdNameAndCheckCompositeKey(Set<String> idProvided, List<PropertyMetadata> idColumns) {
+        boolean isCompositeKey = idColumns.size() > 1;
+        if (isCompositeKey) {
+            if (idProvided.size() != idColumns.size()) {
+                List<String> compositeKey = new ArrayList<>();
+                List<String> missingIds = new ArrayList<>();
+                for (PropertyMetadata pm : idColumns) {
+                    if (!idProvided.contains(pm.getName())) {
+                        missingIds.add(pm.getName());
+                    }
+                    compositeKey.add(pm.getName());
+                }
+                throw new IntegrityException(
+                        "Not all identifiers are set. You must set all ids in composite key.\n" +
+                                "Composite key: (" + String.join(", ", compositeKey) + ")\n" +
+                                "Missing/unset fields: (" + String.join(", ", missingIds) + ")"
+                );
+            }
+        } else {
+            if (!idProvided.isEmpty() && idColumns.get(0).isAutoIncrement()) {
+                throw new IntegrityException(
+                        "You cannot set an id that is auto increment.\n" +
+                                "Tried to set: '" + idColumns.get(0).getName() + "' that is an auto incremented id.\n" +
+                                "Remove the auto increment or don't set it.");
+            } else if (idProvided.isEmpty() && !idColumns.get(0).isAutoIncrement()) {
+                throw new IntegrityException(
+                        "You must set an id that is not auto increment.\n" +
+                                "Field: '" + idColumns.get(0).getName() + "' is not set.\n" +
+                                "Add auto increment or set this field.");
+            }
+        }
+        return isCompositeKey ? "" : idColumns.iterator().next().getColumnName();
+    }
+
     /**
      * Helper: Buduje WHERE clause dla ID
      */

@@ -19,7 +19,7 @@ import java.time.LocalDateTime;
 @Setter
 @NoArgsConstructor
 @Inheritance(strategy = InheritanceType.TABLE_PER_CLASS)
-@Entity
+//@Entity
 public class Notification {
     @Id(autoIncrement = true)
     private Long id;

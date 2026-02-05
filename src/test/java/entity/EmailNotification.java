@@ -12,7 +12,7 @@ import pl.edu.agh.dp.api.annotations.Entity;
 @Getter
 @Setter
 @NoArgsConstructor
-@Entity
+//@Entity
 public class EmailNotification extends Notification {
 
     @Column(nullable = false)

@@ -15,7 +15,7 @@ import java.time.LocalDate;
 @Setter
 @NoArgsConstructor
 @DiscriminatorValue("CV")
-@Entity
+//@Entity
 public class Cirriculum extends Document {
 
     private String name;
