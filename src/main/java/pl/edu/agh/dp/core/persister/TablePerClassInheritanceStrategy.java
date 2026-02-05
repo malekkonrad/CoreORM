@@ -150,10 +150,12 @@ public class TablePerClassInheritanceStrategy extends AbstractInheritanceStrateg
                 continue; // ID nie jest aktualizowane
             }
 
-            setColumns.add(prop.getColumnName() + " = ?");
+            setColumns.add(prop.getColumnName());
             Object value = ReflectionUtils.getFieldValue(entity, prop.getName());
             values.add(value);
         }
+
+        fillRelationshipData(entity, entityMetadata, setColumns, values);
 
         // WHERE clause
 //        Object idValue = getIdValue(entity);
@@ -166,7 +168,7 @@ public class TablePerClassInheritanceStrategy extends AbstractInheritanceStrateg
 
         StringBuilder sql = new StringBuilder();
         sql.append("UPDATE ").append(tableName)
-                .append(" SET ").append(String.join(", ", setColumns))
+                .append(" SET ").append(String.join(" = ?, ", setColumns)).append(setColumns.isEmpty() ? "" : " = ?")
                 .append(" WHERE ").append(entityMetadata.getSelectByIdStatement(entity).getStatement(tableName));
 
         System.out.println("TablePerClass UPDATE SQL: " + sql);

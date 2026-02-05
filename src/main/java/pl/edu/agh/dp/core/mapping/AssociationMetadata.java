@@ -136,21 +136,24 @@ public class AssociationMetadata {
         }
 
         // add alias if necessary
-        String alias = tableName == targetTableName ? AssociationMetadata.alias : tableName;
+        boolean isAlias = tableName == targetTableName;
+        String alias = isAlias ? AssociationMetadata.alias : targetTableName;
         // append table name
-        joinStmt.append(tableName).append(" AS ").append(alias).append(" ON ");
+        joinStmt.append(tableName);
+        if (isAlias) joinStmt.append(" AS ").append(alias);
+        joinStmt.append(" ON ");
 
         List<String> conditions = new ArrayList<>();
         for (int i = 0; i < joinColumns.size(); i++) {
             PropertyMetadata pm = joinColumns.get(i);
             PropertyMetadata targetPm = targetJoinColumns.get(i);
             conditions.add(
-                    alias + "." + pm.getColumnName() + " = "
-                    + TargetStatement.getTargetName() + "." + targetPm.getColumnName()
+                    tableName + "." + pm.getColumnName() + " = "
+                    + (isAlias ? alias : TargetStatement.getTargetName()) + "." + targetPm.getColumnName()
             );
         }
         joinStmt.append(String.join(" AND ", conditions));
-        return new TargetStatement(joinStmt.toString(), targetTableName);
+        return new TargetStatement(joinStmt.toString(), alias);
     }
 
     @Override
