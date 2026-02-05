@@ -206,7 +206,7 @@ public class ComplexTest {
         }
     }
 
-//    @Test
+    @Test
     public void complexTest() {
         config.register(AnimalOwner.class, Animal.class, Cat.class, Dog.class);
         sessionFactory = config.buildSessionFactory();
@@ -259,7 +259,7 @@ public class ComplexTest {
         }
     }
 
-//    @Test
+    @Test
     public void doubleInheritanceTest() {
         config.register(AnimalOwner.class, BadAnimalOwner.class, Animal.class, Cat.class, Dog.class);
         sessionFactory = config.buildSessionFactory();
