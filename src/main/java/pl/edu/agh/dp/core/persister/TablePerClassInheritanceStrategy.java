@@ -144,6 +144,9 @@ public class TablePerClassInheritanceStrategy extends AbstractInheritanceStrateg
         if (!values.isEmpty()) sql.deleteCharAt(sql.length() - 1); // sanity check if inserting nothing
         sql.append(")");
 
+        System.out.println(sql.toString());
+        System.out.println(values.toString());
+
         Long generatedId;
         try {
             JdbcExecutor jdbc = session.getJdbcExecutor();
