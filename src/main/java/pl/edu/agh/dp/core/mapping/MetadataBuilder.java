@@ -502,7 +502,7 @@ public class MetadataBuilder {
         }
 
         if (type == java.time.LocalDateTime.class) {
-            return "DATETIME";
+            return "TIMESTAMP WITH TIME ZONE";
         }
 
         if (type == java.time.OffsetDateTime.class) {

@@ -26,9 +26,12 @@ public class TargetStatement {
     }
 
     public String getStatement() {
-//        if (targetTableName == null) {
-//            throw new IllegalStateException("targetTableName not set");
-//        }
+        if (targetTableName == null) {
+            if (stmt.isEmpty()) {
+                return "";
+            }
+            throw new IllegalStateException("targetTableName not set");
+        }
         return getStatement(targetTableName);
     }
 
