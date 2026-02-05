@@ -1,5 +1,6 @@
 package pl.edu.agh.dp;
 
+import entity.Employee;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
@@ -63,7 +64,7 @@ public class ExampleAppTest {
 
     @Test
     public void appTest() {
-        config.register();
+        config.register(Employee.class);
         sessionFactory = config.buildSessionFactory();
         session = sessionFactory.openSession();
     }

@@ -1,4 +1,4 @@
-package pl.edu.agh.dp.entity;
+package entity;
 
 import lombok.Getter;
 import lombok.NoArgsConstructor;
