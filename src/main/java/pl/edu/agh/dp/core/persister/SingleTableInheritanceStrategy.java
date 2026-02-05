@@ -173,11 +173,13 @@ public class SingleTableInheritanceStrategy extends AbstractInheritanceStrategy 
 
             // Tylko pola należące do tej klasy lub jej przodków
             if (fieldBelongsToClass(prop, entity.getClass())) {
-                setColumns.add(prop.getColumnName() + " = ?");
+                setColumns.add(prop.getColumnName());
                 Object value = pl.edu.agh.dp.core.util.ReflectionUtils.getFieldValue(entity, prop.getName());
                 values.add(value);
             }
         }
+
+        fillRelationshipData(entity, entityMetadata, setColumns, values);
 
         // WHERE clause
         Object idValue = getIdValue(entity);
@@ -190,7 +192,7 @@ public class SingleTableInheritanceStrategy extends AbstractInheritanceStrategy 
 
         StringBuilder sql = new StringBuilder();
         sql.append("UPDATE ").append(tableName)
-                .append(" SET ").append(String.join(", ", setColumns))
+                .append(" SET ").append(String.join(" = ?, ", setColumns)).append(setColumns.isEmpty() ? "" : " = ?")
                 .append(" WHERE ").append(whereClause);
 
         System.out.println("SingleTable UPDATE SQL: " + sql);

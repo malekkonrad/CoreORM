@@ -247,10 +247,12 @@ public class JoinedTableInheritanceStrategy extends AbstractInheritanceStrategy 
                         continue; // ID nie jest aktualizowane
                     }
 
-                    setColumns.add(prop.getColumnName() + " = ?");
+                    setColumns.add(prop.getColumnName());
                     Object value = ReflectionUtils.getFieldValue(entity, prop.getName());
                     values.add(value);
                 }
+
+                fillRelationshipData(entity, meta, setColumns, values);
 
                 // Jeśli brak kolumn do aktualizacji, pomiń tę tabelę
                 if (setColumns.isEmpty()) {
@@ -268,7 +270,7 @@ public class JoinedTableInheritanceStrategy extends AbstractInheritanceStrategy 
 
                 StringBuilder sql = new StringBuilder();
                 sql.append("UPDATE ").append(meta.getTableName())
-                        .append(" SET ").append(String.join(", ", setColumns))
+                        .append(" SET ").append(String.join(" = ?, ", setColumns)).append(setColumns.isEmpty() ? "" : " = ?")
                         .append(" WHERE ").append(whereClause);
 
                 System.out.println("Joined UPDATE SQL (" + meta.getTableName() + "): " + sql);
