@@ -1,5 +1,6 @@
 package pl.edu.agh.dp;
 
+import entity.Department;
 import entity.Employee;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -67,20 +68,44 @@ public class ExampleAppTest {
 
     @Test
     public void appTest() {
-        config.register(Employee.class);
+        config.register(
+                Employee.class, Department.class
+        );
         sessionFactory = config.buildSessionFactory();
         session = sessionFactory.openSession();
 
-        Employee employee = new Employee();
-        employee.setFirstName("Jan");
-        employee.setLastName("Smith");
-        employee.setEmail("jan.smith@gmail.com");
-        employee.setPhone("102495723");
-        employee.setHireDate(LocalDate.now());
-        employee.setSalary(new BigDecimal(3480));
-        employee.setEmployeeCode("strhenrst");
-        employee.setPosition("succ");
-        session.save(employee);
-        session.commit();
+        {
+            Employee employee = new Employee();
+            employee.setFirstName("Jan");
+            employee.setLastName("Smith");
+            employee.setEmail("jan.smith@gmail.com");
+            employee.setPhone("102495723");
+            employee.setHireDate(LocalDate.now());
+            employee.setSalary(new BigDecimal(3480));
+            employee.setEmployeeCode("strhenrst");
+            employee.setPosition("succ");
+            session.save(employee);
+            session.commit();
+        }
+
+        {
+            Employee employee = new Employee();
+            employee.setFirstName("Jan2");
+            employee.setLastName("Smith2");
+            employee.setEmail("jan.smith2@gmail.com");
+            employee.setPhone("1024957232");
+            employee.setHireDate(LocalDate.now());
+            employee.setSalary(new BigDecimal(34802));
+            employee.setEmployeeCode("strhen");
+            employee.setPosition("succ2");
+            session.save(employee);
+            session.commit();
+        }
+
+        session.close();
+        session = sessionFactory.openSession();
+
+        List<Employee> employees = session.findAll(Employee.class);
+        System.out.println(employees);
     }
 }

@@ -58,4 +58,9 @@ public class Employee {
     @ManyToOne(mappedBy = "employees")
     @JoinColumn(joinColumns = {"department"}, nullable = true)
     private Department department;
+
+    @Override
+    public String toString() {
+        return "Employee [id=" + id + ", firstName=" + firstName + ", lastName=" + lastName;
+    }
 }

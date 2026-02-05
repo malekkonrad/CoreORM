@@ -28,7 +28,7 @@ public class TablePerClassInheritanceStrategy extends AbstractInheritanceStrateg
         TargetStatement whereStmt = entityMetadata.getSelectByIdStatement(entity);
 //        // table per class is it's own root
         whereStmt.setTargetTableName(entityMetadata.getTableName());
-        whereStmt.setTargetTableName(joinStmt.getRootTableName());
+        whereStmt.setTargetTableName(joinStmt.getRootTableName()); // FIXME remove previous
 
         return new PairTargetStatements(whereStmt, joinStmt);
     }
@@ -357,11 +357,9 @@ public class TablePerClassInheritanceStrategy extends AbstractInheritanceStrateg
 
         // 2. Zbieramy WSZYSTKIE unikalne nazwy kolumn ze wszystkich podklas
         // Np. [id, name, age, how, cat_name]
-        Set<String> allPossibleColumns = new LinkedHashSet<>();
+        Map<String, PropertyMetadata> allProperties = new HashMap<>();
         for (EntityMetadata meta : concreteSubclasses) {
-            for (PropertyMetadata pm : meta.getProperties().values()) {
-                allPossibleColumns.add(pm.getColumnName());
-            }
+            allProperties.putAll(meta.getProperties());
         }
 
         // 3. Budujemy zapytanie UNION ALL z wypełnianiem NULLami
@@ -371,9 +369,7 @@ public class TablePerClassInheritanceStrategy extends AbstractInheritanceStrateg
             EntityMetadata subMeta = concreteSubclasses.get(i);
 
             // Zbiór kolumn, które ta konkretna tabela faktycznie posiada
-            Set<String> subTableColumns = subMeta.getProperties().values().stream()
-                    .map(PropertyMetadata::getColumnName)
-                    .collect(Collectors.toSet());
+            Map<String, PropertyMetadata> subTableProperties = subMeta.getProperties();
 
             String tableName = subMeta.getTableName();
 
@@ -381,14 +377,15 @@ public class TablePerClassInheritanceStrategy extends AbstractInheritanceStrateg
 
             // Iterujemy po WSZYSTKICH możliwych kolumnach hierarchii
             List<String> selectionParts = new ArrayList<>();
-            for (String colName : allPossibleColumns) {
-                if (subTableColumns.contains(colName)) {
+            for (String fieldName : allProperties.keySet()) {
+                String columnName = allProperties.get(fieldName).getColumnName();
+                if (subTableProperties.containsKey(fieldName)) {
                     // Tabela ma tę kolumnę -> wybieramy ją
-                    selectionParts.add(tableName + "." + colName);
+                    selectionParts.add(tableName + "." + columnName);
                 } else {
                     // Tabela nie ma tej kolumny -> wstawiamy NULL i aliasujemy nazwą kolumny
                     // (alias jest ważny, żeby ResultSet wiedział jak nazwać kolumnę)
-                    selectionParts.add("NULL AS " + colName);
+                    selectionParts.add("NULL AS " + columnName);
                 }
             }
 
@@ -419,14 +416,14 @@ public class TablePerClassInheritanceStrategy extends AbstractInheritanceStrateg
         try {
             JdbcExecutor jdbc = session.getJdbcExecutor();
             // Przekazujemy listę wszystkich kolumn, żeby mapper wiedział co mapować
-            return jdbc.query(sql, rs -> mapPolymorphicEntityFull(rs, type, allPossibleColumns));
+            return jdbc.query(sql, rs -> mapPolymorphicEntityFull(rs, type, allProperties));
         } catch (Exception e) {
             throw new RuntimeException("Error finding all entities in TPC", e);
         }
     }
 
     // Nowy mapper, który potrafi obsłużyć pola z podklas
-    private <T> T mapPolymorphicEntityFull(ResultSet rs, Class<T> baseType, Set<String> allColumns) throws SQLException {
+    private <T> T mapPolymorphicEntityFull(ResultSet rs, Class<T> baseType, Map<String, PropertyMetadata> allProperties) throws SQLException {
         try {
             // 1. Odczytujemy DTYPE
             String className = rs.getString("DTYPE");
@@ -437,8 +434,9 @@ public class TablePerClassInheritanceStrategy extends AbstractInheritanceStrateg
 
             // 3. Wypełniamy pola używając ReflectionUtils
             // Iterujemy po kolumnach dostępnych w SQL (allColumns), a nie polach klasy bazowej
-            for (String colName : allColumns) {
+            for (String fieldName : allProperties.keySet()) {
                 try {
+                    String colName = allProperties.get(fieldName).getColumnName();
                     Object value = rs.getObject(colName);
 
                     // Jeśli wartość jest NULL (np. kolumna z innej klasy), to po prostu nic nie robimy
@@ -448,7 +446,7 @@ public class TablePerClassInheritanceStrategy extends AbstractInheritanceStrateg
                         // DLA UPROSZCZENIA: zakładam tutaj, że w Twoim kodzie nazwa kolumny == nazwa pola (zazwyczaj tak jest w prostych ORM)
                         // W pełnej wersji musiałbyś przeszukać metadane realClass, żeby znaleźć pole dla danej kolumny.
 
-                        String fieldName = colName; // Uproszczenie!
+//                        String fieldName = colName; // Uproszczenie!
 
                         // Fix dla Integer -> Long
                         if (value instanceof Integer) {
