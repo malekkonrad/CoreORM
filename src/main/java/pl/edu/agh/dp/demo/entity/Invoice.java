@@ -15,7 +15,7 @@ import java.time.LocalDate;
 @Setter
 @NoArgsConstructor
 @DiscriminatorValue("INVOICE")
-public class Invoice extends Document {
+public class Invoice extends Report {
 
     private String invoiceNumber;
 
