@@ -76,7 +76,7 @@ public class PropertyMetadata implements Cloneable {
     public String toSqlConstraint(String tableName) {
         if (references != null) {
             // TODO change to postgres later
-            return "CONSTRAINT IF NOT EXISTS " + tableName + "_" + columnName + "_constraint FOREIGN KEY (" + columnName + ")\n" +
+            return "CONSTRAINT " + tableName + "_" + columnName + "_constraint FOREIGN KEY (" + columnName + ")\n" +
                     "REFERENCES " + references;
 //            return "CONSTRAINT " + columnName + "_constraint FOREIGN KEY (" + columnName + ")\n" +
 //                    "REFERENCES " + references + " MATCH SIMPLE\n" +

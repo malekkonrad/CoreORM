@@ -48,7 +48,7 @@ public class EntitySet<T> implements Set<T> {
     private String getHash(Class<?> entityClass, Object id) {
         EntityPersister persister = entityPersisters.get(entityClass);
         if (persister == null) {
-            throw new RuntimeException("No persister found for " + entityClass);
+            throw new IntegrityException("No persister found for " + entityClass);
         }
 
         StringBuilder hash = new StringBuilder();
@@ -106,7 +106,7 @@ public class EntitySet<T> implements Set<T> {
         try {
             hash = getHash(o);
         } catch (RuntimeException e) {
-            System.out.println("Unable to get hash: " + e);
+            System.out.println(o.getClass().getSimpleName() + " is not cached.");
             return false;
         }
         return map.containsKey(hash);
