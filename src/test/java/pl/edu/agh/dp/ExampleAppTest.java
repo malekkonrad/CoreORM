@@ -14,10 +14,13 @@ import pl.edu.agh.dp.api.SessionFactory;
 import pl.edu.agh.dp.api.annotations.*;
 import pl.edu.agh.dp.core.mapping.InheritanceType;
 
+import java.math.BigDecimal;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.time.LocalDate;
+import java.util.Date;
 import java.util.List;
 
 public class ExampleAppTest {
@@ -67,5 +70,17 @@ public class ExampleAppTest {
         config.register(Employee.class);
         sessionFactory = config.buildSessionFactory();
         session = sessionFactory.openSession();
+
+        Employee employee = new Employee();
+        employee.setFirstName("Jan");
+        employee.setLastName("Smith");
+        employee.setEmail("jan.smith@gmail.com");
+        employee.setPhone("102495723");
+        employee.setHireDate(LocalDate.now());
+        employee.setSalary(new BigDecimal(3480));
+        employee.setEmployeeCode("strhenrst");
+        employee.setPosition("succ");
+        session.save(employee);
+        session.commit();
     }
 }
