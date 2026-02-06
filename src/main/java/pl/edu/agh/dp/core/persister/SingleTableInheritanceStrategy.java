@@ -263,7 +263,7 @@ public class SingleTableInheritanceStrategy extends AbstractInheritanceStrategy 
         List<String> discNames = new ArrayList<>();
         discNames.add(discName);
         if (!this.entityMetadata.getInheritanceMetadata().getChildren().isEmpty()) {
-            List<EntityMetadata> childrenToVisit = this.entityMetadata.getInheritanceMetadata().getChildren();
+            List<EntityMetadata> childrenToVisit = new ArrayList<>(this.entityMetadata.getInheritanceMetadata().getChildren());
             while (!childrenToVisit.isEmpty()) {
                 var child =  childrenToVisit.get(0);
                 var childType = child.getEntityClass();
