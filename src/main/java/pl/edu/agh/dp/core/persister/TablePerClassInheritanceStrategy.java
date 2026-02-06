@@ -10,6 +10,7 @@ import javafx.util.Pair;
 import java.sql.Date;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.time.LocalDate;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -435,37 +436,14 @@ public class TablePerClassInheritanceStrategy extends AbstractInheritanceStrateg
             // 3. Wypełniamy pola używając ReflectionUtils
             // Iterujemy po kolumnach dostępnych w SQL (allColumns), a nie polach klasy bazowej
             for (String fieldName : allProperties.keySet()) {
-                try {
-                    String colName = allProperties.get(fieldName).getColumnName();
-                    Object value = rs.getObject(colName);
+                PropertyMetadata pm = allProperties.get(fieldName);
+                String colName = pm.getColumnName();
+                Object value = rs.getObject(colName);
 
-                    // Jeśli wartość jest NULL (np. kolumna z innej klasy), to po prostu nic nie robimy
-                    if (value != null) {
-                        // Musimy znaleźć nazwę pola w klasie na podstawie nazwy kolumny
-                        // To wymagałoby mapy kolumna -> pole.
-                        // DLA UPROSZCZENIA: zakładam tutaj, że w Twoim kodzie nazwa kolumny == nazwa pola (zazwyczaj tak jest w prostych ORM)
-                        // W pełnej wersji musiałbyś przeszukać metadane realClass, żeby znaleźć pole dla danej kolumny.
-
-//                        String fieldName = colName; // Uproszczenie!
-
-                        // Fix dla Integer -> Long
-                        if (value instanceof Integer) {
-                            // Sprawdźmy typ pola w klasie docelowej
-                            try {
-                                var field = ReflectionUtils.findField(realClass, fieldName); // Twoja metoda findField powinna zwracać Field
-                                if (field.getType() == Long.class) {
-                                    value = ((Integer) value).longValue();
-                                }
-                            } catch (Exception e) {
-                                // ignoruj jeśli pole nie istnieje
-                            }
-                        }
-
-                        ReflectionUtils.setFieldValue(instance, fieldName, value);
-                    }
-                } catch (Exception e) {
-                    // Ignorujemy błędy mapowania pojedynczych pól (np. gdy pole w klasie nazywa się inaczej niż kolumna)
-                    // W produkcji trzeba tu użyć metadanych: column -> field name
+                // Jeśli wartość jest NULL (np. kolumna z innej klasy), to po prostu nic nie robimy
+                if (value != null) {
+                    Object castedValue = castSqlValueToJava(pm.getType(), value);
+                    ReflectionUtils.setFieldValue(instance, fieldName, castedValue);
                 }
             }
             return baseType.cast(instance);

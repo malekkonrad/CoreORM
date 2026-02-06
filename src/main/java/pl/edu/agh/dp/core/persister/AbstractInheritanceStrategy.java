@@ -8,12 +8,10 @@ import pl.edu.agh.dp.core.mapping.EntityMetadata;
 import pl.edu.agh.dp.core.mapping.PropertyMetadata;
 import pl.edu.agh.dp.core.util.ReflectionUtils;
 
+import java.math.BigDecimal;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.time.LocalDate;
-import java.time.LocalDateTime;
-import java.time.LocalTime;
-import java.time.OffsetDateTime;
+import java.time.*;
 import java.util.*;
 import java.util.stream.Stream;
 
@@ -279,4 +277,82 @@ public abstract class AbstractInheritanceStrategy implements InheritanceStrategy
             return false;
         }
     }
+
+    protected static Object castSqlValueToJava(Class<?> targetType, Object sqlValue) {
+        if (sqlValue == null) {
+            return null;
+        }
+
+        // Already correct type
+        if (targetType.isInstance(sqlValue)) {
+            return sqlValue;
+        }
+
+        // --- Date & Time ---
+        if (targetType == LocalDate.class && sqlValue instanceof java.sql.Date d) {
+            return d.toLocalDate();
+        }
+
+        if (targetType == LocalTime.class && sqlValue instanceof java.sql.Time t) {
+            return t.toLocalTime();
+        }
+
+        if (targetType == LocalDateTime.class && sqlValue instanceof java.sql.Timestamp ts) {
+            return ts.toLocalDateTime();
+        }
+
+        if (targetType == OffsetDateTime.class && sqlValue instanceof java.sql.Timestamp ts) {
+            return ts.toInstant().atOffset(ZoneOffset.UTC);
+        }
+
+        // --- Numeric ---
+        if (targetType == Integer.class && sqlValue instanceof Number n) {
+            return n.intValue();
+        }
+
+        if (targetType == Long.class && sqlValue instanceof Number n) {
+            return n.longValue();
+        }
+
+        if (targetType == Short.class && sqlValue instanceof Number n) {
+            return n.shortValue();
+        }
+
+        if (targetType == Float.class && sqlValue instanceof Number n) {
+            return n.floatValue();
+        }
+
+        if (targetType == Double.class && sqlValue instanceof Number n) {
+            return n.doubleValue();
+        }
+
+        if (targetType == BigDecimal.class && sqlValue instanceof Number n) {
+            return BigDecimal.valueOf(n.doubleValue());
+        }
+
+        // --- Boolean ---
+        if (targetType == Boolean.class && sqlValue instanceof Boolean b) {
+            return b;
+        }
+
+        // --- UUID ---
+        if (targetType == UUID.class && sqlValue instanceof java.util.UUID u) {
+            return u;
+        }
+
+        if (targetType == UUID.class && sqlValue instanceof String s) {
+            return UUID.fromString(s);
+        }
+
+        // --- String fallback ---
+        if (targetType == String.class) {
+            return sqlValue.toString();
+        }
+
+        throw new IllegalArgumentException(
+                "Cannot cast SQL value of type " + sqlValue.getClass().getName() +
+                        " to Java type " + targetType.getName()
+        );
+    }
+
 }

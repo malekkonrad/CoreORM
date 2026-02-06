@@ -141,6 +141,7 @@ public class ExampleAppTest {
             List<Employee> employees = session.findAll(Employee.class);
             Employee employee = employees.iterator().next();
             assertNotNull(employee.getFirstName());
+            assertEquals(LocalDate.now(), employee.getHireDate());
             assertEquals(3, employees.size());
         }
     }
