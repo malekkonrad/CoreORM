@@ -2,6 +2,9 @@ package pl.edu.agh.dp.core.persister;
 
 import javafx.util.Pair;
 import pl.edu.agh.dp.api.Session;
+import pl.edu.agh.dp.core.finder.Condition;
+import pl.edu.agh.dp.core.finder.QuerySpec;
+import pl.edu.agh.dp.core.finder.Sort;
 import pl.edu.agh.dp.core.jdbc.JdbcExecutor;
 import pl.edu.agh.dp.core.mapping.*;
 import pl.edu.agh.dp.core.util.ReflectionUtils;
@@ -378,6 +381,138 @@ public class JoinedTableInheritanceStrategy extends AbstractInheritanceStrategy 
         } catch (Exception e) {
             throw new RuntimeException("Error finding entities in Joined Strategy", e);
         }
+    }
+
+    @Override
+    public <T> List<T> findBy(Class<T> type, Session session, QuerySpec<T> querySpec) {
+        assert entityMetadata != null;
+        try {
+            // Build the polymorphic query
+            SqlAndParams query = buildPolymorphicQuery(null);
+            
+            List<Object> params = new ArrayList<>(query.params);
+            EntityMetadata root = entityMetadata.getInheritanceMetadata().getRootClass();
+
+            // QuerySpec conditions - need to resolve field to proper table in inheritance hierarchy
+            String querySpecWhere = buildJoinedQuerySpecWhereClause(querySpec, params);
+            if (!querySpecWhere.isEmpty()) {
+                if (query.sql.contains(" WHERE ")) {
+                    query.sql += " AND " + querySpecWhere;
+                } else {
+                    query.sql += " WHERE " + querySpecWhere;
+                }
+            }
+
+            // ORDER BY - need to resolve field to proper table
+            String orderBy = buildJoinedQuerySpecOrderByClause(querySpec);
+            if (!orderBy.isEmpty()) {
+                query.sql += " ORDER BY " + orderBy;
+            }
+
+            // LIMIT/OFFSET
+            query.sql += buildQuerySpecLimitOffsetClause(querySpec);
+
+            System.out.println("Joined Finder SQL: " + query.sql);
+            System.out.println("Joined Finder params: " + params);
+
+            JdbcExecutor jdbc = session.getJdbcExecutor();
+            List<Object> results = jdbc.query(query.sql, this::mapRow, params.toArray());
+
+            // Filter by type
+            List<T> filtered = new ArrayList<>();
+            for (Object obj : results) {
+                if (type.isInstance(obj)) {
+                    filtered.add(type.cast(obj));
+                }
+            }
+            return filtered;
+
+        } catch (Exception e) {
+            throw new RuntimeException("Error finding entities with QuerySpec in Joined Strategy", e);
+        }
+    }
+
+    /**
+     * Helper: Finds the table name where a field is defined in JOINED inheritance hierarchy
+     */
+    private String findTableForField(String fieldName) {
+        EntityMetadata root = entityMetadata.getInheritanceMetadata().getRootClass();
+        List<EntityMetadata> allSubclasses = getAllSubclassesIncludingRoot(root);
+        
+        for (EntityMetadata meta : allSubclasses) {
+            if (meta.getProperties().containsKey(fieldName)) {
+                return meta.getTableName();
+            }
+            if (meta.getIdColumns().containsKey(fieldName)) {
+                return meta.getTableName();
+            }
+        }
+        // Default to root table if not found
+        return root.getTableName();
+    }
+    
+    /**
+     * Helper: Resolves column name for a field in JOINED hierarchy
+     */
+    private String resolveJoinedColumnName(String fieldName) {
+        EntityMetadata root = entityMetadata.getInheritanceMetadata().getRootClass();
+        List<EntityMetadata> allSubclasses = getAllSubclassesIncludingRoot(root);
+        
+        for (EntityMetadata meta : allSubclasses) {
+            PropertyMetadata pm = meta.getProperties().get(fieldName);
+            if (pm != null) {
+                return pm.getColumnName();
+            }
+            pm = meta.getIdColumns().get(fieldName);
+            if (pm != null) {
+                return pm.getColumnName();
+            }
+        }
+        // If not found, assume it's already a column name
+        return fieldName;
+    }
+    
+    /**
+     * Builds WHERE clause for JOINED inheritance, resolving fields to correct tables
+     */
+    private <T> String buildJoinedQuerySpecWhereClause(QuerySpec<T> querySpec, List<Object> params) {
+        if (!querySpec.hasConditions()) {
+            return "";
+        }
+        
+        List<String> sqlConditions = new ArrayList<>();
+        for (Condition condition : querySpec.getConditions()) {
+            String fieldName = condition.getField();
+            String tableName = findTableForField(fieldName);
+            String columnName = resolveJoinedColumnName(fieldName);
+            
+            // Generate SQL with proper table and column name
+            String sql = condition.toSql(tableName)
+                    .replace(tableName + "." + fieldName, tableName + "." + columnName);
+            sqlConditions.add(sql);
+            params.addAll(condition.getParams());
+        }
+        
+        return String.join(" AND ", sqlConditions);
+    }
+    
+    /**
+     * Builds ORDER BY clause for JOINED inheritance, resolving fields to correct tables
+     */
+    private <T> String buildJoinedQuerySpecOrderByClause(QuerySpec<T> querySpec) {
+        if (!querySpec.hasSorting()) {
+            return "";
+        }
+        
+        List<String> sortClauses = new ArrayList<>();
+        for (Sort sort : querySpec.getSortings()) {
+            String fieldName = sort.getField();
+            String tableName = findTableForField(fieldName);
+            String columnName = resolveJoinedColumnName(fieldName);
+            sortClauses.add(tableName + "." + columnName + " " + sort.getDirection().name());
+        }
+        
+        return String.join(", ", sortClauses);
     }
 
     private static class SqlAndParams {

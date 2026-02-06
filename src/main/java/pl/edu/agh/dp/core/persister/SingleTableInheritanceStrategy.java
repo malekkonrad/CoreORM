@@ -2,6 +2,7 @@ package pl.edu.agh.dp.core.persister;
 
 import javafx.util.Pair;
 import pl.edu.agh.dp.api.Session;
+import pl.edu.agh.dp.core.finder.QuerySpec;
 import pl.edu.agh.dp.core.jdbc.JdbcExecutor;
 import pl.edu.agh.dp.core.mapping.*;
 import pl.edu.agh.dp.core.util.ReflectionUtils;
@@ -311,6 +312,79 @@ public class SingleTableInheritanceStrategy extends AbstractInheritanceStrategy 
             return filtered;
         } catch (Exception e) {
             throw new RuntimeException("Error finding all entities", e);
+        }
+    }
+
+    @Override
+    public <T> List<T> findBy(Class<T> type, Session session, QuerySpec<T> querySpec) {
+        assert this.entityMetadata != null;
+        EntityMetadata rootMetadata = this.entityMetadata.getInheritanceMetadata().getRootClass();
+        String tableName = rootMetadata.getTableName();
+        String discriminatorColumn = rootMetadata.getInheritanceMetadata().getDiscriminatorColumnName();
+
+        String discName = rootMetadata.getInheritanceMetadata().getClassToDiscriminator().get(type);
+
+        // Polymorphic logic - include subclasses
+        List<String> discNames = new ArrayList<>();
+        discNames.add(discName);
+        if (!this.entityMetadata.getInheritanceMetadata().getChildren().isEmpty()) {
+            List<EntityMetadata> childrenToVisit = new ArrayList<>(this.entityMetadata.getInheritanceMetadata().getChildren());
+            while (!childrenToVisit.isEmpty()) {
+                var child = childrenToVisit.get(0);
+                var childType = child.getEntityClass();
+                discNames.add(rootMetadata.getInheritanceMetadata().getClassToDiscriminator().get(childType));
+                if (!child.getInheritanceMetadata().getChildren().isEmpty()) {
+                    childrenToVisit.addAll(child.getInheritanceMetadata().getChildren());
+                }
+                childrenToVisit.remove(child);
+            }
+        }
+        
+        StringBuilder discIn = new StringBuilder();
+        for (String name : discNames) {
+            discIn.append("'").append(name).append("',");
+        }
+        discIn = new StringBuilder(discIn.substring(0, discIn.length() - 1));
+
+        List<Object> params = new ArrayList<>();
+        StringBuilder sqlBuilder = new StringBuilder();
+        sqlBuilder.append("SELECT * FROM ").append(tableName);
+
+        // WHERE clause with discriminator
+        sqlBuilder.append(" WHERE ").append(tableName).append(".").append(discriminatorColumn)
+                .append(" IN (").append(discIn).append(")");
+
+        // QuerySpec conditions
+        String querySpecWhere = buildQuerySpecWhereClause(querySpec, tableName, params);
+        if (!querySpecWhere.isEmpty()) {
+            sqlBuilder.append(" AND ").append(querySpecWhere);
+        }
+
+        // ORDER BY
+        String orderBy = buildQuerySpecOrderByClause(querySpec, tableName);
+        if (!orderBy.isEmpty()) {
+            sqlBuilder.append(" ORDER BY ").append(orderBy);
+        }
+
+        // LIMIT/OFFSET
+        sqlBuilder.append(buildQuerySpecLimitOffsetClause(querySpec));
+
+        System.out.println("Finder SQL: " + sqlBuilder.toString());
+        System.out.println("Finder params: " + params);
+
+        try {
+            JdbcExecutor jdbc = session.getJdbcExecutor();
+            List<Object> results = jdbc.query(sqlBuilder.toString(), this::mapEntity, params.toArray());
+
+            List<T> filtered = new ArrayList<>();
+            for (Object obj : results) {
+                if (type.isInstance(obj)) {
+                    filtered.add(type.cast(obj));
+                }
+            }
+            return filtered;
+        } catch (Exception e) {
+            throw new RuntimeException("Error finding entities with QuerySpec", e);
         }
     }
 

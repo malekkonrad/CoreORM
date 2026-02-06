@@ -2,6 +2,9 @@ package pl.edu.agh.dp.core.persister;
 
 import lombok.NoArgsConstructor;
 import pl.edu.agh.dp.core.exceptions.IntegrityException;
+import pl.edu.agh.dp.core.finder.Condition;
+import pl.edu.agh.dp.core.finder.QuerySpec;
+import pl.edu.agh.dp.core.finder.Sort;
 import pl.edu.agh.dp.core.jdbc.JdbcExecutor;
 import pl.edu.agh.dp.core.mapping.AssociationMetadata;
 import pl.edu.agh.dp.core.mapping.EntityMetadata;
@@ -13,6 +16,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.*;
 import java.util.*;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 @NoArgsConstructor(force = true)
@@ -324,6 +328,90 @@ public abstract class AbstractInheritanceStrategy implements InheritanceStrategy
         }
 
         return String.join(" AND ", conditions);
+    }
+
+    /**
+     * Helper: Resolves field name to column name using metadata
+     */
+    protected String resolveColumnName(String fieldName, EntityMetadata meta) {
+        PropertyMetadata pm = meta.getProperties().get(fieldName);
+        if (pm != null) {
+            return pm.getColumnName();
+        }
+        pm = meta.getIdColumns().get(fieldName);
+        if (pm != null) {
+            return pm.getColumnName();
+        }
+        pm = meta.getFkColumns().get(fieldName);
+        if (pm != null) {
+            return pm.getColumnName();
+        }
+        // If not found, assume it's already a column name
+        return fieldName;
+    }
+
+    /**
+     * Helper: Builds WHERE clause from QuerySpec conditions
+     * 
+     * @param querySpec the query specification
+     * @param tableName the table name/alias to use in SQL
+     * @param params list to accumulate parameters (will be modified)
+     * @return SQL WHERE clause (without WHERE keyword), or empty string if no conditions
+     */
+    protected <T> String buildQuerySpecWhereClause(QuerySpec<T> querySpec, String tableName, List<Object> params) {
+        if (!querySpec.hasConditions()) {
+            return "";
+        }
+        
+        List<String> sqlConditions = new ArrayList<>();
+        for (Condition condition : querySpec.getConditions()) {
+            String columnName = resolveColumnName(condition.getField(), entityMetadata);
+            // Generate SQL with proper table alias and column name
+            String sql = condition.toSql(tableName)
+                    .replace(tableName + "." + condition.getField(), 
+                             tableName + "." + columnName);
+            sqlConditions.add(sql);
+            params.addAll(condition.getParams());
+        }
+        
+        return String.join(" AND ", sqlConditions);
+    }
+    
+    /**
+     * Helper: Builds ORDER BY clause from QuerySpec sorting
+     * 
+     * @param querySpec the query specification
+     * @param tableName the table name/alias to use in SQL
+     * @return SQL ORDER BY clause (without ORDER BY keywords), or empty string if no sorting
+     */
+    protected <T> String buildQuerySpecOrderByClause(QuerySpec<T> querySpec, String tableName) {
+        if (!querySpec.hasSorting()) {
+            return "";
+        }
+        
+        return querySpec.getSortings().stream()
+                .map(sort -> {
+                    String columnName = resolveColumnName(sort.getField(), entityMetadata);
+                    return tableName + "." + columnName + " " + sort.getDirection().name();
+                })
+                .collect(Collectors.joining(", "));
+    }
+    
+    /**
+     * Helper: Builds LIMIT/OFFSET clause from QuerySpec
+     * 
+     * @param querySpec the query specification
+     * @return SQL LIMIT/OFFSET clause, or empty string if not specified
+     */
+    protected <T> String buildQuerySpecLimitOffsetClause(QuerySpec<T> querySpec) {
+        StringBuilder sb = new StringBuilder();
+        if (querySpec.hasLimit()) {
+            sb.append(" LIMIT ").append(querySpec.getLimitValue());
+        }
+        if (querySpec.hasOffset()) {
+            sb.append(" OFFSET ").append(querySpec.getOffsetValue());
+        }
+        return sb.toString();
     }
 
     /**

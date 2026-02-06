@@ -3,6 +3,8 @@ package pl.edu.agh.dp.core.api;
 import lombok.Getter;
 import pl.edu.agh.dp.api.Session;
 import pl.edu.agh.dp.core.exceptions.IntegrityException;
+import pl.edu.agh.dp.core.finder.Finder;
+import pl.edu.agh.dp.core.finder.QuerySpec;
 import pl.edu.agh.dp.core.jdbc.JdbcExecutor;
 import pl.edu.agh.dp.core.mapping.*;
 import pl.edu.agh.dp.core.persister.EntityPersister;
@@ -194,6 +196,35 @@ public class SessionImpl implements Session {
         }
         entities.replaceAll(t -> (T) cachedEntities.replaceIfExistsAndAdd(t));
         return entities;
+    }
+
+    @Override
+    public <T> List<T> findBy(QuerySpec<T> querySpec) {
+        Class<T> entityClass = querySpec.getEntityType();
+        EntityPersister persister = entityPersisters.get(entityClass);
+        if (persister == null) {
+            throw new IntegrityException(
+                    "Could not find mapper for class: " + entityClass.getName()
+            );
+        }
+        List<T> entities = persister.findBy(entityClass, this, querySpec);
+        for (T entity : entities) {
+            // fill the relationship data
+            EntityMetadata metadata = persister.getEntityMetadata();
+            for (AssociationMetadata associationMetadata : metadata.getAssociationMetadata().values()) {
+                if (associationMetadata.getCollectionType() == AssociationMetadata.CollectionType.NONE) {
+                    continue;
+                }
+                ReflectionUtils.setFieldValue(entity, associationMetadata.getField(), associationMetadata.createLazyCollection(this, entity));
+            }
+        }
+        entities.replaceAll(t -> (T) cachedEntities.replaceIfExistsAndAdd(t));
+        return entities;
+    }
+
+    @Override
+    public <T> Finder<T> finder(Class<T> entityClass) {
+        return new Finder<>(this, entityClass);
     }
 
     @Override

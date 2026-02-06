@@ -2,6 +2,7 @@ package pl.edu.agh.dp.core.persister;
 
 import pl.edu.agh.dp.api.Session;
 import pl.edu.agh.dp.core.exceptions.IntegrityException;
+import pl.edu.agh.dp.core.finder.QuerySpec;
 import pl.edu.agh.dp.core.jdbc.JdbcExecutor;
 import pl.edu.agh.dp.core.mapping.*;
 import pl.edu.agh.dp.core.util.ReflectionUtils;
@@ -424,6 +425,85 @@ public class TablePerClassInheritanceStrategy extends AbstractInheritanceStrateg
             return jdbc.query(sql, rs -> mapPolymorphicEntityFull(rs, type, allProperties));
         } catch (Exception e) {
             throw new RuntimeException("Error finding all entities in TPC", e);
+        }
+    }
+
+    @Override
+    public <T> List<T> findBy(Class<T> type, Session session, QuerySpec<T> querySpec) {
+        assert entityMetadata != null;
+        
+        // Get all concrete subclasses for polymorphic query
+        List<EntityMetadata> allSubclasses = getAllConcreteSubclasses(entityMetadata);
+        
+        // Collect all properties from the hierarchy
+        Map<String, PropertyMetadata> allProperties = new LinkedHashMap<>();
+        for (EntityMetadata sub : allSubclasses) {
+            allProperties.putAll(sub.getProperties());
+        }
+        
+        List<Object> allParams = new ArrayList<>();
+        StringBuilder sqlBuilder = new StringBuilder();
+        boolean first = true;
+        
+        for (EntityMetadata sub : allSubclasses) {
+            if (!first) {
+                sqlBuilder.append(" UNION ALL ");
+            }
+            first = false;
+            
+            StringBuilder selectPart = new StringBuilder("SELECT ");
+            // Add DTYPE column
+            selectPart.append("'").append(sub.getEntityClass().getName()).append("' AS DTYPE, ");
+            
+            // Add columns with NULL padding for missing columns
+            List<String> columnDefs = new ArrayList<>();
+            for (String fieldName : allProperties.keySet()) {
+                PropertyMetadata pm = sub.getProperties().get(fieldName);
+                if (pm != null) {
+                    columnDefs.add(sub.getTableName() + "." + pm.getColumnName() + " AS " + pm.getColumnName());
+                } else {
+                    columnDefs.add("NULL AS " + allProperties.get(fieldName).getColumnName());
+                }
+            }
+            selectPart.append(String.join(", ", columnDefs));
+            
+            StringBuilder fromWhere = new StringBuilder(" FROM " + sub.getTableName());
+            
+            List<Object> subParams = new ArrayList<>();
+            String querySpecWhere = buildQuerySpecWhereClause(querySpec, sub.getTableName(), subParams);
+            if (!querySpecWhere.isEmpty()) {
+                fromWhere.append(" WHERE ").append(querySpecWhere);
+                allParams.addAll(subParams);
+            }
+            
+            sqlBuilder.append(selectPart).append(fromWhere);
+        }
+        
+        // ORDER BY - needs special handling for UNION
+        String orderBy = buildQuerySpecOrderByClause(querySpec, entityMetadata.getTableName());
+        if (!orderBy.isEmpty()) {
+            // For UNION, we need to order by column name without table prefix
+            String simpleOrderBy = querySpec.getSortings().stream()
+                    .map(sort -> {
+                        String columnName = resolveColumnName(sort.getField(), entityMetadata);
+                        return columnName + " " + sort.getDirection().name();
+                    })
+                    .collect(Collectors.joining(", "));
+            sqlBuilder.append(" ORDER BY ").append(simpleOrderBy);
+        }
+        
+        // LIMIT/OFFSET
+        sqlBuilder.append(buildQuerySpecLimitOffsetClause(querySpec));
+        
+        String sql = sqlBuilder.toString();
+        System.out.println("TPC Finder SQL: " + sql);
+        System.out.println("TPC Finder params: " + allParams);
+        
+        try {
+            JdbcExecutor jdbc = session.getJdbcExecutor();
+            return jdbc.query(sql, rs -> mapPolymorphicEntityFull(rs, type, allProperties), allParams.toArray());
+        } catch (Exception e) {
+            throw new RuntimeException("Error finding entities with QuerySpec in TPC", e);
         }
     }
 
