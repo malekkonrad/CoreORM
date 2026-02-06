@@ -1,6 +1,7 @@
 package pl.edu.agh.dp.core.mapping;
 
 import lombok.Getter;
+import pl.edu.agh.dp.api.annotations.DiscriminatorColumn;
 import pl.edu.agh.dp.api.annotations.DiscriminatorValue;
 import pl.edu.agh.dp.api.annotations.Entity;
 import pl.edu.agh.dp.api.annotations.Inheritance;
@@ -645,8 +646,8 @@ public class MetadataRegistry {
 
         // 1. column name
         String discriminatorColName = "DTYPE";
-        if (rootClass.isAnnotationPresent(DiscriminatorValue.class)) {
-            discriminatorColName = rootClass.getAnnotation(DiscriminatorValue.class).value();
+        if (rootClass.isAnnotationPresent(DiscriminatorColumn.class)) {
+            discriminatorColName = rootClass.getAnnotation(DiscriminatorColumn.class).name();
         }
 
         // save in metadata
