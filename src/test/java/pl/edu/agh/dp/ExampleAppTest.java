@@ -221,4 +221,39 @@ public class ExampleAppTest {
         sessionFactory = config.buildSessionFactory();
         session = sessionFactory.openSession();
     }
+
+    @Test
+    public void createBankAccountTest() {
+        config.register(
+                Account.class, BankAccount.class, InvestmentAccount.class, SavingsAccount.class
+        );
+        sessionFactory = config.buildSessionFactory();
+        session = sessionFactory.openSession();
+
+        {
+            BankAccount bankAccount = new BankAccount();
+            bankAccount.setAccountNumber("12345");
+            bankAccount.setAccountName("tomas");
+            bankAccount.setBalance(new BigDecimal(500));
+            bankAccount.setOpenDate(LocalDate.now());
+            bankAccount.setCurrency("EUR");
+
+            bankAccount.setBankName("Bank Name");
+            bankAccount.setIban("strhni");
+            bankAccount.setSwift("strhen");
+            bankAccount.setBranchCode("34508l");
+            bankAccount.setHasDebitCard(false);
+            bankAccount.setHasOnlineBanking(true);
+            session.save(bankAccount);
+            session.commit();
+        }
+
+        session.close();
+        session = sessionFactory.openSession();
+
+        {
+            BankAccount bankAccount = session.find(BankAccount.class, 1L);
+            assertEquals(bankAccount.getAccountNumber(), "12345");
+        }
+    }
 }

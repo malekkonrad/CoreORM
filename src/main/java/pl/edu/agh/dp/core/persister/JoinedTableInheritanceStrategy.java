@@ -162,9 +162,11 @@ public class JoinedTableInheritanceStrategy extends AbstractInheritanceStrategy 
                         continue;
                     }
 
-                    columns.add(prop.getColumnName());
                     Object value = ReflectionUtils.getFieldValue(entity, prop.getName());
-                    values.add(value);
+                    if (value != null) {
+                        columns.add(prop.getColumnName());
+                        values.add(value);
+                    }
                 }
 
                 if (isRoot) {
