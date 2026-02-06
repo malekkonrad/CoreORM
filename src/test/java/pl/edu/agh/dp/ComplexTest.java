@@ -28,18 +28,56 @@ public class ComplexTest {
     @Setter
     @NoArgsConstructor
     @Inheritance(strategy = InheritanceType.TABLE_PER_CLASS)
-    public static class AnimalOwner {
+    public static class AnimalOwnerT2T {
         @Id(autoIncrement = true)
         Long id2;
         String name;
         @ManyToMany
-        List<Animal> animals;
+        List<AnimalT2T> animals;
     }
 
     @Getter
     @Setter
     @NoArgsConstructor
-    public static class BadAnimalOwner extends AnimalOwner {
+    @Inheritance(strategy = InheritanceType.JOINED)
+    public static class AnimalOwnerJ2J {
+        @Id(autoIncrement = true)
+        Long id2;
+        String name;
+        @ManyToMany
+        List<AnimalJ2J> animals;
+    }
+
+    @Getter
+    @Setter
+    @NoArgsConstructor
+    @Inheritance(strategy = InheritanceType.SINGLE_TABLE)
+    public static class AnimalOwnerS2S {
+        @Id(autoIncrement = true)
+        Long id2;
+        String name;
+        @ManyToMany
+        List<AnimalS2S> animals;
+    }
+
+    @Getter
+    @Setter
+    @NoArgsConstructor
+    public static class BadAnimalOwnerT2T extends AnimalOwnerT2T {
+        String surname;
+    }
+
+    @Getter
+    @Setter
+    @NoArgsConstructor
+    public static class BadAnimalOwnerJ2J extends AnimalOwnerJ2J {
+        String surname;
+    }
+
+    @Getter
+    @Setter
+    @NoArgsConstructor
+    public static class BadAnimalOwnerS2S extends AnimalOwnerS2S {
         String surname;
     }
 
@@ -47,25 +85,79 @@ public class ComplexTest {
     @Setter
     @NoArgsConstructor
     @Inheritance(strategy = InheritanceType.TABLE_PER_CLASS)
-    public static class Animal {
+    public static class AnimalT2T {
         @Id(autoIncrement = true)
         Long id;
         String name;
         @ManyToMany
-        List<AnimalOwner> owner;
+        List<AnimalOwnerT2T> owner;
     }
 
     @Getter
     @Setter
     @NoArgsConstructor
-    public static class Cat extends Animal {
+    public static class CatT2T extends AnimalT2T {
         private String catName;
     }
 
     @Getter
     @Setter
     @NoArgsConstructor
-    public static class Dog extends Animal {
+    public static class DogT2T extends AnimalT2T {
+        Integer age;
+        String color;
+    }
+
+    @Getter
+    @Setter
+    @NoArgsConstructor
+    @Inheritance(strategy = InheritanceType.JOINED)
+    public static class AnimalJ2J {
+        @Id(autoIncrement = true)
+        Long id;
+        String name;
+        @ManyToMany
+        List<AnimalOwnerJ2J> owner;
+    }
+
+    @Getter
+    @Setter
+    @NoArgsConstructor
+    public static class CatJ2J extends AnimalJ2J {
+        private String catName;
+    }
+
+    @Getter
+    @Setter
+    @NoArgsConstructor
+    public static class DogJ2J extends AnimalJ2J {
+        Integer age;
+        String color;
+    }
+
+    @Getter
+    @Setter
+    @NoArgsConstructor
+    @Inheritance(strategy = InheritanceType.SINGLE_TABLE)
+    public static class AnimalS2S {
+        @Id(autoIncrement = true)
+        Long id;
+        String name;
+        @ManyToMany
+        List<AnimalOwnerS2S> owner;
+    }
+
+    @Getter
+    @Setter
+    @NoArgsConstructor
+    public static class CatS2S extends AnimalS2S {
+        private String catName;
+    }
+
+    @Getter
+    @Setter
+    @NoArgsConstructor
+    public static class DogS2S extends AnimalS2S {
         Integer age;
         String color;
     }
@@ -207,26 +299,26 @@ public class ComplexTest {
     }
 
     @Test
-    public void complexTest() {
-        config.register(AnimalOwner.class, Animal.class, Cat.class, Dog.class);
+    public void tablePerClass2TablePerClassTest() {
+        config.register(AnimalOwnerT2T.class, AnimalT2T.class, CatT2T.class, DogT2T.class);
         sessionFactory = config.buildSessionFactory();
         session = sessionFactory.openSession();
 
         Long ownerId;
 
         {
-            Dog dog = new Dog();
+            DogT2T dog = new DogT2T();
             dog.setName("Dog1");
             dog.setColor("black");
             dog.setAge(10);
             dog.setOwner(new ArrayList<>());
 
-            Cat cat = new Cat();
+            CatT2T cat = new CatT2T();
             cat.setCatName("Asteroid destroyer");
             cat.setName("Cat1");
             cat.setOwner(new ArrayList<>());
 
-            AnimalOwner owner = new AnimalOwner();
+            AnimalOwnerT2T owner = new AnimalOwnerT2T();
             owner.setName("John");
             owner.setAnimals(new ArrayList<>() {{
                 add(dog);
@@ -243,7 +335,7 @@ public class ComplexTest {
         session = sessionFactory.openSession();
 
         {
-            AnimalOwner owner = session.find(AnimalOwner.class, ownerId);
+            AnimalOwnerT2T owner = session.find(AnimalOwnerT2T.class, ownerId);
             owner.animals.size();
             System.out.println(owner.animals);
             assertEquals(2, owner.animals.size());
@@ -253,33 +345,33 @@ public class ComplexTest {
         session = sessionFactory.openSession();
 
         {
-            Animal animal = session.find(Animal.class, 1L);
+            AnimalT2T animal = session.find(AnimalT2T.class, 1L);
             session.load(animal, "owner");
             assertNotNull(animal.owner);
         }
     }
 
     @Test
-    public void doubleInheritanceTest() {
-        config.register(AnimalOwner.class, BadAnimalOwner.class, Animal.class, Cat.class, Dog.class);
+    public void tablePerClass2TablePerClassDoubleInheritanceTest() {
+        config.register(AnimalOwnerT2T.class, BadAnimalOwnerT2T.class, AnimalT2T.class, CatT2T.class, DogT2T.class);
         sessionFactory = config.buildSessionFactory();
         session = sessionFactory.openSession();
 
         Long ownerId;
 
         {
-            Dog dog = new Dog();
+            DogT2T dog = new DogT2T();
             dog.setName("Dog1");
             dog.setColor("black");
             dog.setAge(10);
             dog.setOwner(new ArrayList<>());
 
-            Cat cat = new Cat();
+            CatT2T cat = new CatT2T();
             cat.setCatName("Asteroid destroyer");
             cat.setName("Cat1");
             cat.setOwner(new ArrayList<>());
 
-            BadAnimalOwner owner = new BadAnimalOwner();
+            BadAnimalOwnerT2T owner = new BadAnimalOwnerT2T();
             owner.setName("John");
             owner.setSurname("Smith");
             owner.setAnimals(new ArrayList<>() {{
@@ -297,7 +389,7 @@ public class ComplexTest {
         session = sessionFactory.openSession();
 
         {
-            AnimalOwner owner = session.find(AnimalOwner.class, ownerId);
+            AnimalOwnerT2T owner = session.find(AnimalOwnerT2T.class, ownerId);
             owner.animals.size();
             assertEquals(2, owner.animals.size());
         }
@@ -306,7 +398,219 @@ public class ComplexTest {
         session = sessionFactory.openSession();
 
         {
-            Animal animal = session.find(Animal.class, 1L);
+            AnimalT2T animal = session.find(AnimalT2T.class, 1L);
+            session.load(animal, "owner");
+            assertNotNull(animal.owner);
+        }
+    }
+
+    @Test
+    public void joined2JoinedTest() {
+        config.register(AnimalOwnerJ2J.class, AnimalJ2J.class, CatJ2J.class, DogJ2J.class);
+        sessionFactory = config.buildSessionFactory();
+        session = sessionFactory.openSession();
+
+        Long ownerId;
+
+        {
+            DogJ2J dog = new DogJ2J();
+            dog.setName("Dog1");
+            dog.setColor("black");
+            dog.setAge(10);
+            dog.setOwner(new ArrayList<>());
+
+            CatJ2J cat = new CatJ2J();
+            cat.setCatName("Asteroid destroyer");
+            cat.setName("Cat1");
+            cat.setOwner(new ArrayList<>());
+
+            AnimalOwnerJ2J owner = new AnimalOwnerJ2J();
+            owner.setName("John");
+            owner.setAnimals(new ArrayList<>() {{
+                add(dog);
+                add(cat);
+            }});
+
+            session.save(owner);
+            session.commit();
+
+            ownerId = owner.getId2();
+        }
+
+        session.close();
+        session = sessionFactory.openSession();
+
+        {
+            AnimalOwnerJ2J owner = session.find(AnimalOwnerJ2J.class, ownerId);
+            owner.animals.size();
+            System.out.println(owner.animals);
+            assertEquals(2, owner.animals.size());
+        }
+
+        session.close();
+        session = sessionFactory.openSession();
+
+        {
+            AnimalJ2J animal = session.find(AnimalJ2J.class, 1L);
+            session.load(animal, "owner");
+            assertNotNull(animal.owner);
+        }
+    }
+
+    @Test
+    public void joined2JoinedDoubleInheritanceTest() {
+        config.register(AnimalOwnerJ2J.class, BadAnimalOwnerJ2J.class, AnimalJ2J.class, CatJ2J.class, DogJ2J.class);
+        sessionFactory = config.buildSessionFactory();
+        session = sessionFactory.openSession();
+
+        Long ownerId;
+
+        {
+            DogJ2J dog = new DogJ2J();
+            dog.setName("Dog1");
+            dog.setColor("black");
+            dog.setAge(10);
+            dog.setOwner(new ArrayList<>());
+
+            CatJ2J cat = new CatJ2J();
+            cat.setCatName("Asteroid destroyer");
+            cat.setName("Cat1");
+            cat.setOwner(new ArrayList<>());
+
+            BadAnimalOwnerJ2J owner = new BadAnimalOwnerJ2J();
+            owner.setName("John");
+            owner.setSurname("Smith");
+            owner.setAnimals(new ArrayList<>() {{
+                add(dog);
+                add(cat);
+            }});
+
+            session.save(owner);
+            session.commit();
+
+            ownerId = owner.getId2();
+        }
+
+        session.close();
+        session = sessionFactory.openSession();
+
+        {
+            AnimalOwnerJ2J owner = session.find(AnimalOwnerJ2J.class, ownerId);
+            owner.animals.size();
+            assertEquals(2, owner.animals.size());
+        }
+
+        session.close();
+        session = sessionFactory.openSession();
+
+        {
+            AnimalJ2J animal = session.find(AnimalJ2J.class, 1L);
+            session.load(animal, "owner");
+            assertNotNull(animal.owner);
+        }
+    }
+
+    @Test
+    public void single2SingleTest() {
+        config.register(AnimalOwnerS2S.class, AnimalS2S.class, CatS2S.class, DogS2S.class);
+        sessionFactory = config.buildSessionFactory();
+        session = sessionFactory.openSession();
+
+        Long ownerId;
+
+        {
+            DogS2S dog = new DogS2S();
+            dog.setName("Dog1");
+            dog.setColor("black");
+            dog.setAge(10);
+            dog.setOwner(new ArrayList<>());
+
+            CatS2S cat = new CatS2S();
+            cat.setCatName("Asteroid destroyer");
+            cat.setName("Cat1");
+            cat.setOwner(new ArrayList<>());
+
+            AnimalOwnerS2S owner = new AnimalOwnerS2S();
+            owner.setName("John");
+            owner.setAnimals(new ArrayList<>() {{
+                add(dog);
+                add(cat);
+            }});
+
+            session.save(owner);
+            session.commit();
+
+            ownerId = owner.getId2();
+        }
+
+        session.close();
+        session = sessionFactory.openSession();
+
+        {
+            AnimalOwnerS2S owner = session.find(AnimalOwnerS2S.class, ownerId);
+            owner.animals.size();
+            System.out.println(owner.animals);
+            assertEquals(2, owner.animals.size());
+        }
+
+        session.close();
+        session = sessionFactory.openSession();
+
+        {
+            AnimalS2S animal = session.find(AnimalS2S.class, 1L);
+            session.load(animal, "owner");
+            assertNotNull(animal.owner);
+        }
+    }
+
+    @Test
+    public void single2SingleDoubleInheritanceTest() {
+        config.register(AnimalOwnerS2S.class, BadAnimalOwnerS2S.class, AnimalS2S.class, CatS2S.class, DogS2S.class);
+        sessionFactory = config.buildSessionFactory();
+        session = sessionFactory.openSession();
+
+        Long ownerId;
+
+        {
+            DogS2S dog = new DogS2S();
+            dog.setName("Dog1");
+            dog.setColor("black");
+            dog.setAge(10);
+            dog.setOwner(new ArrayList<>());
+
+            CatS2S cat = new CatS2S();
+            cat.setCatName("Asteroid destroyer");
+            cat.setName("Cat1");
+            cat.setOwner(new ArrayList<>());
+
+            BadAnimalOwnerS2S owner = new BadAnimalOwnerS2S();
+            owner.setName("John");
+            owner.setSurname("Smith");
+            owner.setAnimals(new ArrayList<>() {{
+                add(dog);
+                add(cat);
+            }});
+
+            session.save(owner);
+            session.commit();
+
+            ownerId = owner.getId2();
+        }
+
+        session.close();
+        session = sessionFactory.openSession();
+
+        {
+            AnimalOwnerS2S owner = session.find(AnimalOwnerS2S.class, ownerId);
+            owner.animals.size();
+            assertEquals(2, owner.animals.size());
+        }
+
+        session.close();
+        session = sessionFactory.openSession();
+
+        {
+            AnimalS2S animal = session.find(AnimalS2S.class, 1L);
             session.load(animal, "owner");
             assertNotNull(animal.owner);
         }

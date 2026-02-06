@@ -55,7 +55,7 @@ public class BasicTableTest {
     @Setter
     @NoArgsConstructor
     public static class BasicTableWithColumnAnnotations {
-        @Id(autoIncrement = false)
+        @Id(autoIncrement = true)
         Long id;
         @Column(columnName = "anINTEGER", nullable = true, unique = true, defaultValue = "5")
         Integer anInteger;
@@ -206,7 +206,7 @@ public class BasicTableTest {
         assertEquals(t.getId(), found.getId());
     }
 
-//    @Test
+    @Test
     void testBasicTableColumnValidation() {
         config.register(BasicTableWithColumnAnnotations.class);
         sessionFactory = config.buildSessionFactory();
@@ -214,7 +214,7 @@ public class BasicTableTest {
 
         BasicTableWithColumnAnnotations t = new BasicTableWithColumnAnnotations();
         // the rest is set to defaults
-        t.setId(1L);
+//        t.setId(1L);
         session.save(t);
         session.commit();
 
@@ -247,7 +247,7 @@ public class BasicTableTest {
         assertEquals(t.getId(), found.getId());
     }
 
-//    @Test
+    @Test
     void testColumnPropertiesPersistence() {
         config.register(ColumnPropertiesTable.class);
         sessionFactory = config.buildSessionFactory();
@@ -260,6 +260,8 @@ public class BasicTableTest {
         session.commit();
         // TODO update this entity on commit
         // assertEquals("default_val", t.getStatus());
+        session.close();
+        session = sessionFactory.openSession();
 
         ColumnPropertiesTable found = session.find(ColumnPropertiesTable.class, t.getId());
         assertNotNull(found);
