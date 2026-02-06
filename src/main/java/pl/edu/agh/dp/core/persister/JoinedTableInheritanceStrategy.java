@@ -526,10 +526,12 @@ public class JoinedTableInheritanceStrategy extends AbstractInheritanceStrategy 
                 String columnAlias = currentMeta.getTableName() + "_" + prop.getColumnName();
 
                 try {
+                    String fieldName = prop.getName();
                     Object value = getValueFromResultSet(rs, columnAlias, prop.getType());
 
                     if (value != null) {
-                        ReflectionUtils.setFieldValue(instance, prop.getName(), value);
+                        Object castedValue = castSqlValueToJava(prop.getType(), value);
+                        ReflectionUtils.setFieldValue(instance, fieldName, castedValue);
                     }
                 } catch (SQLException e) {
                     // Ignoruj brak kolumny (teoretycznie przy SELECT * z aliasami nie powinno się zdarzyć,

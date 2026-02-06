@@ -335,10 +335,12 @@ public class SingleTableInheritanceStrategy extends AbstractInheritanceStrategy 
                 }
 
                 try {
+                    String fieldName = pm.getName();
                     Object value = getValueFromResultSet(rs, pm);
 
                     if (value != null) {
-                        ReflectionUtils.setFieldValue(entity, pm.getName(), value);
+                        Object castedValue = castSqlValueToJava(pm.getType(), value);
+                        ReflectionUtils.setFieldValue(entity, fieldName, castedValue);
                     }
                 } catch (SQLException e) {
                     // Ignore missing columns
