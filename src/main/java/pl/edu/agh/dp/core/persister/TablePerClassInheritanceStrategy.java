@@ -379,14 +379,15 @@ public class TablePerClassInheritanceStrategy extends AbstractInheritanceStrateg
             // Iterujemy po WSZYSTKICH możliwych kolumnach hierarchii
             List<String> selectionParts = new ArrayList<>();
             for (String fieldName : allProperties.keySet()) {
-                String columnName = allProperties.get(fieldName).getColumnName();
+                PropertyMetadata pm = allProperties.get(fieldName);
+                String columnName = pm.getColumnName();
                 if (subTableProperties.containsKey(fieldName)) {
                     // Tabela ma tę kolumnę -> wybieramy ją
                     selectionParts.add(tableName + "." + columnName);
                 } else {
                     // Tabela nie ma tej kolumny -> wstawiamy NULL i aliasujemy nazwą kolumny
                     // (alias jest ważny, żeby ResultSet wiedział jak nazwać kolumnę)
-                    selectionParts.add("NULL AS " + columnName);
+                    selectionParts.add("NULL::" + pm.getSqlType() +" AS " + columnName);
                 }
             }
 

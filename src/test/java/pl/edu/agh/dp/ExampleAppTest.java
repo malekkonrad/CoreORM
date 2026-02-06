@@ -1,7 +1,6 @@
 package pl.edu.agh.dp;
 
-import entity.Department;
-import entity.Employee;
+import entity.*;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
@@ -212,5 +211,14 @@ public class ExampleAppTest {
             Employee boss = session.find(Employee.class, bossId);
             assertEquals(2, boss.getSubordinates().size());
         }
+    }
+
+    @Test
+    public void findNotificationTest() {
+        config.register(
+                Notification.class, PushNotification.class, EmailNotification.class
+        );
+        sessionFactory = config.buildSessionFactory();
+        session = sessionFactory.openSession();
     }
 }
