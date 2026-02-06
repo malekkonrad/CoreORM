@@ -260,7 +260,7 @@ public class ExampleAppTest {
     @Getter
     @Setter
     @NoArgsConstructor
-    @Inheritance(strategy = InheritanceType.JOINED)
+    @Inheritance(strategy = InheritanceType.SINGLE_TABLE)
     public static class Student {
         @Id(autoIncrement = true)
         Long id;
@@ -274,7 +274,7 @@ public class ExampleAppTest {
     @Getter
     @Setter
     @NoArgsConstructor
-    @Inheritance(strategy = InheritanceType.JOINED)
+    @Inheritance(strategy = InheritanceType.SINGLE_TABLE)
     public static class Course {
         @Id(autoIncrement = true)
         Long id;
@@ -346,6 +346,17 @@ public class ExampleAppTest {
         {
             Student student1 = session.find(Student.class, sid1);
             assertEquals(1, student1.getCourses().size());
+            student1.courses.clear();
+            session.update(student1);
+            session.commit();
+        }
+
+        session.close();
+        session = sessionFactory.openSession();
+
+        {
+            Student student1 = session.find(Student.class, sid1);
+            assertEquals(0, student1.getCourses().size());
         }
     }
 }

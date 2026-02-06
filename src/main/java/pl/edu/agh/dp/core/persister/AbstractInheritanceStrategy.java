@@ -183,6 +183,81 @@ public abstract class AbstractInheritanceStrategy implements InheritanceStrategy
         }
     }
 
+    protected void updateAssociationTables(JdbcExecutor jdbc, Object entity) {
+        assert entityMetadata != null;
+
+        // handle relationships
+        for (AssociationMetadata am : entityMetadata.getAssociationMetadata().values()) {
+            Object value = ReflectionUtils.getFieldValue(entity, am.getField());
+            if (value != null
+                && am.getType() == AssociationMetadata.Type.MANY_TO_MANY)
+            {
+                List<String> targetRef = new ArrayList<>();
+                List<String> currentRef = new ArrayList<>();
+
+                String assFieldname = am.getField();
+                EntityMetadata assTable = am.getAssociationTable();
+
+                List<String> assColumns = new ArrayList<>();
+                for (PropertyMetadata pm : am.getTargetJoinColumns()) {
+                    currentRef.add(pm.getReferencedName());
+                    assColumns.add(pm.getColumnName());
+                }
+                for (PropertyMetadata pm : am.getJoinColumns()) {
+                    targetRef.add(pm.getReferencedName());
+                    assColumns.add(pm.getColumnName());
+                }
+                String assStmt = "INSERT INTO " + assTable.getTableName() +
+                        " (" + String.join(", ", assColumns) + " )" +
+                        " VALUES ";
+                String assValuesStmt = "(" + "?,".repeat(assColumns.size() - 1) + "?)";
+
+                System.out.println(assStmt);
+                List<List<Object>> assAssValues = new ArrayList<>();
+                assAssValues.add(new ArrayList<>());
+                for (String fieldName : currentRef) {
+                    System.out.println(fieldName + " from " + entity.getClass().getSimpleName());
+                    Object field = ReflectionUtils.getFieldValue(entity, fieldName);
+                    assAssValues.get(0).add(field);
+                }
+                Collection<?> assField = (Collection<?>) ReflectionUtils.getFieldValue(entity, assFieldname);
+                for (Object relationshipEntity : assField) {
+                    // first is the example, copy it and fill with the other values
+                    assAssValues.add(new ArrayList<>(){{addAll(assAssValues.get(0));}});
+                    List<Object> assValues = assAssValues.get(assAssValues.size() - 1);
+                    for (String fieldName : targetRef) {
+                        System.out.println(fieldName + " from " + relationshipEntity.getClass().getSimpleName());
+                        Object field = ReflectionUtils.getFieldValue(relationshipEntity, fieldName);
+                        assValues.add(field);
+                    }
+                }
+                // FIXME this is dumb
+                StringBuilder deleteStmt = new StringBuilder("DELETE FROM " + assTable.getTableName() + " WHERE");
+                for (int i = 0; i < currentRef.size(); i++) {
+                    String colName = assColumns.get(i);
+                    Object colValue = assAssValues.get(0).get(i);
+                    deleteStmt.append(" ").append(assTable.getTableName()).append(".").append(colName).append(" = ").append(colValue);
+                }
+                System.out.println(deleteStmt.toString());
+                jdbc.update(deleteStmt.toString());
+                // only delete if empty
+                if (((Collection) value).isEmpty()) {
+                    return;
+                }
+
+                // remove first example
+                assAssValues.remove(0);
+                // flatten array
+                assStmt += String.join(", ", java.util.Collections.nCopies(assAssValues.size(), assValuesStmt)) +";";
+                List<Object> array = new ArrayList<>();
+                for (List<Object> el : assAssValues) {
+                    array.addAll(el);
+                }
+                jdbc.insert(assStmt, "", array.toArray());
+            }
+        }
+    }
+
     protected Set<String> getProvidedIds(Object entity) {
         assert entityMetadata != null;
         Set<String> idProvided = new HashSet<>();

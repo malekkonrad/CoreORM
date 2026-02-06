@@ -203,9 +203,8 @@ public class SingleTableInheritanceStrategy extends AbstractInheritanceStrategy 
             JdbcExecutor jdbc = session.getJdbcExecutor();
             jdbc.update(sql.toString(), allParams.toArray());
 
-
             // association tables
-            insertAssociationTables(jdbc, entity);
+            updateAssociationTables(jdbc, entity);
         } catch (Exception e) {
             throw new RuntimeException("Error updating entity " + entity, e);
         }

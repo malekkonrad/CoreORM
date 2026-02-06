@@ -284,7 +284,7 @@ public class JoinedTableInheritanceStrategy extends AbstractInheritanceStrategy 
 
 
             // association tables
-            insertAssociationTables(jdbc, entity);
+            updateAssociationTables(jdbc, entity);
         } catch (Exception e) {
             throw new RuntimeException("Error updating entity with joined table strategy: " + entity, e);
         }
