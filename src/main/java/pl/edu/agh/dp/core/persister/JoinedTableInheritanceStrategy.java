@@ -282,6 +282,9 @@ public class JoinedTableInheritanceStrategy extends AbstractInheritanceStrategy 
                 jdbc.update(sql.toString(), allParams.toArray());
             }
 
+
+            // association tables
+            insertAssociationTables(jdbc, entity);
         } catch (Exception e) {
             throw new RuntimeException("Error updating entity with joined table strategy: " + entity, e);
         }

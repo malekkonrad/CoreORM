@@ -256,4 +256,96 @@ public class ExampleAppTest {
             assertEquals(bankAccount.getAccountNumber(), "12345");
         }
     }
+
+    @Getter
+    @Setter
+    @NoArgsConstructor
+    @Inheritance(strategy = InheritanceType.JOINED)
+    public static class Student {
+        @Id(autoIncrement = true)
+        Long id;
+        String name;
+
+        @ManyToMany
+        @JoinColumn(nullable = true)
+        List<Course> courses = new ArrayList<>();
+    }
+
+    @Getter
+    @Setter
+    @NoArgsConstructor
+    @Inheritance(strategy = InheritanceType.JOINED)
+    public static class Course {
+        @Id(autoIncrement = true)
+        Long id;
+        String title;
+
+        @ManyToMany
+        @JoinColumn(nullable = true)
+        List<Student> students = new ArrayList<>();
+    }
+
+    @Test
+    public void updateMany2ManyTest() {
+        config.register(
+                Student.class, Course.class
+        );
+        sessionFactory = config.buildSessionFactory();
+        session = sessionFactory.openSession();
+
+        Long sid1;
+        Long sid2;
+        Long cid1;
+        Long cid2;
+        Long cid3;
+        
+        {
+            Student student1 = new Student();
+            student1.setName("John");
+
+            Student student2 = new Student();
+            student2.setName("Kowalski");
+
+            Course course1 = new Course();
+            course1.setTitle("Math");
+
+            Course course2 = new Course();
+            course2.setTitle("Physics");
+
+            Course course3 = new Course();
+            course3.setTitle("Computer Science");
+
+            session.save(course1);
+            session.save(course2);
+            session.save(course3);
+            session.save(student1);
+            session.save(student2);
+            session.commit();
+            sid1 = student1.getId();
+            sid2 = student2.getId();
+            cid1 = course1.getId();
+            cid2 = course2.getId();
+            cid3 = course3.getId();
+        }
+
+        session.close();
+        session = sessionFactory.openSession();
+
+        {
+            Student student1 = session.find(Student.class, sid1);
+            Course course1 = session.find(Course.class, cid1);
+
+            student1.courses.add(course1);
+            session.update(student1);
+            session.commit();
+        }
+
+        session.close();
+        session = sessionFactory.openSession();
+
+        {
+            Student student1 = session.find(Student.class, sid1);
+            assertEquals(1, student1.getCourses().size());
+        }
+    }
 }

@@ -179,6 +179,9 @@ public class TablePerClassInheritanceStrategy extends AbstractInheritanceStrateg
         try {
             JdbcExecutor jdbc = session.getJdbcExecutor();
             jdbc.update(sql.toString(), values.toArray());
+
+            // association tables
+            insertAssociationTables(jdbc, entity);
         } catch (Exception e) {
             throw new RuntimeException("Error updating entity " + entity, e);
         }

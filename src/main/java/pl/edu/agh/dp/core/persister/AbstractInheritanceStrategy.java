@@ -129,7 +129,8 @@ public abstract class AbstractInheritanceStrategy implements InheritanceStrategy
             Object value = ReflectionUtils.getFieldValue(entity, am.getField());
             if (value != null
                  && am.getHasForeignKey()
-                 && am.getType() == AssociationMetadata.Type.MANY_TO_MANY)
+                 && am.getType() == AssociationMetadata.Type.MANY_TO_MANY
+                 && !((Collection) value).isEmpty())
             {
                 List<String> targetRef = new ArrayList<>();
                 List<String> currentRef = new ArrayList<>();
