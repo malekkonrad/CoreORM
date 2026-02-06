@@ -133,8 +133,8 @@ public class JdbcExecutorImpl implements JdbcExecutor {
             System.out.println("→ SQL: " + sqlToExecute);
             System.out.println("→ AutoCommit: " + connection.getAutoCommit());
             
-            if (isPostgres) {
-                // PostgreSQL: wykonaj query i pobierz id z ResultSet
+            if (isPostgres && doReturnKey) {
+                // PostgreSQL z RETURNING: wykonaj query i pobierz id z ResultSet
                 try (ResultSet rs = ps.executeQuery()) {
                     if (rs.next()) {
                         long id = rs.getLong(1);
@@ -143,6 +143,11 @@ public class JdbcExecutorImpl implements JdbcExecutor {
                     }
                     throw new SQLException("No generated key returned");
                 }
+            } else if (isPostgres) {
+                // PostgreSQL bez RETURNING: użyj executeUpdate
+                int rows = ps.executeUpdate();
+                System.out.println("→ Rows affected: " + rows);
+                return null;
             } else {
                 // Inne bazy (H2, MySQL, etc.): standardowy sposób
                 int rows = ps.executeUpdate();
