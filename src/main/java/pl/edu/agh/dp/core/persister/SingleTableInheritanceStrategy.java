@@ -1,7 +1,7 @@
 package pl.edu.agh.dp.core.persister;
 
 import javafx.util.Pair;
-import pl.edu.agh.dp.api.Session;
+import pl.edu.agh.dp.core.api.Session;
 import pl.edu.agh.dp.core.finder.QuerySpec;
 import pl.edu.agh.dp.core.jdbc.JdbcExecutor;
 import pl.edu.agh.dp.core.mapping.*;

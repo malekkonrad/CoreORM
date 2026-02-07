@@ -1,4 +1,4 @@
-package pl.edu.agh.dp.api.annotations;
+package pl.edu.agh.dp.core.mapping.annotations;
 
 import pl.edu.agh.dp.core.mapping.InheritanceType;
 

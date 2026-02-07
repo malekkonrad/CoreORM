@@ -3,10 +3,9 @@ package entity;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
-import pl.edu.agh.dp.api.annotations.Column;
-import pl.edu.agh.dp.api.annotations.Entity;
-import pl.edu.agh.dp.api.annotations.Id;
-import pl.edu.agh.dp.api.annotations.Inheritance;
+import pl.edu.agh.dp.core.mapping.annotations.Column;
+import pl.edu.agh.dp.core.mapping.annotations.Id;
+import pl.edu.agh.dp.core.mapping.annotations.Inheritance;
 import pl.edu.agh.dp.core.mapping.InheritanceType;
 
 /**

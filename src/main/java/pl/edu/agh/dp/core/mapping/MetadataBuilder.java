@@ -1,16 +1,13 @@
 package pl.edu.agh.dp.core.mapping;
 
-import pl.edu.agh.dp.api.annotations.*;
 import pl.edu.agh.dp.core.exceptions.IntegrityException;
+import pl.edu.agh.dp.core.mapping.annotations.*;
 import pl.edu.agh.dp.core.util.StringUtils;
 
-import java.beans.Transient;
 import java.lang.reflect.Field;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.math.BigDecimal;
-import java.math.BigInteger;
-import java.text.DecimalFormat;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
@@ -109,7 +106,7 @@ public class MetadataBuilder {
             // Sprawdzamy czy jakikolwiek pole w nadklasie ma adnotację @Id
             // Upewnij się, że używasz swojej adnotacji pl.edu.agh.dp.api.annotations.Id
             boolean hasId = Arrays.stream(superClass.getDeclaredFields())
-                    .anyMatch(f -> f.isAnnotationPresent(pl.edu.agh.dp.api.annotations.Id.class));
+                    .anyMatch(f -> f.isAnnotationPresent(Id.class));
 
             if (hasId) {
                 return true; // Znaleziono ID u przodka

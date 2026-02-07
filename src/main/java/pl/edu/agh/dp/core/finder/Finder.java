@@ -1,6 +1,6 @@
 package pl.edu.agh.dp.core.finder;
 
-import pl.edu.agh.dp.api.Session;
+import pl.edu.agh.dp.core.api.Session;
 
 import java.util.Collection;
 import java.util.List;

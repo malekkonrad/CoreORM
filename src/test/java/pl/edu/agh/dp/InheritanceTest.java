@@ -6,12 +6,12 @@ import lombok.Setter;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import pl.edu.agh.dp.api.Configuration;
-import pl.edu.agh.dp.api.Orm;
-import pl.edu.agh.dp.api.Session;
-import pl.edu.agh.dp.api.SessionFactory;
-import pl.edu.agh.dp.api.annotations.Id;
-import pl.edu.agh.dp.api.annotations.Inheritance;
+import pl.edu.agh.dp.core.api.Configuration;
+import pl.edu.agh.dp.core.api.Orm;
+import pl.edu.agh.dp.core.api.Session;
+import pl.edu.agh.dp.core.api.SessionFactory;
+import pl.edu.agh.dp.core.mapping.annotations.Id;
+import pl.edu.agh.dp.core.mapping.annotations.Inheritance;
 import pl.edu.agh.dp.core.mapping.InheritanceType;
 
 import java.sql.Connection;

@@ -1,10 +1,10 @@
 package pl.edu.agh.dp.core.mapping;
 
 import lombok.Getter;
-import pl.edu.agh.dp.api.annotations.DiscriminatorColumn;
-import pl.edu.agh.dp.api.annotations.DiscriminatorValue;
-import pl.edu.agh.dp.api.annotations.Entity;
-import pl.edu.agh.dp.api.annotations.Inheritance;
+import pl.edu.agh.dp.core.mapping.annotations.DiscriminatorColumn;
+import pl.edu.agh.dp.core.mapping.annotations.DiscriminatorValue;
+import pl.edu.agh.dp.core.mapping.annotations.Entity;
+import pl.edu.agh.dp.core.mapping.annotations.Inheritance;
 import pl.edu.agh.dp.core.exceptions.IntegrityException;
 import pl.edu.agh.dp.core.util.ReflectionUtils;
 

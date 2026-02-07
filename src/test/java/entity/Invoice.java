@@ -3,9 +3,8 @@ package entity;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
-import pl.edu.agh.dp.api.annotations.Column;
-import pl.edu.agh.dp.api.annotations.DiscriminatorValue;
-import pl.edu.agh.dp.api.annotations.Entity;
+import pl.edu.agh.dp.core.mapping.annotations.Column;
+import pl.edu.agh.dp.core.mapping.annotations.DiscriminatorValue;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;

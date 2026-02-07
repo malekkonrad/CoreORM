@@ -3,7 +3,7 @@ package pl.edu.agh.dp.core.mapping;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.Setter;
-import pl.edu.agh.dp.api.Session;
+import pl.edu.agh.dp.core.api.Session;
 import pl.edu.agh.dp.core.api.LazyList;
 import pl.edu.agh.dp.core.api.LazySet;
 import pl.edu.agh.dp.core.exceptions.IntegrityException;

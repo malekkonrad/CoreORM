@@ -3,11 +3,10 @@ package pl.edu.agh.dp.core.persister;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
-import pl.edu.agh.dp.api.Session;
+import pl.edu.agh.dp.core.api.Session;
 import pl.edu.agh.dp.core.finder.QuerySpec;
 import pl.edu.agh.dp.core.mapping.EntityMetadata;
 import pl.edu.agh.dp.core.mapping.PairTargetStatements;
-import pl.edu.agh.dp.core.mapping.TargetStatement;
 
 import java.util.*;
 

@@ -3,7 +3,6 @@ package entity;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
-import pl.edu.agh.dp.api.annotations.Entity;
 
 /**
  * Klient - dziedziczy z Person (JOINED).

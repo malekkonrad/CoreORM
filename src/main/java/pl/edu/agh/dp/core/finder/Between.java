@@ -6,9 +6,7 @@ import lombok.Getter;
 import java.util.Arrays;
 import java.util.List;
 
-/**
- * BETWEEN condition: field BETWEEN low AND high
- */
+
 @AllArgsConstructor
 @Getter
 public class Between implements Condition {

@@ -7,13 +7,13 @@ import lombok.Setter;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import pl.edu.agh.dp.api.Configuration;
-import pl.edu.agh.dp.api.Orm;
-import pl.edu.agh.dp.api.Session;
-import pl.edu.agh.dp.api.SessionFactory;
-import pl.edu.agh.dp.api.annotations.Column;
-import pl.edu.agh.dp.api.annotations.Id;
-import pl.edu.agh.dp.api.annotations.Table;
+import pl.edu.agh.dp.core.api.Configuration;
+import pl.edu.agh.dp.core.api.Orm;
+import pl.edu.agh.dp.core.api.Session;
+import pl.edu.agh.dp.core.api.SessionFactory;
+import pl.edu.agh.dp.core.mapping.annotations.Column;
+import pl.edu.agh.dp.core.mapping.annotations.Id;
+import pl.edu.agh.dp.core.mapping.annotations.Table;
 import pl.edu.agh.dp.core.exceptions.IntegrityException;
 
 import java.math.BigDecimal;
@@ -22,7 +22,6 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.OffsetDateTime;
-import java.time.chrono.ChronoLocalDate;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;

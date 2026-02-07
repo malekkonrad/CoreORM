@@ -1,7 +1,6 @@
 package pl.edu.agh.dp.core.api;
 
 import lombok.Getter;
-import pl.edu.agh.dp.api.Session;
 import pl.edu.agh.dp.core.exceptions.IntegrityException;
 import pl.edu.agh.dp.core.finder.Finder;
 import pl.edu.agh.dp.core.finder.QuerySpec;

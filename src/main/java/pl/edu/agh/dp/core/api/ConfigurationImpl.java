@@ -1,7 +1,5 @@
 package pl.edu.agh.dp.core.api;
 
-import pl.edu.agh.dp.api.Configuration;
-import pl.edu.agh.dp.api.SessionFactory;
 import pl.edu.agh.dp.core.jdbc.ConnectionProvider;
 import pl.edu.agh.dp.core.jdbc.JdbcConnectionProvider;
 import pl.edu.agh.dp.core.mapping.MetadataRegistry;

@@ -2,7 +2,7 @@ package pl.edu.agh.dp.core.mapping;
 
 
 
-import pl.edu.agh.dp.api.annotations.Entity;
+import pl.edu.agh.dp.core.mapping.annotations.Entity;
 
 import java.io.*;
 import java.util.*;

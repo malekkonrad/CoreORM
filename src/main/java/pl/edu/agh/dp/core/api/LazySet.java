@@ -1,6 +1,5 @@
 package pl.edu.agh.dp.core.api;
 
-import pl.edu.agh.dp.api.Session;
 import pl.edu.agh.dp.core.util.ReflectionUtils;
 
 import java.util.*;

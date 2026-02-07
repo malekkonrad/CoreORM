@@ -1,4 +1,4 @@
-package pl.edu.agh.dp.api.annotations;
+package pl.edu.agh.dp.core.mapping.annotations;
 
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;

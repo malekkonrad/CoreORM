@@ -1,6 +1,6 @@
 package pl.edu.agh.dp.core.persister;
 
-import pl.edu.agh.dp.api.Session;
+import pl.edu.agh.dp.core.api.Session;
 import pl.edu.agh.dp.core.exceptions.IntegrityException;
 import pl.edu.agh.dp.core.finder.QuerySpec;
 import pl.edu.agh.dp.core.jdbc.JdbcExecutor;
@@ -11,7 +11,6 @@ import javafx.util.Pair;
 import java.sql.Date;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.time.LocalDate;
 import java.util.*;
 import java.util.stream.Collectors;
 

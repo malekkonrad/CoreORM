@@ -1,4 +1,4 @@
-package pl.edu.agh.dp.api.annotations;
+package pl.edu.agh.dp.core.mapping.annotations;
 
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
@@ -7,7 +7,6 @@ import java.lang.annotation.Target;
 
 @Retention(RetentionPolicy.RUNTIME)
 @Target(ElementType.FIELD)
-public @interface ManyToMany {
+public @interface OneToMany {
     String mappedBy() default "";
-    String joinTable() default "";
 }
