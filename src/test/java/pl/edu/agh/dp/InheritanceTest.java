@@ -10,6 +10,7 @@ import pl.edu.agh.dp.core.api.Configuration;
 import pl.edu.agh.dp.core.api.Orm;
 import pl.edu.agh.dp.core.api.Session;
 import pl.edu.agh.dp.core.api.SessionFactory;
+import pl.edu.agh.dp.core.mapping.annotations.DiscriminatorColumn;
 import pl.edu.agh.dp.core.mapping.annotations.Id;
 import pl.edu.agh.dp.core.mapping.annotations.Inheritance;
 import pl.edu.agh.dp.core.mapping.InheritanceType;
@@ -26,7 +27,7 @@ public class InheritanceTest {
     @Getter
     @Setter
     @NoArgsConstructor
-    @Inheritance(strategy = InheritanceType.JOINED)
+    @Inheritance(strategy = InheritanceType.SINGLE_TABLE)
     public static class Animal {
         @Id(autoIncrement = true)
         Long id;

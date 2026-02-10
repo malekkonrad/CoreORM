@@ -59,7 +59,6 @@ public class EntitySet<T> implements Set<T> {
         } else {
             for (PropertyMetadata pm : metadata.getIdColumns().values()) {
                 if (ReflectionUtils.doesObjectContainField(id, pm.getName())) {
-                    // might have a problem with foreign keys
                     hash.append(ReflectionUtils.getFieldValue(id, pm.getName()).toString());
                 } else {
                     throw new RuntimeException("Unable to find field " + pm.getName());
@@ -80,7 +79,6 @@ public class EntitySet<T> implements Set<T> {
         hash.append(metadata.getEntityClass().getName());
         for (PropertyMetadata pm : metadata.getIdColumns().values()) {
             try {
-                // might have a problem with foreign keys
                 hash.append(ReflectionUtils.getFieldValue(obj, pm.getName()).toString());
             } catch (RuntimeException e) {
                 throw new RuntimeException("Unable to find field " + pm.getName());

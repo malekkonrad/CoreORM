@@ -6,9 +6,6 @@ import lombok.Getter;
 import java.util.Collections;
 import java.util.List;
 
-/**
- * Equality condition: field = value
- */
 @AllArgsConstructor
 @Getter
 public class Eq implements Condition {

@@ -28,6 +28,4 @@ public interface JdbcExecutor {
     void close() throws SQLException;
 
     void executeStatement(String sql) ;
-    void dropTable(String sql) throws SQLException;
-
 }

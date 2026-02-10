@@ -32,7 +32,7 @@ public class ConfigurationImpl implements Configuration {
     public SessionFactory buildSessionFactory() {
         // 1. Scanning for entities
         ClassLoader cl = Thread.currentThread().getContextClassLoader();
-        Set<Class<?>> foundEntities = ClassPathScanner.scanForEntities(cl);     // FIXME przenieść gdzie indzie??? cl
+        Set<Class<?>> foundEntities = ClassPathScanner.scanForEntities(cl);
         entityClasses.addAll(foundEntities);
 
         // 2. Building registry - inside EntityMetadata are being created
@@ -61,6 +61,8 @@ public class ConfigurationImpl implements Configuration {
             new SchemaGenerator(registry, cp, entityPersisters).generate();
         } else if ("validate".equalsIgnoreCase(schemaAuto)) {
             new SchemaValidator(registry, cp).validate();
+        }else{
+            new SchemaGenerator(registry, cp, entityPersisters).generate();
         }
 
         // 5. SessionFactory -> creation of EntityPersisters inside

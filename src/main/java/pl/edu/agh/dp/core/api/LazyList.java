@@ -33,7 +33,6 @@ public class LazyList<T> implements List<T>, Lazy {
                 throw new IllegalStateException("Session is not open");
             }
             session.load(owner, relationshipName);
-            // this is stupid but works
             delegate = (List<T>) ReflectionUtils.getFieldValue(owner, relationshipName);
         }
     }

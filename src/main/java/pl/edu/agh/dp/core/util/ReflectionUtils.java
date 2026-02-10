@@ -51,9 +51,6 @@ public final class ReflectionUtils {
         }
     }
 
-    /**
-     * Szuka pola w klasie oraz jej nadklasach.
-     */
     public static Field findField(Class<?> type, String fieldName) throws NoSuchFieldException {
         Class<?> current = type;
         while (current != null && current != Object.class) {

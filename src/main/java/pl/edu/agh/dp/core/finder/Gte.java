@@ -6,9 +6,6 @@ import lombok.Getter;
 import java.util.Collections;
 import java.util.List;
 
-/**
- * Greater than or equal condition: field >= value
- */
 @AllArgsConstructor
 @Getter
 public class Gte implements Condition {

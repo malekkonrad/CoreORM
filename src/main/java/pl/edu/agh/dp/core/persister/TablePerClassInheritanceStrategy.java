@@ -27,9 +27,9 @@ public class TablePerClassInheritanceStrategy extends AbstractInheritanceStrateg
 
         TargetStatement joinStmt = associationMetadata.getJoinStatement();
         TargetStatement whereStmt = entityMetadata.getSelectByIdStatement(entity);
-//        // table per class is it's own root
+        // table per class is it's own root
         whereStmt.setTargetTableName(entityMetadata.getTableName());
-        whereStmt.setTargetTableName(joinStmt.getRootTableName()); // FIXME remove previous
+        whereStmt.setTargetTableName(joinStmt.getRootTableName());
 
         return new PairTargetStatements(whereStmt, joinStmt);
     }
@@ -42,16 +42,15 @@ public class TablePerClassInheritanceStrategy extends AbstractInheritanceStrateg
 
         EntityMetadata rootMetadata = entityMetadata.getInheritanceMetadata().getRootClass();
 
-        // TODO complex key not supported for inheritance
         if (entityMetadata.getIdColumns().isEmpty()) {
             throw new IntegrityException("No id"); // sanity check
         } else if (entityMetadata.getIdColumns().size() == 1) {
             PropertyMetadata idProperty = entityMetadata.getIdColumns().values().iterator().next();
-            // must be autoincremented
+            // must be autoincrement
             if (!idProperty.isAutoIncrement()) {
                 throw new IntegrityException("Id column must be auto-increment");
             }
-        } else if (entityMetadata != rootMetadata) { // FIXME is this even correct
+        } else if (entityMetadata != rootMetadata) {
             throw new IntegrityException("Complex id not supported for Table per class inheritance");
         }
 
@@ -65,7 +64,7 @@ public class TablePerClassInheritanceStrategy extends AbstractInheritanceStrateg
         }
         // change default in id to the sequence
         PropertyMetadata rootId = entityMetadata.getIdColumns().values().iterator().next();
-        rootId.setSqlType("BIGINT"); // TODO maybe change based on the base type
+        rootId.setSqlType("BIGINT");
         rootId.setDefaultValue("nextval('" + sequenceName + "')");
         // add table to the creation
         sb.append(entityMetadata.getSqlTable());
@@ -84,7 +83,6 @@ public class TablePerClassInheritanceStrategy extends AbstractInheritanceStrateg
 
         for (PropertyMetadata pm : entityMetadata.getProperties().values()) {
             Object value = ReflectionUtils.getFieldValue(entity, pm.getName());
-            // TODO handle null in the value, cause it could be set to null explicitly
             if (value != null) {
                 columns.add(pm.getColumnName());
                 values.add(value);
@@ -117,7 +115,6 @@ public class TablePerClassInheritanceStrategy extends AbstractInheritanceStrateg
             generatedId = jdbc.insert(sql.toString(), idProp, values.toArray());
             System.out.println("Generated ID: " + generatedId);
 
-            // Ustaw wygenerowane ID
             int numOfIds = entityMetadata.getInheritanceMetadata().getRootClass().getIdColumns().size();
             if (numOfIds == 1) {        // we have one key if there's more then for sure it's not autoincrement
                 PropertyMetadata idPropName = entityMetadata.getInheritanceMetadata().getRootClass().getIdColumns().values().iterator().next();
@@ -159,15 +156,6 @@ public class TablePerClassInheritanceStrategy extends AbstractInheritanceStrateg
 
         fillRelationshipData(entity, entityMetadata, setColumns, values);
 
-        // WHERE clause
-//        Object idValue = getIdValue(entity);
-//        String whereClause = buildWhereClause(entityMetadata);
-//        Object[] idParams = prepareIdParams(idValue);
-//
-//        // Połącz parametry
-//        List<Object> allParams = new ArrayList<>(values);
-//        allParams.addAll(Arrays.asList(idParams));
-
         StringBuilder sql = new StringBuilder();
         sql.append("UPDATE ").append(tableName)
                 .append(" SET ").append(String.join(" = ?, ", setColumns)).append(setColumns.isEmpty() ? "" : " = ?")
@@ -192,12 +180,6 @@ public class TablePerClassInheritanceStrategy extends AbstractInheritanceStrateg
         assert entityMetadata != null;
         String tableName = entityMetadata.getTableName();
 
-//        EntityMetadata rootMetadata = this.entityMetadata.getInheritanceMetadata().getRootClass();
-//
-//        Object idValue = getIdValue(entity);
-//        String whereClause = buildWhereClause(rootMetadata);
-//        Object[] idParams = prepareIdParams(idValue);
-
         String sql = "DELETE FROM " + tableName + " WHERE " + entityMetadata.getSelectByIdStatement(entity).getStatement(tableName);
 
         System.out.println("TablePerClass DELETE SQL: " + sql);
@@ -214,15 +196,15 @@ public class TablePerClassInheritanceStrategy extends AbstractInheritanceStrateg
     @Override
     public Object findById(Object id, Session session) {
         try {
-            // FAZA 1: Znajdź, która konkretna klasa (tabela) posiada to ID
+            // PHASE 1: Find which specific class (table) has this ID
             EntityMetadata concreteMetadata = findConcreteMetadata(id, session);
 
-            // Jeśli nie znaleziono ID w żadnej tabeli
+            // If ID not found in any table
             if (concreteMetadata == null) {
                 return null;
             }
 
-            // FAZA 2: Pobierz pełny obiekt z właściwej tabeli ze wszystkimi polami
+            // PHASE 2: Get the full object from the correct table with all fields
             return loadSpecificEntity(concreteMetadata, id, session);
 
         } catch (Exception e) {
@@ -230,32 +212,26 @@ public class TablePerClassInheritanceStrategy extends AbstractInheritanceStrateg
         }
     }
 
-    /**
-     * Faza 1: Sprawdza wszystkie tabele dziedziczące i zwraca metadane tej, w której jest ID.
-     */
     private EntityMetadata findConcreteMetadata(Object id, Session session) throws Exception {
         JdbcExecutor jdbc = session.getJdbcExecutor();
         EntityMetadata root = entityMetadata.getInheritanceMetadata().getRootClass();
         Collection<PropertyMetadata> idColumns = root.getIdColumns().values();
 
-        // Pobieramy wszystkie podklasy (Animal, Dog, Husky, Cat...)
         List<EntityMetadata> concreteSubclasses = getAllConcreteSubclasses(entityMetadata);
 
         StringBuilder sql = new StringBuilder();
         List<Object> params = new ArrayList<>();
 
-        // Budujemy zapytanie sprawdzające obecność ID w każdej tabeli
+        // We build a query that checks the presence of ID in each table
         for (int i = 0; i < concreteSubclasses.size(); i++) {
             EntityMetadata subMeta = concreteSubclasses.get(i);
 
-            // SELECT 'pl.agh...Husky' FROM husky WHERE id = ?
             sql.append("SELECT '")
                     .append(subMeta.getEntityClass().getName())
                     .append("' as DTYPE FROM ")
                     .append(subMeta.getTableName())
                     .append(" WHERE ");
 
-            // Obsługa klucza (uproszczona dla pojedynczego ID, ale logika ta sama co wcześniej)
             appendIdWhereClause(sql, params, idColumns, id);
 
             if (i < concreteSubclasses.size() - 1) {
@@ -263,10 +239,10 @@ public class TablePerClassInheritanceStrategy extends AbstractInheritanceStrateg
             }
         }
 
-        // Wykonujemy zapytanie, które zwróci nam tylko nazwę klasy
+        // We execute a query that will return only the class name
         return jdbc.queryOne(sql.toString(), rs -> {
             String className = rs.getString("DTYPE");
-            // Szukamy metadanych odpowiadających nazwie klasy
+            // We are looking for metadata corresponding to the class name
             return concreteSubclasses.stream()
                     .filter(m -> m.getEntityClass().getName().equals(className))
                     .findFirst()
@@ -274,13 +250,9 @@ public class TablePerClassInheritanceStrategy extends AbstractInheritanceStrateg
         }, params.toArray()).orElse(null);
     }
 
-    /**
-     * Faza 2: Pobiera konkretny obiekt, znając już jego dokładny typ i tabelę.
-     */
     private Object loadSpecificEntity(EntityMetadata specificMetadata, Object id, Session session) throws Exception {
         JdbcExecutor jdbc = session.getJdbcExecutor();
 
-        // Budujemy listę WSZYSTKICH kolumn dla tej konkretnej klasy (np. Husky ma też pola Animala i Doga)
         List<String> columns = specificMetadata.getColumnsForConcreteTable()
                 .stream()
                 .map(PropertyMetadata::getColumnName)
@@ -293,7 +265,6 @@ public class TablePerClassInheritanceStrategy extends AbstractInheritanceStrateg
                 .append(specificMetadata.getTableName())
                 .append(" WHERE ");
 
-        // Parametry do WHERE
         EntityMetadata root = entityMetadata.getInheritanceMetadata().getRootClass();
         Collection<PropertyMetadata> idColumns = root.getIdColumns().values();
         List<Object> params = new ArrayList<>();
@@ -301,19 +272,16 @@ public class TablePerClassInheritanceStrategy extends AbstractInheritanceStrateg
 
         System.out.println("Loading full entity SQL: " + sql);
 
-        // Używamy specjalnego mappera, który korzysta z przekazanych metadanych (specificMetadata),
-        // a nie z this.entityMetadata (które wskazuje na Animal)
         return jdbc.queryOne(sql.toString(), rs -> mapSpecificEntity(rs, specificMetadata), params.toArray())
                 .orElse(null);
     }
 
     /**
-     * Mapper, który potrafi zmapować obiekt na podstawie przekazanych metadanych,
-     * a nie tych przypisanych do strategii.
+     * A mapper that can map an object based on the metadata provided,
+     * not the data assigned to the strategy.
      */
     private Object mapSpecificEntity(ResultSet rs, EntityMetadata metadata) throws SQLException {
         try {
-            // Tworzymy instancję konkretnej klasy (np. Husky)
             Object entity = metadata.getEntityClass().getDeclaredConstructor().newInstance();
 
             for (PropertyMetadata prop : metadata.getColumnsForConcreteTable()) {
@@ -324,7 +292,7 @@ public class TablePerClassInheritanceStrategy extends AbstractInheritanceStrateg
                         ReflectionUtils.setFieldValue(entity, prop.getName(), value);
                     }
                 } catch (SQLException e) {
-                    // Ignorujemy, jeśli kolumny nie ma (choć w tej strategii powinna być)
+                    // ignore
                 }
             }
             return entity;
@@ -333,14 +301,13 @@ public class TablePerClassInheritanceStrategy extends AbstractInheritanceStrateg
         }
     }
 
-    // Pomocnicza metoda do budowania WHERE id = ? (wyciągnięta, by nie powielać kodu)
     private void appendIdWhereClause(StringBuilder sql, List<Object> params, Collection<PropertyMetadata> idColumns, Object id) {
         if (idColumns.size() == 1) {
             PropertyMetadata pm = idColumns.iterator().next();
             sql.append(pm.getColumnName()).append(" = ?");
             params.add(pm.getType().cast(id));
         } else {
-            // Tu wklej swoją logikę dla composite key, dla czytelności skróciłem
+            // composite key
             int count = 0;
             for(PropertyMetadata pm : idColumns) {
                 if(count > 0) sql.append(" AND ");
@@ -356,55 +323,49 @@ public class TablePerClassInheritanceStrategy extends AbstractInheritanceStrateg
     public <T> List<T> findAll(Class<T> type, Session session, PairTargetStatements pairTargetStatements) {
         TargetStatement joinStmt = pairTargetStatements.getJoinStatements().get(0);
         TargetStatement whereStmt = pairTargetStatements.getWhereStatements().get(0);
-        // 1. Znajdujemy wszystkie podklasy (Husky, Cat, Dog...)
+
         List<EntityMetadata> concreteSubclasses = getAllConcreteSubclasses(this.entityMetadata);
 
-        // 2. Zbieramy WSZYSTKIE unikalne nazwy kolumn ze wszystkich podklas
-        // Np. [id, name, age, how, cat_name]
         Map<String, PropertyMetadata> allProperties = new HashMap<>();
         for (EntityMetadata meta : concreteSubclasses) {
             allProperties.putAll(meta.getProperties());
         }
 
-        // 3. Budujemy zapytanie UNION ALL z wypełnianiem NULLami
+        // UNION ALL
         StringBuilder sqlBuilder = new StringBuilder();
 
         for (int i = 0; i < concreteSubclasses.size(); i++) {
             EntityMetadata subMeta = concreteSubclasses.get(i);
 
-            // Zbiór kolumn, które ta konkretna tabela faktycznie posiada
             Map<String, PropertyMetadata> subTableProperties = subMeta.getProperties();
 
             String tableName = subMeta.getTableName();
 
             sqlBuilder.append("SELECT ");
 
-            // Iterujemy po WSZYSTKICH możliwych kolumnach hierarchii
             List<String> selectionParts = new ArrayList<>();
             for (String fieldName : allProperties.keySet()) {
                 PropertyMetadata pm = allProperties.get(fieldName);
                 String columnName = pm.getColumnName();
                 if (subTableProperties.containsKey(fieldName)) {
-                    // Tabela ma tę kolumnę -> wybieramy ją
                     selectionParts.add(tableName + "." + columnName);
                 } else {
-                    // Tabela nie ma tej kolumny -> wstawiamy NULL i aliasujemy nazwą kolumny
-                    // (alias jest ważny, żeby ResultSet wiedział jak nazwać kolumnę)
+                    // aliasing and NULL
                     selectionParts.add("NULL::" + pm.getSqlType() +" AS " + columnName);
                 }
             }
 
             sqlBuilder.append(String.join(", ", selectionParts));
 
-            // Dodajemy DTYPE
+            // DTYPE
             sqlBuilder.append(", '").append(subMeta.getEntityClass().getName()).append("' as DTYPE")
                     .append(" FROM ")
                     .append(tableName);
 
-            // Dodajemy join statement
+            // JOIN stmt
             sqlBuilder.append(" ").append(joinStmt.getStatement(tableName));
 
-            // dodajemy where statement
+            // where
             if (!whereStmt.isBlank()) {
                 sqlBuilder.append(" WHERE ");
                 sqlBuilder.append(whereStmt.getStatement());
@@ -420,7 +381,6 @@ public class TablePerClassInheritanceStrategy extends AbstractInheritanceStrateg
 
         try {
             JdbcExecutor jdbc = session.getJdbcExecutor();
-            // Przekazujemy listę wszystkich kolumn, żeby mapper wiedział co mapować
             return jdbc.query(sql, rs -> mapPolymorphicEntityFull(rs, type, allProperties));
         } catch (Exception e) {
             throw new RuntimeException("Error finding all entities in TPC", e);
@@ -506,24 +466,19 @@ public class TablePerClassInheritanceStrategy extends AbstractInheritanceStrateg
         }
     }
 
-    // Nowy mapper, który potrafi obsłużyć pola z podklas
     private <T> T mapPolymorphicEntityFull(ResultSet rs, Class<T> baseType, Map<String, PropertyMetadata> allProperties) throws SQLException {
         try {
-            // 1. Odczytujemy DTYPE
+            // DTYPE
             String className = rs.getString("DTYPE");
             Class<?> realClass = Class.forName(className);
 
-            // 2. Tworzymy instancję (np. Husky)
             Object instance = realClass.getDeclaredConstructor().newInstance();
 
-            // 3. Wypełniamy pola używając ReflectionUtils
-            // Iterujemy po kolumnach dostępnych w SQL (allColumns), a nie polach klasy bazowej
             for (String fieldName : allProperties.keySet()) {
                 PropertyMetadata pm = allProperties.get(fieldName);
                 String colName = pm.getColumnName();
                 Object value = rs.getObject(colName);
 
-                // Jeśli wartość jest NULL (np. kolumna z innej klasy), to po prostu nic nie robimy
                 if (value != null) {
                     Object castedValue = castSqlValueToJava(pm.getType(), value);
                     ReflectionUtils.setFieldValue(instance, fieldName, castedValue);
@@ -551,65 +506,4 @@ public class TablePerClassInheritanceStrategy extends AbstractInheritanceStrateg
         return result;
     }
 
-    private <T> T mapPolymorphicEntity(ResultSet rs, Class<T> baseType) throws SQLException {
-        try {
-            // 1. Odczytujemy sztuczną kolumnę DTYPE
-            String className = rs.getString("DTYPE");
-
-            // 2. Tworzymy instancję właściwej klasy (np. Husky, mimo że szukamy Dog)
-            Class<?> realClass = Class.forName(className);
-            Object instance = realClass.getDeclaredConstructor().newInstance();
-
-            // 3. Wypełniamy pola.
-            assert this.entityMetadata != null;
-            for (PropertyMetadata col : this.entityMetadata.getColumnsForConcreteTable()) {
-                String colName = col.getColumnName();
-                Object value = rs.getObject(colName);
-                ReflectionUtils.setFieldValue(instance, colName, value);
-            }
-            return baseType.cast(instance);
-        } catch (Exception e) {
-            throw new RuntimeException("Error mapping polymorphic entity", e);
-        }
-    }
-
-    private Object mapEntity(ResultSet rs) throws SQLException {
-        try {
-            assert entityMetadata != null;
-            Object entity = entityMetadata.getEntityClass().getDeclaredConstructor().newInstance();
-
-            for (PropertyMetadata prop : entityMetadata.getColumnsForConcreteTable()) {
-                try {
-                    Object value = rs.getObject(prop.getColumnName());
-
-                    // Konwersja Integer -> Long dla wszystkich pól Long
-//                    if (value instanceof Integer && prop.getType() == Long.class) {
-//                        value = ((Integer) value).longValue();
-//                    }
-
-                    if (value != null) {
-                        // I hate dates
-                        if (value instanceof java.sql.Date) {
-                            value = ((Date) value).toLocalDate();
-                        } else if (value instanceof java.sql.Timestamp) {
-                            value = ((java.sql.Timestamp) value).toLocalDateTime();
-                        } else if (value instanceof java.sql.Time) {
-                            value = ((java.sql.Time) value).toLocalTime();
-                        }
-                        // cast integer to short
-                        if (value instanceof Integer && prop.getType() == Short.class) {
-                            value = ((Integer) value).shortValue();
-                        }
-                        ReflectionUtils.setFieldValue(entity, prop.getName(), value);
-                    }
-                } catch (SQLException e) {
-                    System.err.println("Failed to get column: " + prop.getColumnName() + " - " + e.getMessage());
-                }
-            }
-
-            return entity;
-        } catch (Exception e) {
-            throw new SQLException("Failed to map entity: " + entityMetadata.getEntityClass().getName(), e);
-        }
-    }
 }

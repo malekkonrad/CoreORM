@@ -14,7 +14,6 @@ import java.util.*;
 
 public class SessionImpl implements Session {
 
-    // TODO dirty testing
     @Getter
     private final Map<Class<?>, EntityPersister> entityPersisters;
 
@@ -251,7 +250,6 @@ public class SessionImpl implements Session {
                     "Attempted to remove entity scheduled for deletion.\n" +
                     "Only one operation is permitted per commit.");
         }
-        // TODO backref and add if changed !!!
         // for relationships, we need to separate each entity
         EntityPersister entityPersister = entityPersisters.get(entity.getClass());
         if (entityPersister == null) {
@@ -261,9 +259,9 @@ public class SessionImpl implements Session {
         }
         EntityMetadata entityMetadata = entityPersister.getEntityMetadata();
         Collection<AssociationMetadata> associationMetadata = entityMetadata.getAssociationMetadata().values();
+
         // must not be contained in dirty
-        // TODO try to compare and don't add unchanged relationships
-        if (dirtyEntities.contains(entity)) {// FIXME updating twice will not update relationships
+        if (dirtyEntities.contains(entity)) {
             return;
         }
         // no relationships, simple add
@@ -372,24 +370,8 @@ public class SessionImpl implements Session {
         assert associationMetadata != null;
         Class<?> relationshipClass = associationMetadata.getTargetEntity();
         EntityMetadata relationshipMetadata = entityPersisters.get(relationshipClass).getEntityMetadata();
-//        entityPersisters.get(relationshipClass).getInheritanceStrategy().
 
-//        TargetStatement joinStmt = associationMetadata.getJoinStatement();
-//
-//        TargetStatement whereStmt = metadata.getSelectByIdStatement(entity);
-//        whereStmt.setRootTableName(metadata.getInheritanceMetadata().getRootClass().getTableName());
-
-        // TODO work in progress
         PairTargetStatements pairStatements = entityPersisters.get(entity.getClass()).getInheritanceStrategy().getPairStatement(entity, relationshipName);
-
-//        if (metadata.getInheritanceMetadata().getType() == InheritanceType.JOINED) {
-//            whereStmt.setTargetTableName(whereStmt.getRootTableName());
-//        } else if (metadata.getInheritanceMetadata().getType() == InheritanceType.TABLE_PER_CLASS) {
-//            whereStmt.setRootTableName(whereStmt.getTargetTableName());
-////            System.out.println("TESTING");
-////            System.out.println(metadata.getTableName());
-////            System.out.println(joinStmt);
-//        }
 
         List<Object> entities = (List<Object>) entityPersisters.get(relationshipClass).findAll(relationshipClass, this, pairStatements);
         // singular entity loaded
@@ -457,8 +439,8 @@ public class SessionImpl implements Session {
             newEntities.clear(); // clear after successful rollback
             dirtyEntities.clear();
             removedEntities.clear();
-            jdbcExecutor.setAutoCommit(true); // end transaction
-            jdbcExecutor.setAutoCommit(false); // begin transaction
+            jdbcExecutor.setAutoCommit(true);
+            jdbcExecutor.setAutoCommit(false);
         } catch (SQLException e) {
             throw new IntegrityException(e.getMessage());
         }
@@ -486,7 +468,7 @@ public class SessionImpl implements Session {
             jdbcExecutor.setAutoCommit(false);
             isOpen = true;
         } catch (SQLException e) {
-            throw new RuntimeException(e); // TODO handle the Exception
+            throw new RuntimeException(e);
         }
     }
 

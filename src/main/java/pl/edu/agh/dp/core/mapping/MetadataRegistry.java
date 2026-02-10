@@ -14,21 +14,20 @@ import java.lang.reflect.Field;
 @Getter
 public class MetadataRegistry {
 
-    private Map<Class<?>, EntityMetadata> entities;
+    private final Map<Class<?>, EntityMetadata> entities = new HashMap<>();
 
     public void build(List<Class<?>> entitiesClasses) {
-        entities = new HashMap<>();
 
+        // create basic MetaData for each entity
         for (Class<?> clazz : entitiesClasses){
             EntityMetadata entity = MetadataBuilder.buildEntityMetadata(clazz);
             entities.put(clazz, entity);
         }
 
-        // FIXME: better function call or move this part to MetadataBuilder - (change name for MetadataFactory)?
+        // fill inheritance metadata based on current knowledge
         handleInheritance();
 
-        // TODO update associations, with table info because now we have that information
-        // TODO maybe bundle up errors ?
+        // fill association metadata based on current knowledge
         for (Class<?> clazz : entitiesClasses){
             fillAssociationData(clazz);
         }
@@ -47,14 +46,11 @@ public class MetadataRegistry {
             }
         }
 
+        // printing -> change for logging
         for (Class<?> clazz : entitiesClasses){
             EntityMetadata entity = entities.get(clazz);
             System.out.println(entity);
         }
-    }
-
-    public EntityMetadata getEntityMetadata(Class<?> clazz) {
-        return entities.get(clazz);
     }
 
     private void fillAssociationData(Class<?> clazz) {
@@ -301,15 +297,6 @@ public class MetadataRegistry {
                 isForeignKeyOnTarget = false;
             }
 
-            // Everything is checked now and is correct
-
-            /*
-            Plan:
-             * we need to fill the fk column with actual foreign keys
-             * the referenced object must have finalized idProperties
-             * later fill the target and join columns in both relationships
-             */
-
             // fill target entity table name
             currentAm.setTargetTableName(targetAm.getTableName());
             targetAm.setTargetTableName(currentAm.getTableName());
@@ -329,7 +316,7 @@ public class MetadataRegistry {
                     fkColumn.setReferences(targetEntityMetadata.tableName + "(" + targetIdColumns.get(0).getColumnName() + ")");
                     fkColumn.setColumnName(fkColumn.getColumnName() + "_fkey");
 
-                    currentAm.setJoinColumns(new ArrayList<PropertyMetadata>(){{
+                    currentAm.setJoinColumns(new ArrayList<>(){{
                         add(fkColumn);
                         for (String field : currentJoinColumns) {
                             if (entityMetadata.getProperties().containsKey(field)) {
@@ -362,7 +349,6 @@ public class MetadataRegistry {
                     currentAm.setTargetJoinColumns(targetAm.getJoinColumns());
                     targetAm.setTargetJoinColumns(currentAm.getJoinColumns());
                 } else {
-                    // TODO composite key
                     throw new IntegrityException("Multiple primary keys to map to, idk what to do.");
                 }
             } else if (!isForeignKeyOnCurrent && isForeignKeyOnTarget) {
@@ -377,7 +363,7 @@ public class MetadataRegistry {
                     targetFkColumn.setReferences(entityMetadata.tableName + "(" + idColumns.get(0).getColumnName() + ")");
                     targetFkColumn.setColumnName(targetFkColumn.getColumnName() + "_fkey");
 
-                    targetAm.setJoinColumns(new ArrayList<PropertyMetadata>(){{
+                    targetAm.setJoinColumns(new ArrayList<>(){{
                         add(targetFkColumn);
                         for (String field : targetJoinColumns) {
                             if (targetEntityMetadata.getProperties().containsKey(field)) {
@@ -409,7 +395,6 @@ public class MetadataRegistry {
                     currentAm.setTargetJoinColumns(targetAm.getJoinColumns());
                     targetAm.setTargetJoinColumns(currentAm.getJoinColumns());
                 } else {
-                    // TODO composite key
                     throw new IntegrityException("Multiple primary keys to map to, idk what to do.");
                 }
             } else if (!isForeignKeyOnCurrent && !isForeignKeyOnTarget) {
@@ -459,7 +444,6 @@ public class MetadataRegistry {
                     currentAm.setTargetJoinColumns(targetAm.getJoinColumns());
                     targetAm.setTargetJoinColumns(currentAm.getJoinColumns());
                 } else {
-                    // TODO composite key
                     throw new IntegrityException("Multiple primary keys to map to, idk what to do.");
                 }
             } else {
@@ -533,8 +517,8 @@ public class MetadataRegistry {
             entity.getInheritanceMetadata().setType(type);
         }
 
+        // set parent children dependency
         for (EntityMetadata meta : entities.values()) {
-
             Class<?> sup = meta.getEntityClass().getSuperclass();
 
             while (sup != null && sup != Object.class && !isEntity(sup)) {
@@ -542,14 +526,11 @@ public class MetadataRegistry {
             }
             if (sup != null && isEntity(sup)) {
                 EntityMetadata parent = entities.get(sup);
-
                 // set parent
                 meta.getInheritanceMetadata().setParent(parent);
-
                 // add current as children to parent
                 parent.getInheritanceMetadata().getChildren().add(meta);
             }
-
         }
 
         // set root
@@ -590,8 +571,7 @@ public class MetadataRegistry {
 
         // discriminator
         for (EntityMetadata m : entities.values()) {
-            // Uruchamiamy logikę tylko dla Roota, bo on zarządza dyskryminatorem dla całej tabeli
-            // removed: && !m.getInheritanceMetadata().getChildren().isEmpty()
+            // We run the logic only for Root, because it manages the discriminator for the entire table
             if (m.getInheritanceMetadata().isRoot() && (m.getInheritanceMetadata().getType()==InheritanceType.SINGLE_TABLE || m.getInheritanceMetadata().getType()==InheritanceType.JOINED)) {
                 handleDiscriminator(m);
             }
@@ -601,15 +581,9 @@ public class MetadataRegistry {
         for (EntityMetadata m : entities.values()) {
             InheritanceType type = m.getInheritanceMetadata().getType();
             if (type == InheritanceType.TABLE_PER_CLASS) {
-                // fix Properties and IdColumns to contain all the fields of the class
                 m.setMetadataForConcreteTable();
-//                m.setProperties(m.getAllColumnsForConcreteTable());
-//                m.setIdColumns(m.getIdColumnsForConcreteTable());
             } else if (type == InheritanceType.SINGLE_TABLE) {
-                // fix Properties and IdColumns to contain all the fields of the class
                 m.setMetadataForSingleTable();
-//                m.setProperties(m.getAllColumnsForSingleTable());
-//                m.setIdColumns(m.getIdColumnsForSingleTable());
             } else if (type == InheritanceType.JOINED) {
                 m.addIdPropertyAll(m.getFkColumnsForJoinedTable());
                 m.addFkPropertyAll(m.getFkColumnsForJoinedTable());

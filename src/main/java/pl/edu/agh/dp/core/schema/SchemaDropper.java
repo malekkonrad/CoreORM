@@ -24,7 +24,6 @@ public class SchemaDropper {
                 dropAllPostgres(st);
             } else if (db.contains("h2")) {
                 System.out.println("h2");
-//                dropAllPostgres(st);
             } else {
                 throw new UnsupportedOperationException("Unsupported DB: " + db);
             }

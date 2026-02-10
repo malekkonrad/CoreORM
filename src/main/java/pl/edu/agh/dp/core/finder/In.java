@@ -8,9 +8,6 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 
-/**
- * IN condition: field IN (value1, value2, ...)
- */
 @AllArgsConstructor
 @Getter
 public class In implements Condition {

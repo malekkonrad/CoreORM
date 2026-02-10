@@ -235,7 +235,7 @@ public abstract class AbstractInheritanceStrategy implements InheritanceStrategy
                         assValues.add(field);
                     }
                 }
-                // FIXME this is dumb
+
                 StringBuilder deleteStmt = new StringBuilder("DELETE FROM " + assTable.getTableName() + " WHERE");
                 for (int i = 0; i < currentRef.size(); i++) {
                     String colName = assColumns.get(i);
@@ -267,7 +267,6 @@ public abstract class AbstractInheritanceStrategy implements InheritanceStrategy
         Set<String> idProvided = new HashSet<>();
         for (PropertyMetadata pm : entityMetadata.getIdColumns().values()) {
             Object value = ReflectionUtils.getFieldValue(entity, pm.getName());
-            // TODO handle null in the value, cause it could be set to null explicitly
             if (value != null) {
                 idProvided.add(pm.getName());
             } else {
@@ -316,9 +315,6 @@ public abstract class AbstractInheritanceStrategy implements InheritanceStrategy
         return isCompositeKey ? "" : idColumns.iterator().next().getColumnName();
     }
 
-    /**
-     * Helper: Buduje WHERE clause dla ID
-     */
     protected String buildWhereClause(EntityMetadata meta) {
         Collection<PropertyMetadata> idColumns = meta.getIdColumns().values();
         List<String> conditions = new ArrayList<>();
@@ -330,9 +326,6 @@ public abstract class AbstractInheritanceStrategy implements InheritanceStrategy
         return String.join(" AND ", conditions);
     }
 
-    /**
-     * Helper: Resolves field name to column name using metadata
-     */
     protected String resolveColumnName(String fieldName, EntityMetadata meta) {
         PropertyMetadata pm = meta.getProperties().get(fieldName);
         if (pm != null) {
@@ -350,14 +343,6 @@ public abstract class AbstractInheritanceStrategy implements InheritanceStrategy
         return fieldName;
     }
 
-    /**
-     * Helper: Builds WHERE clause from QuerySpec conditions
-     * 
-     * @param querySpec the query specification
-     * @param tableName the table name/alias to use in SQL
-     * @param params list to accumulate parameters (will be modified)
-     * @return SQL WHERE clause (without WHERE keyword), or empty string if no conditions
-     */
     protected <T> String buildQuerySpecWhereClause(QuerySpec<T> querySpec, String tableName, List<Object> params) {
         if (!querySpec.hasConditions()) {
             return "";
@@ -376,14 +361,7 @@ public abstract class AbstractInheritanceStrategy implements InheritanceStrategy
         
         return String.join(" AND ", sqlConditions);
     }
-    
-    /**
-     * Helper: Builds ORDER BY clause from QuerySpec sorting
-     * 
-     * @param querySpec the query specification
-     * @param tableName the table name/alias to use in SQL
-     * @return SQL ORDER BY clause (without ORDER BY keywords), or empty string if no sorting
-     */
+
     protected <T> String buildQuerySpecOrderByClause(QuerySpec<T> querySpec, String tableName) {
         if (!querySpec.hasSorting()) {
             return "";
@@ -396,13 +374,7 @@ public abstract class AbstractInheritanceStrategy implements InheritanceStrategy
                 })
                 .collect(Collectors.joining(", "));
     }
-    
-    /**
-     * Helper: Builds LIMIT/OFFSET clause from QuerySpec
-     * 
-     * @param querySpec the query specification
-     * @return SQL LIMIT/OFFSET clause, or empty string if not specified
-     */
+
     protected <T> String buildQuerySpecLimitOffsetClause(QuerySpec<T> querySpec) {
         StringBuilder sb = new StringBuilder();
         if (querySpec.hasLimit()) {
@@ -414,9 +386,6 @@ public abstract class AbstractInheritanceStrategy implements InheritanceStrategy
         return sb.toString();
     }
 
-    /**
-     * Helper: Przygotowuje parametry ID dla prepared statement
-     */
     protected Object[] prepareIdParams(Object idValue) {
         if (idValue instanceof Map) {
             Map<String, Object> compositeId = (Map<String, Object>) idValue;
@@ -426,9 +395,6 @@ public abstract class AbstractInheritanceStrategy implements InheritanceStrategy
         }
     }
 
-    /**
-     * Helper: Sprawdza czy pole należy do danej klasy
-     */
     protected boolean fieldBelongsToClass(PropertyMetadata prop, Class<?> targetClass) {
 
         if (prop.getColumnName().equals("DTYPE")){

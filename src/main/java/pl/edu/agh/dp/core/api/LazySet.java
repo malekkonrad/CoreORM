@@ -32,7 +32,6 @@ public class LazySet<T> implements Set<T>, Lazy {
                 throw new IllegalStateException("Session is not open");
             }
             session.load(owner, relationshipName);
-            // this is stupid but works
             delegate = (Set<T>) ReflectionUtils.getFieldValue(owner, relationshipName);
         }
     }

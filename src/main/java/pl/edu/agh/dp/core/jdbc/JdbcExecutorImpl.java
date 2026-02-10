@@ -47,12 +47,6 @@ public class JdbcExecutorImpl implements JdbcExecutor {
     }
 
     @Override
-    public void dropTable(String sql) throws SQLException {
-
-    }
-
-
-    @Override
     public <T> List<T> query(String sql, RowMapper<T> mapper, Object... params) {
         List<T> results = new ArrayList<>();
         

@@ -6,19 +6,13 @@ import lombok.Getter;
 import java.util.Collections;
 import java.util.List;
 
-/**
- * IS NULL / IS NOT NULL condition
- */
 @AllArgsConstructor
 @Getter
 public class IsNull implements Condition {
     
     private final String field;
     private final boolean isNull;
-    
-    /**
-     * Creates IS NULL condition
-     */
+
     public IsNull(String field) {
         this.field = field;
         this.isNull = true;

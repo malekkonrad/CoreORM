@@ -24,9 +24,7 @@ public class SchemaGenerator {
                            Map<Class<?>, EntityPersister> entityPersisters) {
         this.registry = registry;
         this.connectionProvider = connectionProvider;
-
-        // FIXME - zastanowić się gdzie to przenieść
-        this.jdbcExecutor = new JdbcExecutorImpl(connectionProvider.getConnection());
+        this.jdbcExecutor = new JdbcExecutorImpl(this.connectionProvider.getConnection());
         this.entityPersisters = entityPersisters;
     }
 
@@ -45,6 +43,7 @@ public class SchemaGenerator {
             EntityPersister entityPersister = entityPersisters.get(metadata.getEntityClass());
 
             if (entityPersister != null) {
+                // Pair<Table sql, Alter table sql>
                 Pair<String, String> sqlConstraint = entityPersister.getInheritanceStrategy().create();
                 if (sqlConstraint == null) {
                     continue;
@@ -61,15 +60,6 @@ public class SchemaGenerator {
             System.out.println("Executing SQL for " + constraint);
             jdbcExecutor.executeStatement(constraint);
         }
-            // 2.  tabele pośrednie ManyToMany
-//            for (EntityMetadata meta : entities) {
-//                for (AssociationMetadata assoc : meta.getAssociationMetadata()) {
-//                    if (assoc.getType() == AssociationMetadata.Type.MANY_TO_MANY) {
-//                        String joinSql = createJoinTableSql(meta, assoc);
-//                        st.executeUpdate(joinSql);
-//                    }
-//                }
-//            }
     }
 
     private int getInheritanceDepth(Class<?> clazz) {
@@ -79,36 +69,6 @@ public class SchemaGenerator {
             clazz = clazz.getSuperclass();
         }
         return depth;
-    }
-
-    private String createTableSql(EntityMetadata meta) {
-        StringBuilder sb = new StringBuilder();
-        sb.append("CREATE TABLE IF NOT EXISTS ")
-                .append(meta.getTableName())
-                .append(" (");
-
-        StringBuilder primary_keys = new StringBuilder();
-        for (PropertyMetadata pm : meta.getProperties().values()) {
-            sb.append(pm.getColumnName()).append(" ")
-                    .append(pm.getSqlType()).append(" ");
-            if (pm.isNullable()) sb.append("NULL ");
-            else sb.append("NOT NULL ");
-            if (pm.isUnique()) sb.append("UNIQUE ");
-            if (pm.getDefaultValue() != null) sb.append("DEFAULT ").append(pm.getDefaultValue().toString()); // TODO check if works correctly
-            sb.append(", ");
-            // append to primary keys separately
-            if (pm.isId()) primary_keys.append(pm.getColumnName()).append(", ");
-        }
-        sb.append("PRIMARY KEY (").append(primary_keys);
-        sb.delete(sb.length() - 2, sb.length()); // delete last ", " from primary keys
-        sb.append(")");
-
-        // TODO: set index on table
-        // TODO: klucze obce dla relacji OneToMany / ManyToOne jeśli chcesz
-
-        sb.append(");");
-//        System.out.println(sb);
-        return sb.toString();
     }
 
 }

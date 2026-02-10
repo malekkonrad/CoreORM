@@ -6,9 +6,6 @@ import lombok.Getter;
 import java.util.Collections;
 import java.util.List;
 
-/**
- * Less than or equal condition: field <= value
- */
 @AllArgsConstructor
 @Getter
 public class Lte implements Condition {

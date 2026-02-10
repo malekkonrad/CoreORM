@@ -6,9 +6,6 @@ import lombok.Getter;
 import java.util.Collections;
 import java.util.List;
 
-/**
- * Not equal condition: field != value
- */
 @AllArgsConstructor
 @Getter
 public class NotEq implements Condition {

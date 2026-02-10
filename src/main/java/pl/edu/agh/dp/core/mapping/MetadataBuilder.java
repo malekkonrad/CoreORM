@@ -19,6 +19,7 @@ public class MetadataBuilder {
         EntityMetadata meta = new EntityMetadata();
         meta.setEntityClass(clazz);
 
+        // mapping name of entity
         String name = clazz.getSimpleName();
         if (name.isBlank()) {
             throw new IntegrityException("Unable to identify the table name of: " + clazz.getName());
@@ -53,13 +54,11 @@ public class MetadataBuilder {
                 mapForeignColumn(meta, f, idProperties);
             }
         }
-        // FIXME
-        // Error checking for id
 
-        // 1. Sprawdzamy, czy znaleźliśmy ID w bieżącej klasie
+        // check if we found the ID in the current class
         boolean hasLocalId = !idProperties.isEmpty();
 
-        // 2. Jeśli nie ma lokalnie, sprawdzamy w górę hierarchii używając Refleksji
+        // If it is not local, we check up the hierarchy using Reflection
         if (!hasLocalId) {
             boolean hasParentId = checkRecursiveIdInParents(clazz);
 
@@ -68,8 +67,6 @@ public class MetadataBuilder {
                         " has no @Id defined and does not inherit any @Id from superclasses.");
             }
         }
-
-
 
         // Error checking for composite keys
         if (idProperties.size() > 1) {
@@ -99,24 +96,19 @@ public class MetadataBuilder {
     }
 
     private static boolean checkRecursiveIdInParents(Class<?> currentClass) {
-        // Zaczynamy od rodzica (bo bieżącą klasę już sprawdziliśmy w 'idProperties')
+        // We start with the parent (because we already checked the current class in 'idProperties')
         Class<?> superClass = currentClass.getSuperclass();
 
         while (superClass != null && superClass != Object.class) {
-            // Sprawdzamy czy jakikolwiek pole w nadklasie ma adnotację @Id
-            // Upewnij się, że używasz swojej adnotacji pl.edu.agh.dp.api.annotations.Id
             boolean hasId = Arrays.stream(superClass.getDeclaredFields())
                     .anyMatch(f -> f.isAnnotationPresent(Id.class));
 
             if (hasId) {
-                return true; // Znaleziono ID u przodka
+                return true;    // ID found in ancestor
             }
-
-            // Idziemy wyżej
             superClass = superClass.getSuperclass();
         }
-
-        return false; // Doszliśmy do Object i nikt nie miał ID
+        return false;
     }
 
     private static void mapForeignColumn(EntityMetadata meta, Field f, List<PropertyMetadata> idProperties) {
@@ -164,10 +156,7 @@ public class MetadataBuilder {
         if (f.isAnnotationPresent(JoinColumn.class)) {
             JoinColumn join = f.getAnnotation(JoinColumn.class);
             columnNames = join.joinColumns();
-            // FIXME clean this up
-//        } else {
-//            columnNames = new String[]{f.getName()};
-//        }
+
             for (String name : columnNames) {
                 // just a placeholder for later
                 joinColumns.add(
@@ -232,22 +221,7 @@ public class MetadataBuilder {
         List<PropertyMetadata> joinColumns = determineJoinColumns(meta, f);
 
         // check list or set
-        Class<?> fieldType = f.getType();
-
-        boolean isList = List.class.isAssignableFrom(fieldType);
-        boolean isSet = Set.class.isAssignableFrom(fieldType);
-
-        AssociationMetadata.CollectionType collectionType;
-        if (!isList && !isSet) {
-            throw new IntegrityException(
-                    "ManyToMany field must be of type List or Set, but found: "
-                            + fieldType.getSimpleName()
-            );
-        } else {
-            // prefer list over set
-            collectionType = isList ?
-                    AssociationMetadata.CollectionType.LIST : AssociationMetadata.CollectionType.SET;
-        }
+        AssociationMetadata.CollectionType collectionType = getCollectionType(f);
 
         AssociationMetadata am = new AssociationMetadata(
                 AssociationMetadata.Type.ONE_TO_MANY,
@@ -263,6 +237,26 @@ public class MetadataBuilder {
                 null
         );
         meta.addAssociationMetadata(am);
+    }
+
+    private static AssociationMetadata.CollectionType getCollectionType(Field f) {
+        Class<?> fieldType = f.getType();
+
+        boolean isList = List.class.isAssignableFrom(fieldType);
+        boolean isSet = Set.class.isAssignableFrom(fieldType);
+
+        AssociationMetadata.CollectionType collectionType;
+        if (!isList && !isSet) {
+            throw new IntegrityException(
+                    "ManyToMany field must be of type List or Set, but found: "
+                            + fieldType.getSimpleName()
+            );
+        } else {
+            // prefer list to set
+            collectionType = isList ?
+                    AssociationMetadata.CollectionType.LIST : AssociationMetadata.CollectionType.SET;
+        }
+        return collectionType;
     }
 
     private static void mapManyToOneColumns(EntityMetadata meta, Field f) {
@@ -322,7 +316,7 @@ public class MetadataBuilder {
                             + fieldType.getSimpleName()
             );
         } else {
-            // prefer list over set
+            // prefer list to set
             collectionType = isList ?
                     AssociationMetadata.CollectionType.LIST : AssociationMetadata.CollectionType.SET;
         }
@@ -384,7 +378,7 @@ public class MetadataBuilder {
                 } else if (f.getType().equals(LocalDate.class)) {
                     defaultValue = LocalDate.parse(column.defaultValue());
                 } else if (f.getType().equals(LocalTime.class)) {
-                    defaultValue = LocalTime.parse(column.defaultValue()); // FIXME
+                    defaultValue = LocalTime.parse(column.defaultValue());
                 } else if (f.getType().equals(LocalDateTime.class)) {
                     defaultValue = LocalDateTime.parse(column.defaultValue());
                 } else if (f.getType().equals(OffsetDateTime.class)) {
@@ -511,7 +505,6 @@ public class MetadataBuilder {
             return "UUID";
         }
 
-        // FIXME detect Collection and suggest relationship
         throw new IntegrityException("Unsupported type: " + type);
     }
 }

@@ -75,12 +75,8 @@ public class PropertyMetadata implements Cloneable {
 
     public String toSqlConstraint(String tableName) {
         if (references != null) {
-            // TODO change to postgres later
             return "CONSTRAINT " + tableName + "_" + columnName + "_constraint FOREIGN KEY (" + columnName + ")\n" +
                     "REFERENCES " + references;
-//            return "CONSTRAINT " + columnName + "_constraint FOREIGN KEY (" + columnName + ")\n" +
-//                    "REFERENCES " + references + " MATCH SIMPLE\n" +
-//                    "ON UPDATE NO ACTION ON DELETE NO ACTION";
         } else {
             return "";
         }
@@ -114,7 +110,6 @@ public class PropertyMetadata implements Cloneable {
     public PropertyMetadata clone() {
         try {
             PropertyMetadata clone = (PropertyMetadata) super.clone();
-            // TODO: copy mutable state here, so the clone can't change the internals of the original
             return clone;
         } catch (CloneNotSupportedException e) {
             throw new AssertionError();

@@ -6,10 +6,6 @@ import lombok.Getter;
 import java.util.Collections;
 import java.util.List;
 
-/**
- * LIKE condition for string pattern matching: field LIKE pattern
- * Pattern can include SQL wildcards: % (any characters) and _ (single character)
- */
 @AllArgsConstructor
 @Getter
 public class Like implements Condition {
