@@ -15,6 +15,7 @@ import java.util.*;
 public class EntityMetadata {
     Class<?> entityClass;
     String tableName;
+    boolean isAbstract;
     // maps field name to metadata
     Map<String, PropertyMetadata> idColumns = new HashMap<>();
     Map<String, PropertyMetadata> properties = new HashMap<>();

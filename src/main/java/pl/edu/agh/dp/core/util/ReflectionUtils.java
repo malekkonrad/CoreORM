@@ -1,12 +1,18 @@
 package pl.edu.agh.dp.core.util;
 
 import java.lang.reflect.Field;
+import java.lang.reflect.Modifier;
 import java.util.Arrays;
 
 public final class ReflectionUtils {
 
     private ReflectionUtils() {
     }
+
+    public static boolean isAbstract(Class<?> clazz) {
+        return Modifier.isAbstract(clazz.getModifiers());
+    }
+
 
     public static boolean doesObjectContainField(Object object, String fieldName) {
         return Arrays.stream(object.getClass().getFields())

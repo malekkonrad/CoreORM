@@ -2,6 +2,7 @@ package pl.edu.agh.dp.core.mapping;
 
 import pl.edu.agh.dp.core.exceptions.IntegrityException;
 import pl.edu.agh.dp.core.mapping.annotations.*;
+import pl.edu.agh.dp.core.util.ReflectionUtils;
 import pl.edu.agh.dp.core.util.StringUtils;
 
 import java.lang.reflect.Field;
@@ -18,6 +19,10 @@ public class MetadataBuilder {
     public static EntityMetadata buildEntityMetadata(Class<?> clazz) {
         EntityMetadata meta = new EntityMetadata();
         meta.setEntityClass(clazz);
+
+        // abstract
+        boolean isAbstract = ReflectionUtils.isAbstract(clazz);
+        meta.setAbstract(isAbstract);
 
         // mapping name of entity
         String name = clazz.getSimpleName();
