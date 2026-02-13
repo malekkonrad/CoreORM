@@ -13,6 +13,7 @@ public class InheritanceStrategyFactory {
             case SINGLE_TABLE -> new SingleTableInheritanceStrategy(metadata);
             case JOINED -> new JoinedTableInheritanceStrategy(metadata);
             case TABLE_PER_CLASS -> new TablePerClassInheritanceStrategy(metadata);
+            case CONCRETE_CLASS ->  new ConcreteClassInheritanceStrategy(metadata);
         };
 
     }
