@@ -16,6 +16,7 @@ public class ConfigurationImpl implements Configuration {
 
     private final Properties properties = new Properties();
     private final List<Class<?>> entityClasses = new ArrayList<>();
+    private final List<String> packagesToScan = new ArrayList<>();
     private final Map< Class<?>, EntityPersister> entityPersisters = new HashMap<>();
 
     public Configuration setProperty(String key, String value) {
@@ -29,10 +30,21 @@ public class ConfigurationImpl implements Configuration {
         return this;
     }
 
+    @Override
+    public Configuration scanPackages(String... packages) {
+        packagesToScan.addAll(List.of(packages));
+        return this;
+    }
+
     public SessionFactory buildSessionFactory() {
         // 1. Scanning for entities
         ClassLoader cl = Thread.currentThread().getContextClassLoader();
-        Set<Class<?>> foundEntities = ClassPathScanner.scanForEntities(cl);
+        Set<Class<?>> foundEntities;
+        if (packagesToScan.isEmpty()) {
+            foundEntities = ClassPathScanner.scanForEntities(cl);
+        } else {
+            foundEntities = ClassPathScanner.scanForEntities(cl, packagesToScan.toArray(new String[0]));
+        }
         entityClasses.addAll(foundEntities);
 
         // 2. Building registry - inside EntityMetadata are being created
