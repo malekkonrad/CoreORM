@@ -12,6 +12,7 @@ import pl.edu.agh.dp.core.api.Orm;
 import pl.edu.agh.dp.core.api.Session;
 import pl.edu.agh.dp.core.api.SessionFactory;
 import pl.edu.agh.dp.core.mapping.annotations.Column;
+import pl.edu.agh.dp.core.mapping.annotations.Entity;
 import pl.edu.agh.dp.core.mapping.annotations.Id;
 import pl.edu.agh.dp.core.mapping.annotations.Table;
 import pl.edu.agh.dp.core.exceptions.IntegrityException;
@@ -31,6 +32,7 @@ public class BasicTableTest {
     @Getter
     @Setter
     @NoArgsConstructor
+    @Entity
     public static class BasicTable {
         // list of all supported types
         @Id(autoIncrement = true)
@@ -176,7 +178,7 @@ public class BasicTableTest {
 
     @Test
     void testBasicTablePersistence() {
-        config.register(BasicTable.class);
+//        config.register();
         sessionFactory = config.buildSessionFactory();
         session = sessionFactory.openSession();
 
