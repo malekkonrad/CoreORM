@@ -89,12 +89,8 @@ public class SessionImpl implements Session {
                     System.out.println("Inserting * to 1");
                     Object field = ReflectionUtils.getFieldValue(value, am.getMappedBy());
                     if (field == null) {
-                        throw new IntegrityException(
-                                "Field cannot be null.\n" +
-                                "Source class: " + value.getClass().getName() + "\n" +
-                                "Field: " + am.getMappedBy() + "\n" +
-                                "Field is set to null, but it should be initialized."
-                        );
+                        ReflectionUtils.setFieldValue(value, am.getMappedBy(), am.createCollection());
+                        field = ReflectionUtils.getFieldValue(value, am.getMappedBy());
                     }
                     assert field instanceof Collection;
                     boolean isBackrefered = false;
@@ -117,12 +113,8 @@ public class SessionImpl implements Session {
                     for (Object relationshipEntity : (Collection<?>)value) {
                         Object field = ReflectionUtils.getFieldValue(relationshipEntity, am.getMappedBy());
                         if (field == null) {
-                            throw new IntegrityException(
-                                    "Field cannot be null.\n" +
-                                    "Source class: " + relationshipEntity.getClass().getName() + "\n" +
-                                    "Field: " + am.getMappedBy() + "\n" +
-                                    "Field is set to null, but it should be initialized."
-                            );
+                            ReflectionUtils.setFieldValue(relationshipEntity, am.getMappedBy(), am.createCollection());
+                            field = ReflectionUtils.getFieldValue(relationshipEntity, am.getMappedBy());
                         }
                         assert field instanceof Collection;
                         boolean isBackrefered = false;

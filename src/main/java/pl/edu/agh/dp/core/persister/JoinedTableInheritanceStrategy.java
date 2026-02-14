@@ -138,17 +138,15 @@ public class JoinedTableInheritanceStrategy extends AbstractInheritanceStrategy 
                 Long currentResult = jdbc.insert(sql.toString(), isRoot ? idProp : "", values.toArray());
 
                 if (isRoot) {
-                    boolean hasAutoIncrementId = meta.getIdColumns().values().stream().anyMatch(PropertyMetadata::isAutoIncrement);
-
-                    if (hasAutoIncrementId) {
+                    // set generated ID
+                    int numOfIds = meta.getIdColumns().size();
+                    if (numOfIds == 1) {        // we have one key if there's more then for sure it's not autoincrement
                         generatedId = currentResult;
-
-                        for (PropertyMetadata idPropName : meta.getIdColumns().values()) {
+                        PropertyMetadata idPropName = meta.getIdColumns().values().iterator().next();
+                        if (idPropName.isAutoIncrement()) {
+                            System.out.println("seting id in " + entity.toString()+ " value: " + generatedId);
                             ReflectionUtils.setFieldValue(entity, idPropName.getName(), generatedId);
                         }
-                    } else {
-                        String idPropName = meta.getIdColumns().values().iterator().next().getName();
-                        generatedId = (Long) ReflectionUtils.getFieldValue(entity, idPropName);
                     }
                 }
             }
