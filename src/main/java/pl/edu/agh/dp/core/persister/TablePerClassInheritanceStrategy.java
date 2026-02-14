@@ -67,7 +67,9 @@ public class TablePerClassInheritanceStrategy extends AbstractInheritanceStrateg
         rootId.setSqlType("BIGINT");
         rootId.setDefaultValue("nextval('" + sequenceName + "')");
         // add table to the creation
-        sb.append(entityMetadata.getSqlTable());
+        if (!entityMetadata.isAbstract()) {
+            sb.append(entityMetadata.getSqlTable());
+        }
         // return table and but skip the constraints cause it's TPC
         return new Pair<>(sb.toString(), "");
     }
@@ -495,11 +497,15 @@ public class TablePerClassInheritanceStrategy extends AbstractInheritanceStrateg
         List<EntityMetadata> toVisit = new ArrayList<>();
 
         toVisit.add(parent);
-        result.add(parent);
+        if (!parent.isAbstract()) {
+            result.add(parent);
+        }
         while (!toVisit.isEmpty()) {
             var current =  toVisit.remove(0);
             for (EntityMetadata child: current.getInheritanceMetadata().getChildren()){
-                result.add(child);
+                if (!child.isAbstract()) {
+                    result.add(child);
+                }
                 toVisit.add(child);
             }
         }
