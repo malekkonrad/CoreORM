@@ -40,7 +40,7 @@ public class ComplexKeysTest {
     @Getter
     @Setter
     @Inheritance(strategy = InheritanceType.SINGLE_TABLE)
-    public static abstract class Person {
+    public static abstract class PersonSingle {
         @Id
         Long id;
         String name;
@@ -50,25 +50,96 @@ public class ComplexKeysTest {
     @NoArgsConstructor
     @Getter
     @Setter
-    public static class Student extends Person {
+    public static class StudentSingle extends PersonSingle {
         String index;
 
         @ManyToMany
         @JoinColumn(nullable = true)
-        List<Subject> subjects;
+        List<SubjectSingle> subjects;
     }
 
     @NoArgsConstructor
     @Getter
     @Setter
-    public static class Subject {
+    @Inheritance(strategy = InheritanceType.SINGLE_TABLE)
+    public static class SubjectSingle {
         @Id
         Long id;
         String name;
 
         @ManyToMany
         @JoinColumn(nullable = true)
-        List<Student> students;
+        List<StudentSingle> students;
+    }
+
+    @Getter
+    @Setter
+    @Inheritance(strategy = InheritanceType.TABLE_PER_CLASS)
+    public static abstract class PersonTPC {
+        @Id
+        Long id;
+        String name;
+        String surname;
+    }
+
+    @NoArgsConstructor
+    @Getter
+    @Setter
+    public static class StudentTPC extends PersonTPC {
+        String index;
+
+        @ManyToMany
+        @JoinColumn(nullable = true)
+        List<SubjectTPC> subjects;
+    }
+
+    @NoArgsConstructor
+    @Getter
+    @Setter
+    @Inheritance(strategy = InheritanceType.TABLE_PER_CLASS)
+    public static class SubjectTPC {
+        @Id
+        Long id;
+        String name;
+
+        @ManyToMany
+        @JoinColumn(nullable = true)
+        List<StudentTPC> students;
+    }
+
+    @Getter
+    @Setter
+    @Inheritance(strategy = InheritanceType.JOINED)
+    public static abstract class PersonJoined {
+        @Id
+        Long id;
+        String name;
+        String surname;
+    }
+
+    @NoArgsConstructor
+    @Getter
+    @Setter
+    public static class StudentJoined extends PersonJoined {
+        String index;
+
+        @ManyToMany
+        @JoinColumn(nullable = true)
+        List<SubjectJoined> subjects;
+    }
+
+    @NoArgsConstructor
+    @Getter
+    @Setter
+    @Inheritance(strategy = InheritanceType.JOINED)
+    public static class SubjectJoined {
+        @Id
+        Long id;
+        String name;
+
+        @ManyToMany
+        @JoinColumn(nullable = true)
+        List<StudentJoined> students;
     }
 
 
@@ -112,18 +183,18 @@ public class ComplexKeysTest {
     }
 
     @Test
-    public void createCollectionTest() {
-        config.register(Person.class, Student.class, Subject.class);
+    public void loadSingleTest() {
+        config.register(PersonSingle.class, StudentSingle.class, SubjectSingle.class);
         sessionFactory = config.buildSessionFactory();
         session = sessionFactory.openSession();
 
         {
-            Student student = new Student();
+            StudentSingle student = new StudentSingle();
             student.setName("name");
             student.setSurname("surname");
             student.setIndex("yes");
 
-            Subject subject = new Subject();
+            SubjectSingle subject = new SubjectSingle();
             subject.setName("subject");
             subject.setStudents(List.of(student));
 
@@ -135,9 +206,73 @@ public class ComplexKeysTest {
         session = sessionFactory.openSession();
 
         {
-            List<Person> persons = session.findAll(Person.class);
+            List<PersonSingle> persons = session.findAll(PersonSingle.class);
 
-            Student student = session.find(Student.class, 1L);
+            StudentSingle student = session.find(StudentSingle.class, 1L);
+            assertEquals(1, student.getSubjects().size());
+            assertEquals("subject", student.getSubjects().get(0).getName());
+        }
+    }
+
+    @Test
+    public void loadTPCTest() {
+        config.register(PersonTPC.class, StudentTPC.class, SubjectTPC.class);
+        sessionFactory = config.buildSessionFactory();
+        session = sessionFactory.openSession();
+
+        {
+            StudentTPC student = new StudentTPC();
+            student.setName("name");
+            student.setSurname("surname");
+            student.setIndex("yes");
+
+            SubjectTPC subject = new SubjectTPC();
+            subject.setName("subject");
+            subject.setStudents(List.of(student));
+
+            session.save(subject);
+            session.commit();
+        }
+
+        session.close();
+        session = sessionFactory.openSession();
+
+        {
+            List<PersonTPC> persons = session.findAll(PersonTPC.class);
+
+            StudentTPC student = session.find(StudentTPC.class, 1L);
+            assertEquals(1, student.getSubjects().size());
+            assertEquals("subject", student.getSubjects().get(0).getName());
+        }
+    }
+
+    @Test
+    public void loadJoinedTest() {
+        config.register(PersonJoined.class, StudentJoined.class, SubjectJoined.class);
+        sessionFactory = config.buildSessionFactory();
+        session = sessionFactory.openSession();
+
+        {
+            StudentJoined student = new StudentJoined();
+            student.setName("name");
+            student.setSurname("surname");
+            student.setIndex("yes");
+
+            SubjectJoined subject = new SubjectJoined();
+            subject.setName("subject");
+            subject.setStudents(List.of(student));
+
+            session.save(subject);
+            session.commit();
+        }
+
+        session.close();
+        session = sessionFactory.openSession();
+
+        {
+            List<PersonJoined> persons = session.findAll(PersonJoined.class);
+
+            StudentJoined student = session.find(StudentJoined.class, 1L);
             assertEquals(1, student.getSubjects().size());
             assertEquals("subject", student.getSubjects().get(0).getName());
         }

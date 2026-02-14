@@ -178,7 +178,7 @@ public class BasicTableTest {
 
     @Test
     void testBasicTablePersistence() {
-//        config.register();
+        config.register(BasicTable.class);
         sessionFactory = config.buildSessionFactory();
         session = sessionFactory.openSession();
 

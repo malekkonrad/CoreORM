@@ -404,6 +404,8 @@ public class MetadataRegistry {
                 List<PropertyMetadata> targetIdColumns = targetEntityMetadata.getNonForeignKeyColumns();
 
                 if (idColumns.isEmpty()) {
+                    System.out.println(entityMetadata);
+                    System.out.println(targetEntityMetadata);
                     throw new IntegrityException("No primary keys to map to, idk what to do.");
                 }
                 if (targetIdColumns.isEmpty()) {

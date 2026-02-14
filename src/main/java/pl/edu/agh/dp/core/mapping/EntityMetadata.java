@@ -117,7 +117,8 @@ public class EntityMetadata {
 
     public List<PropertyMetadata> getNonForeignKeyColumns() {
         List<PropertyMetadata> result = new ArrayList<>();
-        for (PropertyMetadata pm : idColumns.values()) {
+        EntityMetadata root = inheritanceMetadata.getRootClass(); // we only care about root ids
+        for (PropertyMetadata pm : root.idColumns.values()) {
             if (pm.references == null || pm.references.isEmpty()) {
                 result.add(pm);
             }
