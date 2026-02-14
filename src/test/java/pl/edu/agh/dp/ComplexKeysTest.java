@@ -39,7 +39,7 @@ public class ComplexKeysTest {
 
     @Getter
     @Setter
-    @Inheritance(strategy = InheritanceType.TABLE_PER_CLASS)
+    @Inheritance(strategy = InheritanceType.SINGLE_TABLE)
     public static abstract class Person {
         @Id
         Long id;
@@ -135,6 +135,8 @@ public class ComplexKeysTest {
         session = sessionFactory.openSession();
 
         {
+            List<Person> persons = session.findAll(Person.class);
+
             Student student = session.find(Student.class, 1L);
             assertEquals(1, student.getSubjects().size());
             assertEquals("subject", student.getSubjects().get(0).getName());

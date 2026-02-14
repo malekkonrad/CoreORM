@@ -204,9 +204,27 @@ public class EntityMetadata {
 
             idColumns.putAll(m.getIdColumns());
             properties.putAll(m.getProperties());
-            associationMetadata.putAll(m.getAssociationMetadata());
 
             stack.addAll(m.getInheritanceMetadata().getChildren());
+        }
+
+        if (root == this) {
+            return;
+        }
+
+        // fill association metadata from the root class
+        boolean stop = false;
+        stack.add(getInheritanceMetadata().getRootClass());
+        while (!stack.isEmpty()) {
+            EntityMetadata m = stack.poll();
+            associationMetadata.putAll(m.getAssociationMetadata());
+            List<EntityMetadata> children = m.getInheritanceMetadata().getChildren();
+            if (children != null && children.contains(this)) {
+                stop = true;
+            }
+            if (!stop) {
+                stack.addAll(children);
+            }
         }
     }
 

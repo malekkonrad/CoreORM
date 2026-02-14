@@ -176,7 +176,7 @@ public class SessionImpl implements Session {
         List<T> entities = persister.findAll(entityClass, this);
         for (T entity : entities) {
             // fill the relationship data
-            EntityMetadata metadata = persister.getEntityMetadata();
+            EntityMetadata metadata = entityPersisters.get(entity.getClass()).getEntityMetadata();
             for (AssociationMetadata associationMetadata : metadata.getAssociationMetadata().values()) {
                 if (associationMetadata.getCollectionType() == AssociationMetadata.CollectionType.NONE) {
                     continue;
@@ -359,6 +359,7 @@ public class SessionImpl implements Session {
         }
         EntityMetadata metadata = entityPersisters.get(entity.getClass()).getEntityMetadata();
         AssociationMetadata associationMetadata = metadata.getAssociationMetadata().get(relationshipName);
+        System.out.println(metadata.getAssociationMetadata());
         assert associationMetadata != null;
         Class<?> relationshipClass = associationMetadata.getTargetEntity();
         EntityMetadata relationshipMetadata = entityPersisters.get(relationshipClass).getEntityMetadata();
