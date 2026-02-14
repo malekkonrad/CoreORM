@@ -214,13 +214,16 @@ public class SingleTableInheritanceStrategy extends AbstractInheritanceStrategy 
         assert entityMetadata != null;
         String tableName = entityMetadata.getTableName();
 
-        PropertyMetadata idColumn = entityMetadata.getIdColumns().values().iterator().next();
+        List<PropertyMetadata> idColumns = entityMetadata.getIdColumns().values().stream().toList();
 
-        String sql = "SELECT * FROM " + tableName + " WHERE " + idColumn.getColumnName() + " = ?";
+        StringBuilder sql = new StringBuilder();
+        sql.append("SELECT * FROM ").append(tableName).append(" WHERE ");
+        List<Object> params = new ArrayList<>();
+        appendIdWhereClause(sql, params, idColumns, id);
 
         try {
             JdbcExecutor jdbc = session.getJdbcExecutor();
-            return jdbc.queryOne(sql, this::mapEntity, id).orElse(null);
+            return jdbc.queryOne(sql.toString(), this::mapEntity, params.toArray()).orElse(null);
         } catch (Exception e) {
             System.out.println(e.getMessage());
             throw new RuntimeException("Error finding entity with id = " + id, e);

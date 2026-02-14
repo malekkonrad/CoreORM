@@ -303,24 +303,6 @@ public class TablePerClassInheritanceStrategy extends AbstractInheritanceStrateg
         }
     }
 
-    private void appendIdWhereClause(StringBuilder sql, List<Object> params, Collection<PropertyMetadata> idColumns, Object id) {
-        if (idColumns.size() == 1) {
-            PropertyMetadata pm = idColumns.iterator().next();
-            sql.append(pm.getColumnName()).append(" = ?");
-            params.add(pm.getType().cast(id));
-        } else {
-            // composite key
-            int count = 0;
-            for(PropertyMetadata pm : idColumns) {
-                if(count > 0) sql.append(" AND ");
-                sql.append(pm.getColumnName()).append(" = ?");
-                Object val = ReflectionUtils.getFieldValue(id, pm.getName());
-                params.add(val);
-                count++;
-            }
-        }
-    }
-
     @Override
     public <T> List<T> findAll(Class<T> type, Session session, PairTargetStatements pairTargetStatements) {
         TargetStatement joinStmt = pairTargetStatements.getJoinStatements().get(0);

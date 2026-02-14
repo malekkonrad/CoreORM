@@ -473,14 +473,23 @@ public class JoinedTableInheritanceStrategy extends AbstractInheritanceStrategy 
         // WHERE
         List<Object> params = new ArrayList<>();
         if (id != null) {
-            String pkName = root.getIdColumns().values().iterator().next().getColumnName();
-            joinPart.append(" WHERE ").append(root.getTableName()).append(".").append(pkName).append(" = ?");
+            List<PropertyMetadata> idColumns = entityMetadata.getIdColumns().values().stream().toList();
+            joinPart.append(" WHERE ");
 
-            PropertyMetadata idProp = root.getIdColumns().values().iterator().next();
-            if (idProp.getType() == Long.class && id instanceof Integer) {
-                params.add(((Integer) id).longValue());
+            if (idColumns.size() == 1) {
+                PropertyMetadata pm = idColumns.iterator().next();
+                joinPart.append(root.getTableName()).append(".").append(pm.getColumnName()).append(" = ?");
+                params.add(pm.getType().cast(id));
             } else {
-                params.add(id);
+                // composite key
+                int count = 0;
+                for(PropertyMetadata pm : idColumns) {
+                    if(count > 0) joinPart.append(" AND ");
+                    joinPart.append(root.getTableName()).append(".").append(pm.getColumnName()).append(" = ?");
+                    Object val = ReflectionUtils.getFieldValue(id, pm.getName());
+                    params.add(val);
+                    count++;
+                }
             }
         }
 

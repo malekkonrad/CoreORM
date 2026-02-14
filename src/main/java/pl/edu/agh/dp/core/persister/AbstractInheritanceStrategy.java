@@ -87,6 +87,24 @@ public abstract class AbstractInheritanceStrategy implements InheritanceStrategy
         }
     }
 
+    protected void appendIdWhereClause(StringBuilder sql, List<Object> params, Collection<PropertyMetadata> idColumns, Object id) {
+        if (idColumns.size() == 1) {
+            PropertyMetadata pm = idColumns.iterator().next();
+            sql.append(pm.getColumnName()).append(" = ?");
+            params.add(pm.getType().cast(id));
+        } else {
+            // composite key
+            int count = 0;
+            for(PropertyMetadata pm : idColumns) {
+                if(count > 0) sql.append(" AND ");
+                sql.append(pm.getColumnName()).append(" = ?");
+                Object val = ReflectionUtils.getFieldValue(id, pm.getName());
+                params.add(val);
+                count++;
+            }
+        }
+    }
+
     protected void fillRelationshipData(Object entity, EntityMetadata meta, List<String> columns, List<Object> values) {
         assert entityMetadata != null;
 
