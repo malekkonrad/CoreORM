@@ -27,7 +27,7 @@ public class InheritanceTest {
     @Getter
     @Setter
     @NoArgsConstructor
-    @Inheritance(strategy = InheritanceType.SINGLE_TABLE)
+    @Inheritance(strategy = InheritanceType.NEW_SINGLE_TABLE)
     public static class Animal {
         @Id(autoIncrement = true)
         Long id;
@@ -213,13 +213,13 @@ public class InheritanceTest {
         session = sessionFactory.openSession();
 
         List<Animal> animals = session.findAll(Animal.class);
-        assertEquals(animals.size(), 2);
+        assertEquals(2, animals.size());
 
         List<Husky> huskies = session.findAll(Husky.class);
-        assertEquals(huskies.size(), 1);
+        assertEquals(1, huskies.size());
 
         Husky h1 = huskies.get(0);
         assertTrue(animals.remove(h1));
-        assertEquals(animals.size(), 1);
+        assertEquals(1, animals.size());
     }
 }

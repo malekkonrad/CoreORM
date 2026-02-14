@@ -35,7 +35,7 @@ public class MetadataRegistry {
         // correct relationship after inheritance
         for (Class<?> clazz : entitiesClasses){
             EntityMetadata entity = entities.get(clazz);
-            if (entity.getInheritanceMetadata().getType() == InheritanceType.TABLE_PER_CLASS) {
+            if (entity.getInheritanceMetadata().getType() == InheritanceType.TABLE_PER_CLASS || entity.getInheritanceMetadata().getType() == InheritanceType.NEW_SINGLE_TABLE) {
                 entity.correctRelationshipsConcrete();
             } else if (entity.getInheritanceMetadata().getType() == InheritanceType.SINGLE_TABLE) {
                 entity.correctRelationshipsSingle();
@@ -580,7 +580,7 @@ public class MetadataRegistry {
         // group together the columns
         for (EntityMetadata m : entities.values()) {
             InheritanceType type = m.getInheritanceMetadata().getType();
-            if (type == InheritanceType.TABLE_PER_CLASS) {
+            if (type == InheritanceType.TABLE_PER_CLASS ||  type == InheritanceType.NEW_SINGLE_TABLE) {
                 m.setMetadataForConcreteTable();
             } else if (type == InheritanceType.SINGLE_TABLE) {
                 m.setMetadataForSingleTable();
