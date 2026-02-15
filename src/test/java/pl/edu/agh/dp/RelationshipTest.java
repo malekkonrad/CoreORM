@@ -177,6 +177,52 @@ public class RelationshipTest {
     }
 
     @Test
+    void addDirectionTest() {
+        config.register(Department.class, Employee.class);
+        sessionFactory = config.buildSessionFactory();
+        session = sessionFactory.openSession();
+
+        {
+            Department dept = new Department();
+            dept.setName("IT");
+
+            Employee emp1 = new Employee();
+            emp1.setName("Alice");
+
+            Employee emp2 = new Employee();
+            emp2.setName("Bob");
+
+            dept.setEmployees(new ArrayList<>(){{add(emp1);add(emp2);}});
+
+            session.save(dept);
+            session.save(emp1);
+            session.save(emp2);
+            session.commit();
+        }
+
+        session.close();
+        session = sessionFactory.openSession();
+
+        {
+            Department dept = new Department();
+            dept.setName("IT");
+
+            Employee emp1 = new Employee();
+            emp1.setName("Alice");
+
+            Employee emp2 = new Employee();
+            emp2.setName("Bob");
+
+            dept.setEmployees(new ArrayList<>(){{add(emp1);add(emp2);}});
+
+            session.save(emp1);
+            session.save(emp2);
+            session.save(dept);
+            session.commit();
+        }
+    }
+
+    @Test
     void testOneToOne() {
         config.register(DogOwner.class, Dog.class);
         sessionFactory = config.buildSessionFactory();

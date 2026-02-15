@@ -5,9 +5,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 
 @Getter
@@ -40,5 +38,16 @@ public class InheritanceMetadata {
         else{
             return type.toString() + " root: " + rootClass.getTableName();
         }
+    }
+
+    public List<EntityMetadata> getAllChildren() {
+        List<EntityMetadata> result = new ArrayList<>();
+        Deque<EntityMetadata> stack = new ArrayDeque<>(children);
+        while (!stack.isEmpty()) {
+            EntityMetadata meta = stack.poll();
+            result.add(meta);
+            stack.addAll(meta.getInheritanceMetadata().getChildren());
+        }
+        return result;
     }
 }
