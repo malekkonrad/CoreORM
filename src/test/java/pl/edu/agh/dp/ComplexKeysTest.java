@@ -11,11 +11,9 @@ import pl.edu.agh.dp.core.api.Orm;
 import pl.edu.agh.dp.core.api.Session;
 import pl.edu.agh.dp.core.api.SessionFactory;
 import pl.edu.agh.dp.core.mapping.InheritanceType;
-import pl.edu.agh.dp.core.mapping.annotations.Id;
-import pl.edu.agh.dp.core.mapping.annotations.Inheritance;
-import pl.edu.agh.dp.core.mapping.annotations.JoinColumn;
-import pl.edu.agh.dp.core.mapping.annotations.ManyToMany;
+import pl.edu.agh.dp.core.mapping.annotations.*;
 
+import java.io.Writer;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
@@ -141,7 +139,56 @@ public class ComplexKeysTest {
         @JoinColumn(nullable = true)
         List<StudentJoined> students;
     }
+// LIBRARY -------------------------------------------------------
+    @NoArgsConstructor
+    @Getter
+    @Setter
+    public static class Library {
+        @Id
+        Long id;
+        String name;
 
+        @ManyToMany
+        @JoinColumn(nullable = true)
+        List<Reader> readers;
+
+        @OneToMany
+        @JoinColumn(nullable = true)
+        List<Book> catalog;
+    }
+
+    @NoArgsConstructor
+    @Getter
+    @Setter
+    public static class Reader {
+        @Id(autoIncrement = false)
+        String name;
+        @Id(autoIncrement = false)
+        String surname;
+
+        @ManyToMany
+        @JoinColumn(nullable = true)
+        List<Library> libraries;
+
+        @OneToMany
+        @JoinColumn(nullable = true)
+        List<Book> books;
+    }
+
+    @NoArgsConstructor
+    @Getter
+    @Setter
+    public static class Book {
+        @Id
+        Long id;
+        String title;
+        @ManyToOne
+        Library library;
+        @ManyToOne
+        Reader reader;
+    }
+
+// ---------------------------------------------------------------
 
     String url = System.getenv("DB_URL") != null
             ? System.getenv("DB_URL")
@@ -276,5 +323,65 @@ public class ComplexKeysTest {
             assertEquals(1, student.getSubjects().size());
             assertEquals("subject", student.getSubjects().get(0).getName());
         }
+    }
+
+    // LIBRARY TESTS -----------------------------------------------------------
+
+    @Test
+    public void findAllRentedBooksTest() {
+        config.register(Library.class, Reader.class, Book.class);
+        sessionFactory = config.buildSessionFactory();
+        session = sessionFactory.openSession();
+
+        Long libraryId;
+        {
+            Library library = new Library();
+            library.setName("library");
+
+            Reader reader1 = new Reader();
+            reader1.setName("Kamil");
+            reader1.setSurname("Pustelnik");
+            reader1.setLibraries(List.of(library));
+
+            Reader reader2 = new Reader();
+            reader2.setName("Konrad");
+            reader2.setSurname("Małek");
+            reader2.setLibraries(List.of(library));
+
+            Reader reader3 = new Reader();
+            reader3.setName("Mateusz");
+            reader3.setSurname("Kotarba");
+            reader3.setLibraries(List.of(library));
+
+            Book book1 = new Book();
+            book1.setTitle("HibernateDocs");
+            book1.setLibrary(library);
+
+            Book book2 = new Book();
+            book2.setTitle("OrmForDummies");
+            book2.setLibrary(library);
+
+            Book book3 = new Book();
+            book3.setTitle("HowToNotKillYourself");
+            book3.setLibrary(library);
+
+            reader1.setBooks(List.of(book1));
+            reader2.setBooks(List.of(book2));
+            reader3.setBooks(List.of(book3));
+
+            session.save(reader1);
+            session.save(reader2);
+            session.save(reader3);
+
+            session.commit();
+
+            libraryId = library.getId();
+        }
+
+        session.close();
+        session = sessionFactory.openSession();
+
+        Library library1 = session.find(Library.class, libraryId);
+        assertEquals(library1.getName(), "library");
     }
 }
