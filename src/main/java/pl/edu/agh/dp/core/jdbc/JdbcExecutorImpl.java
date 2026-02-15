@@ -6,6 +6,7 @@ import java.sql.*;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 public class JdbcExecutorImpl implements JdbcExecutor {
 
@@ -166,7 +167,29 @@ public class JdbcExecutorImpl implements JdbcExecutor {
 
     private void setParameters(PreparedStatement ps, Object... params) throws SQLException {
         for (int i = 0; i < params.length; i++) {
-            ps.setObject(i + 1, params[i]);
+            if (params[i] instanceof List<?> list) {
+
+                if (list.isEmpty()) {
+                    ps.setArray(i + 1, this.connection.createArrayOf("text", new Object[]{}));
+                    continue;
+                }
+
+                Object first = list.get(0);
+
+                if (first instanceof Integer) {
+                    Array array = this.connection.createArrayOf("integer", list.toArray());
+                    ps.setArray(i + 1, array);
+                } else if (first instanceof String) {
+                    Array array = this.connection.createArrayOf("text", list.toArray());
+                    ps.setArray(i + 1, array);
+                } else {
+                    throw new SQLException("Nieobsługiwany typ listy");
+                }
+
+            }
+            else {
+                ps.setObject(i + 1, params[i]);
+            }
         }
     }
 

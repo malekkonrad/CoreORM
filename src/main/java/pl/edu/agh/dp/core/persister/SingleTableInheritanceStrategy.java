@@ -395,7 +395,7 @@ public class SingleTableInheritanceStrategy extends AbstractInheritanceStrategy 
                     Object value = getValueFromResultSet(rs, pm);
 
                     if (value != null) {
-                        Object castedValue = castSqlValueToJava(pm.getType(), value);
+                        Object castedValue = castSqlValueToJava((Class<?>) pm.getType(), value);
                         ReflectionUtils.setFieldValue(entity, fieldName, castedValue);
                     }
                 } catch (SQLException e) {
@@ -412,10 +412,8 @@ public class SingleTableInheritanceStrategy extends AbstractInheritanceStrategy 
 
     private Object getValueFromResultSet(ResultSet rs, PropertyMetadata pm) throws SQLException {
         String columnName = pm.getColumnName();
-        Class<?> type = pm.getType();
-
         // Use the inherited method from AbstractInheritanceStrategy
-        return getValueFromResultSet(rs, columnName, type);
+        return getValueFromResultSet(rs, columnName, pm.getType());
     }
 
     protected boolean fieldBelongsToClass(PropertyMetadata prop, Class<?> targetClass) {

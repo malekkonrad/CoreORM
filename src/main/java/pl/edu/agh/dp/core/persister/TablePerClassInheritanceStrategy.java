@@ -464,7 +464,7 @@ public class TablePerClassInheritanceStrategy extends AbstractInheritanceStrateg
                 Object value = rs.getObject(colName);
 
                 if (value != null) {
-                    Object castedValue = castSqlValueToJava(pm.getType(), value);
+                    Object castedValue = castSqlValueToJava((Class<?>)pm.getType(), value);
                     ReflectionUtils.setFieldValue(instance, fieldName, castedValue);
                 }
             }

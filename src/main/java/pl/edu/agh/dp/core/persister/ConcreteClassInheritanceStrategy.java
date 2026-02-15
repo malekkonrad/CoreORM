@@ -521,7 +521,7 @@ public class ConcreteClassInheritanceStrategy extends AbstractInheritanceStrateg
             if (idColumns.size() == 1) {
                 PropertyMetadata pm = idColumns.iterator().next();
                 joinPart.append(baseTable.getTableName()).append(".").append(pm.getColumnName()).append(" = ?");
-                params.add(pm.getType().cast(id));
+                params.add(((Class<?>)pm.getType()).cast(id));
             } else {
                 int count = 0;
                 for (PropertyMetadata pm : idColumns) {
@@ -602,7 +602,7 @@ public class ConcreteClassInheritanceStrategy extends AbstractInheritanceStrateg
                         Object value = getValueFromResultSet(rs, columnAlias, prop.getType());
 
                         if (value != null) {
-                            Object castedValue = castSqlValueToJava(prop.getType(), value);
+                            Object castedValue = castSqlValueToJava((Class<?>) prop.getType(), value);
                             ReflectionUtils.setFieldValue(instance, fieldName, castedValue);
                         }
                     } catch (SQLException e) {

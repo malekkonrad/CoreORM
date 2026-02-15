@@ -5,6 +5,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
+import java.lang.reflect.Type;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
@@ -19,7 +20,7 @@ import java.util.UUID;
 public class PropertyMetadata implements Cloneable {
     private String name;                    // "firstName"
     private String columnName;              // "first_name"
-    private Class<?> type;                  // String.class
+    private Type type;                  // String.class
     private String sqlType;                 // VARCHAR(255)
     boolean isId = false;           // false
     boolean autoIncrement = true;   // false

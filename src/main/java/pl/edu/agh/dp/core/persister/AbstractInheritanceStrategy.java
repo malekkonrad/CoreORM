@@ -11,6 +11,8 @@ import pl.edu.agh.dp.core.mapping.EntityMetadata;
 import pl.edu.agh.dp.core.mapping.PropertyMetadata;
 import pl.edu.agh.dp.core.util.ReflectionUtils;
 
+import java.lang.reflect.ParameterizedType;
+import java.lang.reflect.Type;
 import java.math.BigDecimal;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -28,8 +30,22 @@ public abstract class AbstractInheritanceStrategy implements InheritanceStrategy
         this.entityMetadata = metadata;
     }
 
-    protected Object getValueFromResultSet(ResultSet rs, String columnName, Class<?> type) throws SQLException {
-        if (type == Long.class || type == long.class) {
+    protected Object getValueFromResultSet(ResultSet rs, String columnName, Type type) throws SQLException {
+        if (type instanceof ParameterizedType) {
+            ParameterizedType pt = (ParameterizedType) type;
+
+            if (pt.getRawType() == List.class) {
+                Type elementType = pt.getActualTypeArguments()[0];
+
+                if (elementType == Integer.class) {
+                    List<Integer> val = (List<Integer>) rs.getObject(columnName);
+                    return rs.wasNull() ? null : val;
+                } else if (elementType == String.class) {
+                    List<String> val = (List<String>) rs.getObject(columnName);
+                    return rs.wasNull() ? null : val;
+                }
+            }
+        } else if (type == Long.class || type == long.class) {
             long val = rs.getLong(columnName);
             return rs.wasNull() ? null : val;
         } else if (type == Integer.class || type == int.class) {
@@ -91,7 +107,7 @@ public abstract class AbstractInheritanceStrategy implements InheritanceStrategy
         if (idColumns.size() == 1) {
             PropertyMetadata pm = idColumns.iterator().next();
             sql.append(pm.getColumnName()).append(" = ?");
-            params.add(pm.getType().cast(id));
+            params.add(((Class<?>)pm.getType()).cast(id));
         } else {
             // composite key
             int count = 0;
@@ -436,6 +452,36 @@ public abstract class AbstractInheritanceStrategy implements InheritanceStrategy
             return sqlValue;
         }
 
+        if (targetType.isAssignableFrom(java.util.List.class) && sqlValue instanceof java.sql.Array) {
+            try {
+                Object[] array = (Object[]) ((java.sql.Array) sqlValue).getArray();
+
+                // Jeśli pole zdefiniowane jako List<>, ale nie ma informacji o typie generycznym → zwracamy List<Object>
+                if (targetType == java.util.List.class) {
+                    return java.util.Arrays.asList(array);
+                }
+
+                // Próba uzyskania typu elementu z generyka (najczęściej działa w refleksji ORM)
+                java.lang.reflect.Type genericType = targetType.getGenericSuperclass();
+                if (genericType instanceof java.lang.reflect.ParameterizedType pt) {
+                    java.lang.reflect.Type[] typeArgs = pt.getActualTypeArguments();
+                    if (typeArgs.length == 1 && typeArgs[0] instanceof Class<?> elementType) {
+                        java.util.List<Object> result = new java.util.ArrayList<>(array.length);
+                        for (Object item : array) {
+                            result.add(castSqlValueToJava(elementType, item));
+                        }
+                        return result;
+                    }
+                }
+
+                // Fallback – gdy nie udało się odczytać generyka → List<Object>
+                return java.util.Arrays.asList(array);
+
+            } catch (Exception e) {
+                throw new IllegalArgumentException(
+                        "Cannot convert SQL array to List: " + sqlValue.getClass().getName(), e);
+            }
+        }
         // --- Date & Time ---
         if (targetType == LocalDate.class && sqlValue instanceof java.sql.Date d) {
             return d.toLocalDate();

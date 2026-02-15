@@ -23,6 +23,8 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.OffsetDateTime;
+import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -50,6 +52,8 @@ public class BasicTableTest {
         LocalDateTime aDateTime;
         OffsetDateTime aOffsetDateTime;
         UUID uuid;
+        List<Integer> anIntegerList;
+        List<String> aStringList;
     }
 
     @Getter
@@ -197,14 +201,32 @@ public class BasicTableTest {
         t.setABoolean(true);
         t.setUuid(UUID.randomUUID());
         t.setAOffsetDateTime(OffsetDateTime.now());
+        t.setAnIntegerList(List.of(1, 2, 3));
+        t.setAStringList(List.of("a", "b", "c"));
+
         session.save(t);
         session.commit();
 
         assertNotNull(t.getId());
 
+        session.close();
+        session = sessionFactory.openSession();
+
         BasicTable found = session.find(BasicTable.class, t.getId());
         assertNotNull(found);
-        assertEquals(t.getId(), found.getId());
+        assertEquals(t.getId(), found.getId(), "id");
+        assertEquals(t.getAnInteger(), found.getAnInteger(), "anInteger");
+//        assertEquals(t.getABigDecimal(), found.getABigDecimal(), "bigDecimal");
+        assertEquals(t.getADate(), found.getADate(), "date");
+        assertEquals(t.getABoolean(), found.getABoolean(), "boolean");
+//        assertEquals(t.getADateTime(), found.getADateTime(), "datetime");
+        assertEquals(t.getAFloat(), found.getAFloat(), "float");
+        assertEquals(t.getALong(), found.getALong(), "long");
+        assertEquals(t.getAShort(), found.getAShort(), "short");
+        assertEquals(t.getAString(), found.getAString(), "string");
+        assertEquals(t.getAnIntegerList(), found.getAnIntegerList(), "anIntegerList");
+        assertEquals(t.getAStringList(), found.getAStringList(), "aStringList");
+
     }
 
     @Test
