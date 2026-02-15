@@ -25,17 +25,6 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 public class ComplexKeysTest {
-    public static class Animal {
-        @Id(autoIncrement = false)
-        Long id;
-        @Id(autoIncrement = false)
-        Long id2;
-        String name;
-    }
-
-    public static class Cat {
-        String name;
-    }
 
     @Getter
     @Setter

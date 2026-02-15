@@ -30,7 +30,6 @@ public class SessionImpl implements Session {
         this.jdbcExecutor = jdbcExecutor;
         this.cachedEntities = new EntitySet<>(entityPersisters);
         this.newEntities = new SortedEntitySet<>(entityPersisters);
-        System.out.println(this.newEntities);
     }
 
     @Override

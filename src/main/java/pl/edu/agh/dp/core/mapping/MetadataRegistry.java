@@ -346,12 +346,65 @@ public class MetadataRegistry {
                     }});
                     // remove fkey from target
                     targetEntityMetadata.fkColumns.remove(targetAm.getField());
-                    // fill target join columns
+                    // cross reference
                     currentAm.setTargetJoinColumns(targetAm.getJoinColumns());
                     targetAm.setTargetJoinColumns(currentAm.getJoinColumns());
                 } else {
-                    throw new IntegrityException("Multiple primary keys to map to, idk what to do.");
+                    List<PropertyMetadata> fkColumns = new ArrayList<>();
+                    List<PropertyMetadata> targetJoinColumnsNew = new ArrayList<>();
+                    // create FK column for each PK
+                    for (PropertyMetadata targetIdColumn : targetIdColumns) {
+                        PropertyMetadata fkClone = fkColumn.clone();
+                        fkClone.setColumnName(
+                                fkColumn.getColumnName()
+                                        + "_"
+                                        + targetIdColumn.getColumnName()
+                                        + "_fkey"
+                        );
+                        fkClone.setReferences(
+                                targetEntityMetadata.tableName
+                                        + "("
+                                        + targetIdColumn.getColumnName()
+                                        + ")"
+                        );
+                        fkColumns.add(fkClone);
+
+                        PropertyMetadata targetClone = targetIdColumn.clone();
+                        targetClone.setName(targetAm.getField());
+
+                        targetJoinColumnsNew.add(targetClone);
+                    }
+
+                    // add additional join columns (current side)
+                    for (String field : currentJoinColumns) {
+                        if (entityMetadata.getProperties().containsKey(field)) {
+                            fkColumns.add(entityMetadata.getProperties().get(field));
+                        } else if (entityMetadata.getFkColumns().containsKey(field)) {
+                            fkColumns.add(entityMetadata.getFkColumns().get(field));
+                        } else {
+                            throw new IntegrityException("Invalid join columns, unable to determine them");
+                        }
+                    }
+
+                    // add additional join columns (target side)
+                    for (String field : currentJoinColumns) {
+                        if (targetEntityMetadata.getProperties().containsKey(field)) {
+                            targetJoinColumnsNew.add(targetEntityMetadata.getProperties().get(field));
+                        } else if (targetEntityMetadata.getFkColumns().containsKey(field)) {
+                            targetJoinColumnsNew.add(targetEntityMetadata.getFkColumns().get(field));
+                        } else {
+                            throw new IntegrityException("Invalid join columns, unable to determine them");
+                        }
+                    }
+                    currentAm.setJoinColumns(fkColumns);
+                    targetAm.setJoinColumns(targetJoinColumnsNew);
+                    // remove fkey from target
+                    targetEntityMetadata.fkColumns.remove(targetAm.getField());
+                    // cross reference
+                    currentAm.setTargetJoinColumns(targetJoinColumnsNew);
+                    targetAm.setTargetJoinColumns(fkColumns);
                 }
+
             } else if (!isForeignKeyOnCurrent && isForeignKeyOnTarget) {
                 PropertyMetadata targetFkColumn = targetEntityMetadata.fkColumns.get(targetAm.getField());
                 List<PropertyMetadata> idColumns = entityMetadata.getNonForeignKeyColumns();
@@ -396,7 +449,63 @@ public class MetadataRegistry {
                     currentAm.setTargetJoinColumns(targetAm.getJoinColumns());
                     targetAm.setTargetJoinColumns(currentAm.getJoinColumns());
                 } else {
-                    throw new IntegrityException("Multiple primary keys to map to, idk what to do.");
+
+                    List<PropertyMetadata> targetFkColumns = new ArrayList<>();
+                    List<PropertyMetadata> currentJoinColumnsNew = new ArrayList<>();
+
+                    // create FK columns on target side for each PK
+                    for (PropertyMetadata idColumn : idColumns) {
+
+                        PropertyMetadata fkClone = targetFkColumn.clone();
+
+                        fkClone.setColumnName(
+                                targetFkColumn.getColumnName()
+                                        + "_"
+                                        + idColumn.getColumnName()
+                                        + "_fkey"
+                        );
+
+                        fkClone.setReferences(
+                                entityMetadata.tableName
+                                        + "("
+                                        + idColumn.getColumnName()
+                                        + ")"
+                        );
+                        targetFkColumns.add(fkClone);
+
+                        PropertyMetadata currentClone = idColumn.clone();
+                        currentClone.setName(currentAm.getField());
+
+                        currentJoinColumnsNew.add(currentClone);
+                    }
+                    // add additional join columns on target side
+                    for (String field : targetJoinColumns) {
+                        if (targetEntityMetadata.getProperties().containsKey(field)) {
+                            targetFkColumns.add(targetEntityMetadata.getProperties().get(field));
+                        } else if (targetEntityMetadata.getFkColumns().containsKey(field)) {
+                            targetFkColumns.add(targetEntityMetadata.getFkColumns().get(field));
+                        } else {
+                            throw new IntegrityException("Invalid join columns, unable to determine them");
+                        }
+                    }
+                    // add additional join columns on current side
+                    for (String field : targetJoinColumns) {
+                        if (entityMetadata.getProperties().containsKey(field)) {
+                            currentJoinColumnsNew.add(entityMetadata.getProperties().get(field));
+                        } else if (entityMetadata.getFkColumns().containsKey(field)) {
+                            currentJoinColumnsNew.add(entityMetadata.getFkColumns().get(field));
+                        } else {
+                            throw new IntegrityException("Invalid join columns, unable to determine them");
+                        }
+                    }
+                    targetAm.setJoinColumns(targetFkColumns);
+                    currentAm.setJoinColumns(currentJoinColumnsNew);
+                    // remove fkey from current
+                    entityMetadata.fkColumns.remove(currentAm.getField());
+                    // cross reference
+                    currentAm.setTargetJoinColumns(targetFkColumns);
+                    targetAm.setTargetJoinColumns(currentJoinColumnsNew);
+
                 }
             } else if (!isForeignKeyOnCurrent && !isForeignKeyOnTarget) {
                 PropertyMetadata targetFkColumn = targetEntityMetadata.fkColumns.get(targetAm.getField());
@@ -445,8 +554,90 @@ public class MetadataRegistry {
                     currentAm.setTargetJoinColumns(targetAm.getJoinColumns());
                     targetAm.setTargetJoinColumns(currentAm.getJoinColumns());
                 } else {
-                    throw new IntegrityException("Multiple primary keys to map to, idk what to do.");
+
+                    EntityMetadata associationTable = new EntityMetadata();
+
+                    Map<String, PropertyMetadata> columns = new HashMap<>();
+
+                    List<PropertyMetadata> currentJoinColumnsNew = new ArrayList<>();
+                    List<PropertyMetadata> targetJoinColumnsList = new ArrayList<>();
+
+                    // current side -> association table FK
+                    for (PropertyMetadata targetIdColumn : targetIdColumns) {
+
+                        PropertyMetadata fkClone = fkColumn.clone();
+
+                        fkClone.setColumnName(
+                                fkColumn.getColumnName()
+                                        + "_"
+                                        + targetIdColumn.getColumnName()
+                                        + "_fkey"
+                        );
+
+                        fkClone.setReferences(
+                                targetEntityMetadata.tableName
+                                        + "("
+                                        + targetIdColumn.getColumnName()
+                                        + ")"
+                        );
+
+                        columns.put(fkClone.getName(), fkClone);
+
+                        currentJoinColumnsNew.add(fkClone);
+                    }
+                    // target side -> association table FK
+                    for (PropertyMetadata idColumn : idColumns) {
+
+                        PropertyMetadata targetFkClone = targetFkColumn.clone();
+
+                        targetFkClone.setColumnName(
+                                targetFkColumn.getColumnName()
+                                        + "_"
+                                        + idColumn.getColumnName()
+                                        + "_fkey"
+                        );
+
+                        targetFkClone.setReferences(
+                                entityMetadata.tableName
+                                        + "("
+                                        + idColumn.getColumnName()
+                                        + ")"
+                        );
+
+                        columns.put(targetFkClone.getName(), targetFkClone);
+
+                        targetJoinColumnsList.add(targetFkClone);
+                    }
+
+                    associationTable.setTableName(
+                            entityMetadata.getTableName()
+                                    + "_"
+                                    + targetEntityMetadata.getTableName()
+                    );
+                    associationTable.setIdColumns(columns);
+                    associationTable.setFkColumns(columns);
+
+                    currentAm.setJoinColumns(currentJoinColumnsNew);
+                    targetAm.setJoinColumns(targetJoinColumnsList);
+
+                    // dominant side logic
+                    boolean preferTablePerClass =
+                            entityMetadata.getInheritanceMetadata().getType()
+                                    == InheritanceType.TABLE_PER_CLASS;
+
+                    currentAm.setHasForeignKey(preferTablePerClass);
+                    targetAm.setHasForeignKey(!preferTablePerClass);
+
+                    currentAm.setAssociationTable(associationTable);
+                    targetAm.setAssociationTable(associationTable);
+                    // remove original FK columns
+                    entityMetadata.fkColumns.remove(currentAm.getField());
+                    targetEntityMetadata.fkColumns.remove(targetAm.getField());
+                    // cross reference
+                    currentAm.setTargetJoinColumns(targetJoinColumnsList);
+                    targetAm.setTargetJoinColumns(currentJoinColumnsNew);
                 }
+
             } else {
                 throw new IntegrityException("Unhandled relationship.");
             }
