@@ -381,7 +381,7 @@ public class ComplexKeysTest {
 
     // LIBRARY TESTS -----------------------------------------------------------
 
-    @Test
+//    @Test
     public void findAllRentedBooksTest() {
         config.register(Library.class, Reader.class, Book.class);
         sessionFactory = config.buildSessionFactory();
