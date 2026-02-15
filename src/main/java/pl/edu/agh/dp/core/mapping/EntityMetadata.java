@@ -274,6 +274,70 @@ public class EntityMetadata {
         correctRelationshipsTableNames();
     }
 
+    /**
+     * For CONCRETE_CLASS strategy: merge properties from abstract ancestors,
+     * but treat non-abstract ancestors as joined (FK reference).
+     *
+     * Only merge from abstract ancestors that are DIRECT parents before
+     * the first concrete ancestor. Once we hit a concrete parent, stop —
+     * that parent already has all abstract fields above it merged.
+     */
+    public void setMetadataForConcreteClass() {
+        // Walk upward from this, merging only abstract ancestors
+        // until we reach the first concrete (non-abstract) ancestor.
+        EntityMetadata cur = inheritanceMetadata.getParent();
+        while (cur != null) {
+            if (!cur.isAbstract()) {
+                // Hit a concrete parent — stop merging.
+                // This parent already has abstract fields above it merged.
+                break;
+            }
+            // Abstract parent → merge its fields (like TPC)
+            idColumns.putAll(cur.getIdColumns());
+            properties.putAll(cur.getProperties());
+            associationMetadata.putAll(cur.getAssociationMetadata());
+            cur = cur.getInheritanceMetadata().getParent();
+        }
+    }
+
+    /**
+     * For CONCRETE_CLASS strategy: create FK columns referencing the nearest
+     * non-abstract parent (not the root, as in joined).
+     */
+    public Map<String, PropertyMetadata> getFkColumnsForConcreteClass() {
+        Map<String, PropertyMetadata> result = new HashMap<>();
+
+        // Find nearest non-abstract parent
+        EntityMetadata nearestConcreteParent = findNearestConcreteParent();
+        if (nearestConcreteParent == null) {
+            return result; // no concrete parent, nothing to join
+        }
+
+        // Use root's ID columns as the FK columns, referencing the nearest concrete
+        // parent's table
+        EntityMetadata root = inheritanceMetadata.getRootClass();
+        for (PropertyMetadata pm : root.getIdColumns().values()) {
+            PropertyMetadata clone = pm.clone();
+            clone.setReferences(nearestConcreteParent.tableName + "(" + pm.getColumnName() + ")");
+            result.put(clone.getName(), clone);
+        }
+        return result;
+    }
+
+    /**
+     * Find the nearest non-abstract parent in the hierarchy.
+     */
+    public EntityMetadata findNearestConcreteParent() {
+        EntityMetadata cur = inheritanceMetadata.getParent();
+        while (cur != null) {
+            if (!cur.isAbstract()) {
+                return cur;
+            }
+            cur = cur.getInheritanceMetadata().getParent();
+        }
+        return null;
+    }
+
     public void correctRelationshipsTableNames() {
         Map<String, AssociationMetadata> result = new HashMap<>();
         if (associationMetadata != null) {
@@ -342,4 +406,3 @@ public class EntityMetadata {
         return sb.toString();
     }
 }
-
