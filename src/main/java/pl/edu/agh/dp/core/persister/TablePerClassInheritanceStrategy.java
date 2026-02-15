@@ -393,11 +393,22 @@ public class TablePerClassInheritanceStrategy extends AbstractInheritanceStrateg
                 sqlBuilder.append(" UNION ALL ");
             }
             first = false;
-            
-            StringBuilder selectPart = new StringBuilder("SELECT ");
+
+            // Collect joins for this sub-query
+            List<String> subJoins = new ArrayList<>();
+            List<Object> subParams = new ArrayList<>();
+            String querySpecWhere = buildQuerySpecWhereClause(querySpec, sub.getTableName(), subParams, session,
+                    subJoins);
+
+            StringBuilder selectPart = new StringBuilder();
+            if (!subJoins.isEmpty()) {
+                selectPart.append("SELECT DISTINCT ");
+            } else {
+                selectPart.append("SELECT ");
+            }
             // Add DTYPE column
             selectPart.append("'").append(sub.getEntityClass().getName()).append("' AS DTYPE, ");
-            
+
             // Add columns with NULL padding for missing columns
             List<String> columnDefs = new ArrayList<>();
             for (String fieldName : allProperties.keySet()) {
@@ -409,26 +420,40 @@ public class TablePerClassInheritanceStrategy extends AbstractInheritanceStrateg
                 }
             }
             selectPart.append(String.join(", ", columnDefs));
-            
+
             StringBuilder fromWhere = new StringBuilder(" FROM " + sub.getTableName());
-            
-            List<Object> subParams = new ArrayList<>();
-            String querySpecWhere = buildQuerySpecWhereClause(querySpec, sub.getTableName(), subParams);
+
+            // Append nested joins
+            for (String joinClause : subJoins) {
+                fromWhere.append(" ").append(joinClause);
+            }
+
             if (!querySpecWhere.isEmpty()) {
                 fromWhere.append(" WHERE ").append(querySpecWhere);
                 allParams.addAll(subParams);
             }
-            
+
             sqlBuilder.append(selectPart).append(fromWhere);
         }
-        
+
         // ORDER BY - needs special handling for UNION
         String orderBy = buildQuerySpecOrderByClause(querySpec, entityMetadata.getTableName());
         if (!orderBy.isEmpty()) {
             // For UNION, we need to order by column name without table prefix
             String simpleOrderBy = querySpec.getSortings().stream()
                     .map(sort -> {
-                        String columnName = resolveColumnName(sort.getField(), entityMetadata);
+                        String fieldName = sort.getField();
+                        // For nested fields, resolve to the target column name
+                        if (fieldName.contains(".")) {
+                            String targetField = fieldName.split("\\.", 2)[1];
+                            ResolvedNestedField nested = resolveNestedField(fieldName, entityMetadata,
+                                    entityMetadata.getTableName(), session);
+                            if (nested != null) {
+                                return nested.columnName() + " " + sort.getDirection().name();
+                            }
+                            return targetField + " " + sort.getDirection().name();
+                        }
+                        String columnName = resolveColumnName(fieldName, entityMetadata);
                         return columnName + " " + sort.getDirection().name();
                     })
                     .collect(Collectors.joining(", "));

@@ -345,8 +345,31 @@ public class ConcreteClassInheritanceStrategy extends AbstractInheritanceStrateg
             SqlAndParams query = buildPolymorphicQuery(null);
 
             List<Object> params = new ArrayList<>(query.params);
+            List<String> nestedJoins = new ArrayList<>();
 
-            String querySpecWhere = buildConcreteQuerySpecWhereClause(querySpec, params);
+            String querySpecWhere = buildConcreteQuerySpecWhereClause(querySpec, params, session, nestedJoins);
+            String orderBy = buildConcreteQuerySpecOrderByClause(querySpec, session, nestedJoins);
+
+            // Inject nested joins into the SQL
+            if (!nestedJoins.isEmpty()) {
+                if (query.sql.startsWith("SELECT ") && !query.sql.startsWith("SELECT DISTINCT ")) {
+                    query.sql = "SELECT DISTINCT " + query.sql.substring(7);
+                }
+                int whereIdx = query.sql.indexOf(" WHERE ");
+                if (whereIdx >= 0) {
+                    StringBuilder sb = new StringBuilder(query.sql.substring(0, whereIdx));
+                    for (String jc : nestedJoins) {
+                        sb.append(" ").append(jc);
+                    }
+                    sb.append(query.sql.substring(whereIdx));
+                    query.sql = sb.toString();
+                } else {
+                    for (String jc : nestedJoins) {
+                        query.sql += " " + jc;
+                    }
+                }
+            }
+
             if (!querySpecWhere.isEmpty()) {
                 if (query.sql.contains(" WHERE ")) {
                     query.sql += " AND " + querySpecWhere;
@@ -355,7 +378,6 @@ public class ConcreteClassInheritanceStrategy extends AbstractInheritanceStrateg
                 }
             }
 
-            String orderBy = buildConcreteQuerySpecOrderByClause(querySpec);
             if (!orderBy.isEmpty()) {
                 query.sql += " ORDER BY " + orderBy;
             }
@@ -416,37 +438,75 @@ public class ConcreteClassInheritanceStrategy extends AbstractInheritanceStrateg
         return fieldName;
     }
 
-    private <T> String buildConcreteQuerySpecWhereClause(QuerySpec<T> querySpec, List<Object> params) {
+    private <T> String buildConcreteQuerySpecWhereClause(QuerySpec<T> querySpec, List<Object> params,
+            Session session, List<String> outJoins) {
         if (!querySpec.hasConditions()) {
             return "";
         }
 
         List<String> sqlConditions = new ArrayList<>();
+        Set<String> addedJoinAliases = new LinkedHashSet<>();
         for (Condition condition : querySpec.getConditions()) {
             String fieldName = condition.getField();
-            String tableName = findTableForField(fieldName);
-            String columnName = resolveColumnName(fieldName);
 
-            String sql = condition.toSql(tableName)
-                    .replace(tableName + "." + fieldName, tableName + "." + columnName);
-            sqlConditions.add(sql);
+            List<EntityMetadata> allConcrete = getAllConcreteSubclassesIncludingRoot(
+                    entityMetadata.getInheritanceMetadata().getRootClass());
+            String baseTableName = allConcrete.get(0).getTableName();
+            ResolvedNestedField nested = resolveNestedField(fieldName, entityMetadata,
+                    baseTableName, session);
+
+            if (nested != null) {
+                String sql = condition.toSql(nested.tableAlias());
+                String rawRef = nested.tableAlias() + "." + fieldName;
+                String resolvedRef = nested.tableAlias() + "." + nested.columnName();
+                sql = sql.replace(rawRef, resolvedRef);
+                sqlConditions.add(sql);
+
+                if (!addedJoinAliases.contains(nested.tableAlias()) && outJoins != null) {
+                    outJoins.add(nested.joinClause());
+                    addedJoinAliases.add(nested.tableAlias());
+                }
+            } else {
+                String tableName = findTableForField(fieldName);
+                String columnName = resolveColumnName(fieldName);
+                String sql = condition.toSql(tableName)
+                        .replace(tableName + "." + fieldName, tableName + "." + columnName);
+                sqlConditions.add(sql);
+            }
             params.addAll(condition.getParams());
         }
 
         return String.join(" AND ", sqlConditions);
     }
 
-    private <T> String buildConcreteQuerySpecOrderByClause(QuerySpec<T> querySpec) {
+    private <T> String buildConcreteQuerySpecOrderByClause(QuerySpec<T> querySpec,
+            Session session, List<String> outJoins) {
         if (!querySpec.hasSorting()) {
             return "";
         }
 
         List<String> sortClauses = new ArrayList<>();
+        Set<String> addedJoinAliases = new LinkedHashSet<>();
         for (Sort sort : querySpec.getSortings()) {
             String fieldName = sort.getField();
-            String tableName = findTableForField(fieldName);
-            String columnName = resolveColumnName(fieldName);
-            sortClauses.add(tableName + "." + columnName + " " + sort.getDirection().name());
+
+            List<EntityMetadata> allConcrete = getAllConcreteSubclassesIncludingRoot(
+                    entityMetadata.getInheritanceMetadata().getRootClass());
+            String baseTableName = allConcrete.get(0).getTableName();
+            ResolvedNestedField nested = resolveNestedField(fieldName, entityMetadata,
+                    baseTableName, session);
+
+            if (nested != null) {
+                sortClauses.add(nested.tableAlias() + "." + nested.columnName() + " " + sort.getDirection().name());
+                if (!addedJoinAliases.contains(nested.tableAlias()) && outJoins != null) {
+                    outJoins.add(nested.joinClause());
+                    addedJoinAliases.add(nested.tableAlias());
+                }
+            } else {
+                String tableName = findTableForField(fieldName);
+                String columnName = resolveColumnName(fieldName);
+                sortClauses.add(tableName + "." + columnName + " " + sort.getDirection().name());
+            }
         }
 
         return String.join(", ", sortClauses);

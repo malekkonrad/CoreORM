@@ -1,6 +1,7 @@
 package pl.edu.agh.dp.core.persister;
 
 import lombok.NoArgsConstructor;
+import pl.edu.agh.dp.core.api.Session;
 import pl.edu.agh.dp.core.exceptions.IntegrityException;
 import pl.edu.agh.dp.core.finder.Condition;
 import pl.edu.agh.dp.core.finder.QuerySpec;
@@ -60,8 +61,10 @@ public abstract class AbstractInheritanceStrategy implements InheritanceStrategy
             return sqlTimestamp != null ? sqlTimestamp.toLocalDateTime() : null;
         } else if (type == OffsetDateTime.class) {
             Object obj = rs.getObject(columnName);
-            if (obj == null) return null;
-            if (obj instanceof OffsetDateTime) return obj;
+            if (obj == null)
+                return null;
+            if (obj instanceof OffsetDateTime)
+                return obj;
             if (obj instanceof java.sql.Timestamp) {
                 return ((java.sql.Timestamp) obj).toLocalDateTime().atOffset(java.time.ZoneOffset.UTC);
             }
@@ -71,7 +74,8 @@ public abstract class AbstractInheritanceStrategy implements InheritanceStrategy
     }
 
     protected Object getIdValue(Object entity) {
-        Collection<PropertyMetadata> idColumns = entityMetadata.getInheritanceMetadata().getRootClass().getIdColumns().values();
+        Collection<PropertyMetadata> idColumns = entityMetadata.getInheritanceMetadata().getRootClass().getIdColumns()
+                .values();
 
         if (idColumns.size() == 1) {
             PropertyMetadata idProp = idColumns.iterator().next();
@@ -87,7 +91,8 @@ public abstract class AbstractInheritanceStrategy implements InheritanceStrategy
         }
     }
 
-    protected void appendIdWhereClause(StringBuilder sql, List<Object> params, Collection<PropertyMetadata> idColumns, Object id) {
+    protected void appendIdWhereClause(StringBuilder sql, List<Object> params, Collection<PropertyMetadata> idColumns,
+            Object id) {
         if (idColumns.size() == 1) {
             PropertyMetadata pm = idColumns.iterator().next();
             sql.append(pm.getColumnName()).append(" = ?");
@@ -95,8 +100,9 @@ public abstract class AbstractInheritanceStrategy implements InheritanceStrategy
         } else {
             // composite key
             int count = 0;
-            for(PropertyMetadata pm : idColumns) {
-                if(count > 0) sql.append(" AND ");
+            for (PropertyMetadata pm : idColumns) {
+                if (count > 0)
+                    sql.append(" AND ");
                 sql.append(pm.getColumnName()).append(" = ?");
                 Object val = ReflectionUtils.getFieldValue(id, pm.getName());
                 params.add(val);
@@ -111,7 +117,8 @@ public abstract class AbstractInheritanceStrategy implements InheritanceStrategy
         // handle relationships
         for (AssociationMetadata am : meta.getAssociationMetadata().values()) {
             Object value = ReflectionUtils.getFieldValue(entity, am.getField());
-            if (value != null && meta.getFkColumns().containsKey(am.getField())) { // check if value belongs to the sql table
+            if (value != null && meta.getFkColumns().containsKey(am.getField())) { // check if value belongs to the sql
+                                                                                   // table
                 // set fk id
                 if (am.getHasForeignKey()) {
                     if (am.getType() == AssociationMetadata.Type.MANY_TO_MANY) {
@@ -126,10 +133,9 @@ public abstract class AbstractInheritanceStrategy implements InheritanceStrategy
                                     if (!Objects.equals(oldValue, field)) {
                                         throw new IntegrityException(
                                                 "Values are not set correctly.\n" +
-                                                "Class: " + meta.getEntityClass().getName() + "\n" +
-                                                "Relationship: " + am.getField() + "\n" +
-                                                "Values: [" + oldValue + ", " + field + "]"
-                                        );
+                                                        "Class: " + meta.getEntityClass().getName() + "\n" +
+                                                        "Relationship: " + am.getField() + "\n" +
+                                                        "Values: [" + oldValue + ", " + field + "]");
                                     }
                                 } else {
                                     columns.add(pm.getColumnName());
@@ -150,10 +156,9 @@ public abstract class AbstractInheritanceStrategy implements InheritanceStrategy
         for (AssociationMetadata am : entityMetadata.getAssociationMetadata().values()) {
             Object value = ReflectionUtils.getFieldValue(entity, am.getField());
             if (value != null
-                 && am.getHasForeignKey()
-                 && am.getType() == AssociationMetadata.Type.MANY_TO_MANY
-                 && !((Collection) value).isEmpty())
-            {
+                    && am.getHasForeignKey()
+                    && am.getType() == AssociationMetadata.Type.MANY_TO_MANY
+                    && !((Collection) value).isEmpty()) {
                 List<String> targetRef = new ArrayList<>();
                 List<String> currentRef = new ArrayList<>();
 
@@ -179,12 +184,20 @@ public abstract class AbstractInheritanceStrategy implements InheritanceStrategy
                 for (String fieldName : currentRef) {
                     System.out.println(fieldName + " from " + entity.getClass().getSimpleName());
                     Object field = ReflectionUtils.getFieldValue(entity, fieldName);
-                    assAssValues.add(new ArrayList<>(){{add(field);}});
+                    assAssValues.add(new ArrayList<>() {
+                        {
+                            add(field);
+                        }
+                    });
                 }
                 Collection<?> assField = (Collection<?>) ReflectionUtils.getFieldValue(entity, assFieldname);
                 for (Object relationshipEntity : assField) {
                     // first is the example, copy it and fill with the other values
-                    assAssValues.add(new ArrayList<>(){{addAll(assAssValues.get(0));}});
+                    assAssValues.add(new ArrayList<>() {
+                        {
+                            addAll(assAssValues.get(0));
+                        }
+                    });
                     List<Object> assValues = assAssValues.get(assAssValues.size() - 1);
                     for (String fieldName : targetRef) {
                         System.out.println(fieldName + " from " + relationshipEntity.getClass().getSimpleName());
@@ -195,7 +208,7 @@ public abstract class AbstractInheritanceStrategy implements InheritanceStrategy
                 // remove first example
                 assAssValues.remove(0);
                 // flatten array
-                assStmt += String.join(", ", java.util.Collections.nCopies(assAssValues.size(), assValuesStmt)) +";";
+                assStmt += String.join(", ", java.util.Collections.nCopies(assAssValues.size(), assValuesStmt)) + ";";
                 List<Object> array = new ArrayList<>();
                 for (List<Object> el : assAssValues) {
                     array.addAll(el);
@@ -212,8 +225,7 @@ public abstract class AbstractInheritanceStrategy implements InheritanceStrategy
         for (AssociationMetadata am : entityMetadata.getAssociationMetadata().values()) {
             Object value = ReflectionUtils.getFieldValue(entity, am.getField());
             if (value != null
-                && am.getType() == AssociationMetadata.Type.MANY_TO_MANY)
-            {
+                    && am.getType() == AssociationMetadata.Type.MANY_TO_MANY) {
                 List<String> targetRef = new ArrayList<>();
                 List<String> currentRef = new ArrayList<>();
 
@@ -245,7 +257,11 @@ public abstract class AbstractInheritanceStrategy implements InheritanceStrategy
                 Collection<?> assField = (Collection<?>) ReflectionUtils.getFieldValue(entity, assFieldname);
                 for (Object relationshipEntity : assField) {
                     // first is the example, copy it and fill with the other values
-                    assAssValues.add(new ArrayList<>(){{addAll(assAssValues.get(0));}});
+                    assAssValues.add(new ArrayList<>() {
+                        {
+                            addAll(assAssValues.get(0));
+                        }
+                    });
                     List<Object> assValues = assAssValues.get(assAssValues.size() - 1);
                     for (String fieldName : targetRef) {
                         System.out.println(fieldName + " from " + relationshipEntity.getClass().getSimpleName());
@@ -258,7 +274,8 @@ public abstract class AbstractInheritanceStrategy implements InheritanceStrategy
                 for (int i = 0; i < currentRef.size(); i++) {
                     String colName = assColumns.get(i);
                     Object colValue = assAssValues.get(0).get(i);
-                    deleteStmt.append(" ").append(assTable.getTableName()).append(".").append(colName).append(" = ").append(colValue);
+                    deleteStmt.append(" ").append(assTable.getTableName()).append(".").append(colName).append(" = ")
+                            .append(colValue);
                 }
                 System.out.println(deleteStmt.toString());
                 jdbc.update(deleteStmt.toString());
@@ -270,7 +287,7 @@ public abstract class AbstractInheritanceStrategy implements InheritanceStrategy
                 // remove first example
                 assAssValues.remove(0);
                 // flatten array
-                assStmt += String.join(", ", java.util.Collections.nCopies(assAssValues.size(), assValuesStmt)) +";";
+                assStmt += String.join(", ", java.util.Collections.nCopies(assAssValues.size(), assValuesStmt)) + ";";
                 List<Object> array = new ArrayList<>();
                 for (List<Object> el : assAssValues) {
                     array.addAll(el);
@@ -291,8 +308,7 @@ public abstract class AbstractInheritanceStrategy implements InheritanceStrategy
                 if (!pm.isNullable() && !pm.isAutoIncrement()) {
                     throw new IntegrityException(
                             "In entity: " + entity + "\n" +
-                            "Field: '" + pm.getName() + "' is not nullable"
-                    );
+                                    "Field: '" + pm.getName() + "' is not nullable");
                 }
             }
         }
@@ -314,8 +330,7 @@ public abstract class AbstractInheritanceStrategy implements InheritanceStrategy
                 throw new IntegrityException(
                         "Not all identifiers are set. You must set all ids in composite key.\n" +
                                 "Composite key: (" + String.join(", ", compositeKey) + ")\n" +
-                                "Missing/unset fields: (" + String.join(", ", missingIds) + ")"
-                );
+                                "Missing/unset fields: (" + String.join(", ", missingIds) + ")");
             }
         } else {
             if (!idProvided.isEmpty() && idColumns.get(0).isAutoIncrement()) {
@@ -361,33 +376,188 @@ public abstract class AbstractInheritanceStrategy implements InheritanceStrategy
         return fieldName;
     }
 
+    /**
+     * Holds resolved info for a nested (dot-notation) field path.
+     */
+    protected record ResolvedNestedField(String tableAlias, String columnName, String joinClause) {
+    }
+
+    /**
+     * Resolves a dot-notation field path (e.g. "marks.mark") into a JOIN clause
+     * and the proper table alias + column name for the target field.
+     * Returns null if the field is NOT a nested path (no dot).
+     */
+    protected ResolvedNestedField resolveNestedField(String fieldName, EntityMetadata baseMeta,
+            String baseTableName, Session session) {
+        if (!fieldName.contains(".")) {
+            return null;
+        }
+
+        String[] parts = fieldName.split("\\.", 2);
+        String associationField = parts[0]; // e.g. "marks"
+        String targetField = parts[1]; // e.g. "mark"
+
+        AssociationMetadata am = baseMeta.getAssociationMetadata().get(associationField);
+        if (am == null) {
+            throw new IntegrityException(
+                    "No association found for field '" + associationField + "' in entity " +
+                            baseMeta.getEntityClass().getName());
+        }
+
+        EntityPersister targetPersister = session.getEntityPersisters().get(am.getTargetEntity());
+        if (targetPersister == null) {
+            throw new IntegrityException(
+                    "No persister found for target entity: " + am.getTargetEntity().getName());
+        }
+        EntityMetadata targetMeta = targetPersister.getEntityMetadata();
+        String columnName = resolveColumnName(targetField, targetMeta);
+        String alias = "j_" + associationField;
+
+        // Build JOIN clause based on association type
+        String joinClause = buildJoinForAssociation(am, baseTableName, targetMeta, alias);
+        return new ResolvedNestedField(alias, columnName, joinClause);
+    }
+
+    /**
+     * Builds an INNER JOIN clause for the given association.
+     */
+    private String buildJoinForAssociation(AssociationMetadata am, String baseTableName,
+            EntityMetadata targetMeta, String alias) {
+        StringBuilder join = new StringBuilder("INNER JOIN ");
+
+        if (am.getType() == AssociationMetadata.Type.MANY_TO_MANY) {
+            // M:N — join through association table
+            EntityMetadata assocTable = am.getAssociationTable();
+            String assocTableName = assocTable.getTableName();
+            String targetTableName = targetMeta.getTableName();
+
+            join.append(assocTableName).append(" ON ");
+            List<String> conditions = new ArrayList<>();
+            for (PropertyMetadata pm : am.getTargetJoinColumns()) {
+                conditions.add(baseTableName + "." + pm.getReferencedName() +
+                        " = " + assocTableName + "." + pm.getColumnName());
+            }
+            join.append(String.join(" AND ", conditions));
+
+            join.append(" INNER JOIN ").append(targetTableName).append(" AS ").append(alias).append(" ON ");
+            conditions.clear();
+            for (PropertyMetadata pm : am.getJoinColumns()) {
+                conditions.add(alias + "." + pm.getReferencedName() +
+                        " = " + assocTableName + "." + pm.getColumnName());
+            }
+            join.append(String.join(" AND ", conditions));
+        } else if (am.getType() == AssociationMetadata.Type.ONE_TO_MANY) {
+            // 1:N — the FK is on the target (child) table
+            String targetTableName = targetMeta.getTableName();
+            join.append(targetTableName).append(" AS ").append(alias).append(" ON ");
+            List<String> conditions = new ArrayList<>();
+            for (int i = 0; i < am.getJoinColumns().size(); i++) {
+                PropertyMetadata joinCol = am.getJoinColumns().get(i);
+                PropertyMetadata targetJoinCol = am.getTargetJoinColumns().get(i);
+                conditions.add(baseTableName + "." + joinCol.getColumnName() +
+                        " = " + alias + "." + targetJoinCol.getColumnName());
+            }
+            join.append(String.join(" AND ", conditions));
+        } else if (am.getType() == AssociationMetadata.Type.MANY_TO_ONE) {
+            // N:1 — the FK is on the base (owner) table
+            String targetTableName = targetMeta.getTableName();
+            join.append(targetTableName).append(" AS ").append(alias).append(" ON ");
+            List<String> conditions = new ArrayList<>();
+            for (int i = 0; i < am.getJoinColumns().size(); i++) {
+                PropertyMetadata joinCol = am.getJoinColumns().get(i);
+                PropertyMetadata targetJoinCol = am.getTargetJoinColumns().get(i);
+                conditions.add(baseTableName + "." + joinCol.getColumnName() +
+                        " = " + alias + "." + targetJoinCol.getColumnName());
+            }
+            join.append(String.join(" AND ", conditions));
+        } else {
+            // ONE_TO_ONE
+            String targetTableName = targetMeta.getTableName();
+            join.append(targetTableName).append(" AS ").append(alias).append(" ON ");
+            List<String> conditions = new ArrayList<>();
+            for (int i = 0; i < am.getJoinColumns().size(); i++) {
+                PropertyMetadata joinCol = am.getJoinColumns().get(i);
+                PropertyMetadata targetJoinCol = am.getTargetJoinColumns().get(i);
+                conditions.add(alias + "." + joinCol.getColumnName() +
+                        " = " + baseTableName + "." + targetJoinCol.getColumnName());
+            }
+            join.append(String.join(" AND ", conditions));
+        }
+
+        return join.toString();
+    }
+
     protected <T> String buildQuerySpecWhereClause(QuerySpec<T> querySpec, String tableName, List<Object> params) {
+        return buildQuerySpecWhereClause(querySpec, tableName, params, null, null);
+    }
+
+    protected <T> String buildQuerySpecWhereClause(QuerySpec<T> querySpec, String tableName,
+            List<Object> params, Session session,
+            List<String> outJoins) {
         if (!querySpec.hasConditions()) {
             return "";
         }
-        
+
         List<String> sqlConditions = new ArrayList<>();
+        Set<String> addedJoinAliases = new LinkedHashSet<>();
         for (Condition condition : querySpec.getConditions()) {
-            String columnName = resolveColumnName(condition.getField(), entityMetadata);
-            // Generate SQL with proper table alias and column name
-            String sql = condition.toSql(tableName)
-                    .replace(tableName + "." + condition.getField(), 
-                             tableName + "." + columnName);
-            sqlConditions.add(sql);
+            String fieldName = condition.getField();
+
+            // Check for nested (dot-notation) path
+            ResolvedNestedField nested = (session != null)
+                    ? resolveNestedField(fieldName, entityMetadata, tableName, session)
+                    : null;
+
+            if (nested != null) {
+                // Use the joined table's alias and resolved column name
+                String sql = condition.toSql(nested.tableAlias());
+                // The condition generates SQL like "alias.marks.mark = ?"
+                // We need to replace with "alias.columnName = ?"
+                String rawRef = nested.tableAlias() + "." + fieldName;
+                String resolvedRef = nested.tableAlias() + "." + nested.columnName();
+                sql = sql.replace(rawRef, resolvedRef);
+                sqlConditions.add(sql);
+
+                if (!addedJoinAliases.contains(nested.tableAlias()) && outJoins != null) {
+                    outJoins.add(nested.joinClause());
+                    addedJoinAliases.add(nested.tableAlias());
+                }
+            } else {
+                String columnName = resolveColumnName(fieldName, entityMetadata);
+                String sql = condition.toSql(tableName)
+                        .replace(tableName + "." + fieldName,
+                                tableName + "." + columnName);
+                sqlConditions.add(sql);
+            }
             params.addAll(condition.getParams());
         }
-        
+
         return String.join(" AND ", sqlConditions);
     }
 
     protected <T> String buildQuerySpecOrderByClause(QuerySpec<T> querySpec, String tableName) {
+        return buildQuerySpecOrderByClause(querySpec, tableName, null, null);
+    }
+
+    protected <T> String buildQuerySpecOrderByClause(QuerySpec<T> querySpec, String tableName,
+            Session session, List<String> outJoins) {
         if (!querySpec.hasSorting()) {
             return "";
         }
-        
+
         return querySpec.getSortings().stream()
                 .map(sort -> {
-                    String columnName = resolveColumnName(sort.getField(), entityMetadata);
+                    String fieldName = sort.getField();
+                    ResolvedNestedField nested = (session != null)
+                            ? resolveNestedField(fieldName, entityMetadata, tableName, session)
+                            : null;
+                    if (nested != null) {
+                        if (outJoins != null) {
+                            outJoins.add(nested.joinClause());
+                        }
+                        return nested.tableAlias() + "." + nested.columnName() + " " + sort.getDirection().name();
+                    }
+                    String columnName = resolveColumnName(fieldName, entityMetadata);
                     return tableName + "." + columnName + " " + sort.getDirection().name();
                 })
                 .collect(Collectors.joining(", "));
@@ -415,7 +585,7 @@ public abstract class AbstractInheritanceStrategy implements InheritanceStrategy
 
     protected boolean fieldBelongsToClass(PropertyMetadata prop, Class<?> targetClass) {
 
-        if (prop.getColumnName().equals("DTYPE")){
+        if (prop.getColumnName().equals("DTYPE")) {
             return false;
         }
         try {
@@ -499,8 +669,7 @@ public abstract class AbstractInheritanceStrategy implements InheritanceStrategy
 
         throw new IllegalArgumentException(
                 "Cannot cast SQL value of type " + sqlValue.getClass().getName() +
-                        " to Java type " + targetType.getName()
-        );
+                        " to Java type " + targetType.getName());
     }
 
 }

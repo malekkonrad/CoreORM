@@ -283,6 +283,25 @@ public class RelationshipTest {
             session.save(emp2);
             session.commit();
         }
+
+        session.close();
+
+        session = sessionFactory.openSession();
+
+        {
+            List<Department> deps = session.finder(Department.class)
+                    .eq("employees.name", "Bob")
+                    .list();
+
+            assertEquals(3, deps.size());
+
+            for (var dep : deps) {
+                System.out.println(dep.getId());
+            }
+
+        }
+
+
         // TODO don't add existing entities
         // Validation could be added here
     }

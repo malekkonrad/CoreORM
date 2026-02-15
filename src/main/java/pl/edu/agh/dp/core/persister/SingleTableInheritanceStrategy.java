@@ -325,21 +325,33 @@ public class SingleTableInheritanceStrategy extends AbstractInheritanceStrategy 
         discIn = new StringBuilder(discIn.substring(0, discIn.length() - 1));
 
         List<Object> params = new ArrayList<>();
+        List<String> joins = new ArrayList<>();
         StringBuilder sqlBuilder = new StringBuilder();
-        sqlBuilder.append("SELECT * FROM ").append(tableName);
+
+        // QuerySpec conditions (collect joins first)
+        String querySpecWhere = buildQuerySpecWhereClause(querySpec, tableName, params, session, joins);
+
+        // ORDER BY (may also add joins)
+        String orderBy = buildQuerySpecOrderByClause(querySpec, tableName, session, joins);
+
+        // SELECT with DISTINCT if joins are present
+        if (!joins.isEmpty()) {
+            sqlBuilder.append("SELECT DISTINCT ").append(tableName).append(".* FROM ").append(tableName);
+            for (String joinClause : joins) {
+                sqlBuilder.append(" ").append(joinClause);
+            }
+        } else {
+            sqlBuilder.append("SELECT * FROM ").append(tableName);
+        }
 
         // WHERE clause with discriminator
         sqlBuilder.append(" WHERE ").append(tableName).append(".").append(discriminatorColumn)
                 .append(" IN (").append(discIn).append(")");
 
-        // QuerySpec conditions
-        String querySpecWhere = buildQuerySpecWhereClause(querySpec, tableName, params);
         if (!querySpecWhere.isEmpty()) {
             sqlBuilder.append(" AND ").append(querySpecWhere);
         }
 
-        // ORDER BY
-        String orderBy = buildQuerySpecOrderByClause(querySpec, tableName);
         if (!orderBy.isEmpty()) {
             sqlBuilder.append(" ORDER BY ").append(orderBy);
         }
