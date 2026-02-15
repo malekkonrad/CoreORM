@@ -177,6 +177,39 @@ public class ComplexKeysTest {
         Reader reader;
     }
 
+    @NoArgsConstructor
+    @Getter
+    @Setter
+    public static class Two {
+        @Id(autoIncrement = false)
+        Long id;
+        @Id(autoIncrement = false)
+        Long id2;
+        @ManyToOne
+        One one;
+    }
+
+    @NoArgsConstructor
+    @Getter
+    @Setter
+    public static class One {
+        @Id(autoIncrement = false)
+        Long id;
+        @Id(autoIncrement = false)
+        Long id2;
+        @OneToMany
+        List<Two> two;
+    }
+
+    @NoArgsConstructor
+    @Getter
+    @Setter
+    public static class OneId {
+        Long id;
+        Long id2;
+    }
+
+
 // ---------------------------------------------------------------
 
     String url = System.getenv("DB_URL") != null
@@ -216,6 +249,38 @@ public class ComplexKeysTest {
         if (session != null) {
             session.close();
         }
+    }
+
+    @Test
+    public void complexKeyTest() {
+        config.register(Two.class, One.class);
+        sessionFactory = config.buildSessionFactory();
+        session = sessionFactory.openSession();
+
+        {
+            Two two = new Two();
+            two.setId(1L);
+            two.setId2(2L);
+
+            One one = new One();
+            one.setId(3L);
+            one.setId2(4L);
+
+            two.setOne(one);
+
+            session.save(two);
+            session.commit();
+        }
+
+        session.close();
+        session = sessionFactory.openSession();
+
+        OneId oneId = new OneId();
+        oneId.setId(3L);
+        oneId.setId2(4L);
+
+        One one = session.find(One.class, oneId);
+        assertEquals(1, one.getTwo().size());
     }
 
     @Test

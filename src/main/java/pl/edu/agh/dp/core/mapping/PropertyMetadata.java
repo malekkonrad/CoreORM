@@ -45,6 +45,16 @@ public class PropertyMetadata implements Cloneable {
 
     public String toSqlColumn() {
         StringBuffer sb = new StringBuffer();
+        if (columnName.contains(", ")) {
+            for (String sepName : columnName.split(", ")) {
+                sb.append(" ").append(sepName);
+                sb.append(" ").append(sqlType);
+                sb.append(",\n");
+            }
+            sb.deleteCharAt(sb.length() - 1);
+            sb.deleteCharAt(sb.length() - 1);
+            return sb.toString();
+        }
         sb.append(" ").append(columnName);
         sb.append(" ").append(sqlType);
         if (defaultValue != "__UNSET__") {
@@ -75,7 +85,7 @@ public class PropertyMetadata implements Cloneable {
 
     public String toSqlConstraint(String tableName) {
         if (references != null) {
-            return "CONSTRAINT " + tableName + "_" + columnName + "_constraint FOREIGN KEY (" + columnName + ")\n" +
+            return "CONSTRAINT " + tableName + "_" + columnName.replace(", ", "_") + "_constraint FOREIGN KEY (" + columnName + ")\n" +
                     "REFERENCES " + references;
         } else {
             return "";

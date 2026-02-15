@@ -90,7 +90,8 @@ public class SessionImpl implements Session {
                     System.out.println("Inserting * to 1");
                     Object field = ReflectionUtils.getFieldValue(value, am.getMappedBy());
                     if (field == null) {
-                        ReflectionUtils.setFieldValue(value, am.getMappedBy(), am.createCollection());
+                        AssociationMetadata opposingAm = entityPersisters.get(am.getTargetEntity()).getEntityMetadata().getAssociationMetadata().get(am.getMappedBy());
+                        ReflectionUtils.setFieldValue(value, am.getMappedBy(), opposingAm.createCollection());
                         field = ReflectionUtils.getFieldValue(value, am.getMappedBy());
                     }
                     assert field instanceof Collection;
@@ -114,7 +115,8 @@ public class SessionImpl implements Session {
                     for (Object relationshipEntity : (Collection<?>)value) {
                         Object field = ReflectionUtils.getFieldValue(relationshipEntity, am.getMappedBy());
                         if (field == null) {
-                            ReflectionUtils.setFieldValue(relationshipEntity, am.getMappedBy(), am.createCollection());
+                            AssociationMetadata opposingAm = entityPersisters.get(am.getTargetEntity()).getEntityMetadata().getAssociationMetadata().get(am.getMappedBy());
+                            ReflectionUtils.setFieldValue(relationshipEntity, am.getMappedBy(), opposingAm.createCollection());
                             field = ReflectionUtils.getFieldValue(relationshipEntity, am.getMappedBy());
                         }
                         assert field instanceof Collection;

@@ -400,6 +400,13 @@ public class MetadataRegistry {
                     targetAm.setJoinColumns(targetJoinColumnsNew);
                     // remove fkey from target
                     targetEntityMetadata.fkColumns.remove(targetAm.getField());
+                    fkColumn.setReferences(
+                            targetEntityMetadata.tableName
+                            + "("
+                            + String.join(", ", targetIdColumns.stream().map(PropertyMetadata::getColumnName).toArray(String[]::new))
+                            + ")"
+                    );
+                    fkColumn.setColumnName(String.join(", ", fkColumns.stream().map(PropertyMetadata::getColumnName).toArray(String[]::new)));
                     // cross reference
                     currentAm.setTargetJoinColumns(targetJoinColumnsNew);
                     targetAm.setTargetJoinColumns(fkColumns);
@@ -449,7 +456,6 @@ public class MetadataRegistry {
                     currentAm.setTargetJoinColumns(targetAm.getJoinColumns());
                     targetAm.setTargetJoinColumns(currentAm.getJoinColumns());
                 } else {
-
                     List<PropertyMetadata> targetFkColumns = new ArrayList<>();
                     List<PropertyMetadata> currentJoinColumnsNew = new ArrayList<>();
 
@@ -502,6 +508,13 @@ public class MetadataRegistry {
                     currentAm.setJoinColumns(currentJoinColumnsNew);
                     // remove fkey from current
                     entityMetadata.fkColumns.remove(currentAm.getField());
+                    targetFkColumn.setReferences(
+                            entityMetadata.tableName
+                                    + "("
+                                    + String.join(", ", idColumns.stream().map(PropertyMetadata::getColumnName).toArray(String[]::new))
+                                    + ")"
+                    );
+                    targetFkColumn.setColumnName(String.join(", ", targetFkColumns.stream().map(PropertyMetadata::getColumnName).toArray(String[]::new)));
                     // cross reference
                     currentAm.setTargetJoinColumns(targetFkColumns);
                     targetAm.setTargetJoinColumns(currentJoinColumnsNew);
