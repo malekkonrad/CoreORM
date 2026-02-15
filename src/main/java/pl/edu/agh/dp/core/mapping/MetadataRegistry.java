@@ -41,6 +41,8 @@ public class MetadataRegistry {
                 entity.correctRelationshipsSingle();
             } else if (entity.getInheritanceMetadata().getType() == InheritanceType.JOINED) {
                 entity.correctRelationshipsJoined();
+            } else if (entity.getInheritanceMetadata().getType() == InheritanceType.CONCRETE_CLASS) {
+                entity.correctRelationshipsJoined();
             } else {
                 throw new IntegrityException("Unhandled inheritance type: " + entity.getInheritanceMetadata().getType());
             }
@@ -220,7 +222,6 @@ public class MetadataRegistry {
                    );
                 }
             }
-
 
             // check if relationship has correct reverse type
             // checked for not (list of correct types)
@@ -571,8 +572,12 @@ public class MetadataRegistry {
 
         // discriminator
         for (EntityMetadata m : entities.values()) {
-            // We run the logic only for Root, because it manages the discriminator for the entire table
-            if (m.getInheritanceMetadata().isRoot() && (m.getInheritanceMetadata().getType()==InheritanceType.SINGLE_TABLE || m.getInheritanceMetadata().getType()==InheritanceType.JOINED)) {
+            // We run the logic only for Root, because it manages the discriminator for the
+            // entire table
+            if (m.getInheritanceMetadata().isRoot()
+                    && (m.getInheritanceMetadata().getType() == InheritanceType.SINGLE_TABLE
+                            || m.getInheritanceMetadata().getType() == InheritanceType.JOINED
+                            || m.getInheritanceMetadata().getType() == InheritanceType.CONCRETE_CLASS)) {
                 handleDiscriminator(m);
             }
         }
@@ -587,6 +592,10 @@ public class MetadataRegistry {
             } else if (type == InheritanceType.JOINED) {
                 m.addIdPropertyAll(m.getFkColumnsForJoinedTable());
                 m.addFkPropertyAll(m.getFkColumnsForJoinedTable());
+            } else if (type == InheritanceType.CONCRETE_CLASS) {
+                m.setMetadataForConcreteClass();
+                m.addIdPropertyAll(m.getFkColumnsForConcreteClass());
+                m.addFkPropertyAll(m.getFkColumnsForConcreteClass());
             } else {
                 throw new IntegrityException("Unhandled inheritance strategy: " + type);
             }
@@ -638,7 +647,6 @@ public class MetadataRegistry {
         discriminatorProperty.setNullable(true); // DTYPE może być null dla niektórych strategii
         // Ważne: to pole nie ma Field w Javie, więc generator SQL musi to obsłużyć
         // (nie próbować robić field.get() przy insertach w ciemno)
-
 
         root.addProperty(discriminatorProperty);
 //        root.getProperties().put(discriminatorColName, discriminatorProperty);
