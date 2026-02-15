@@ -18,7 +18,7 @@ public class SessionImpl implements Session {
     private final Map<Class<?>, EntityPersister> entityPersisters;
 
     private final EntitySet<Object> cachedEntities;
-    private final Set<Object> newEntities = new LinkedHashSet<>();
+    private final Set<Object> newEntities;
     private final Set<Object> dirtyEntities = new HashSet<>();
     private final Set<Object> removedEntities = new HashSet<>();
 
@@ -29,6 +29,7 @@ public class SessionImpl implements Session {
         this.entityPersisters = entityPersisters;
         this.jdbcExecutor = jdbcExecutor;
         this.cachedEntities = new EntitySet<>(entityPersisters);
+        this.newEntities = new SortedEntitySet<>(entityPersisters);
     }
 
     @Override
