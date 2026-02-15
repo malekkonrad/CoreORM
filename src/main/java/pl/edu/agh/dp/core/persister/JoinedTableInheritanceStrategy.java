@@ -479,7 +479,7 @@ public class JoinedTableInheritanceStrategy extends AbstractInheritanceStrategy 
             if (idColumns.size() == 1) {
                 PropertyMetadata pm = idColumns.iterator().next();
                 joinPart.append(root.getTableName()).append(".").append(pm.getColumnName()).append(" = ?");
-                params.add(pm.getType().cast(id));
+                params.add(((Class<?>) pm.getType()).cast(id));
             } else {
                 // composite key
                 int count = 0;
@@ -558,7 +558,7 @@ public class JoinedTableInheritanceStrategy extends AbstractInheritanceStrategy 
                     Object value = getValueFromResultSet(rs, columnAlias, prop.getType());
 
                     if (value != null) {
-                        Object castedValue = castSqlValueToJava(prop.getType(), value);
+                        Object castedValue = castSqlValueToJava((Class<?>) prop.getType(), value);
                         ReflectionUtils.setFieldValue(instance, fieldName, castedValue);
                     }
                 } catch (SQLException e) {

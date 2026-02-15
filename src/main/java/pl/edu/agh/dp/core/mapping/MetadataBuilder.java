@@ -417,7 +417,7 @@ public class MetadataBuilder {
     public static <T> String getSqlType(
             EntityMetadata meta,
             Field f,
-            Class<T> type,
+            Type type,
             int length,
             int scale,
             int precision,
@@ -428,7 +428,7 @@ public class MetadataBuilder {
                                "Class: " + meta.getEntityClass() + "\n" +
                                "Field: " + f.getName() + "\n" +
                                "'%s' class is not supported please use the '%s' class instead.";
-        final Map<Class<?>, String> forbiddenType = new HashMap<>() {{
+        final Map<Type, String> forbiddenType = new HashMap<>() {{
             put(int.class, "Integer");
             put(long.class, "Long");
             put(short.class, "Short");
@@ -437,7 +437,7 @@ public class MetadataBuilder {
             put(boolean.class, "Boolean");
         }};
         if (forbiddenType.containsKey(type)) {
-            throw new IntegrityException(String.format(errorText, type.getSimpleName(), forbiddenType.get(type)));
+            throw new IntegrityException(String.format(errorText, type.getTypeName(), forbiddenType.get(type)));
         }
         // Integer types
         if (type == Integer.class) {
@@ -503,6 +503,25 @@ public class MetadataBuilder {
 
         if (type == java.time.OffsetDateTime.class) {
             return "TIMESTAMP WITH TIME ZONE";
+        }
+
+        // List & Set
+        Type gType = f.getGenericType();
+        if (gType instanceof ParameterizedType) {
+            ParameterizedType pt = (ParameterizedType) gType;
+
+            if (pt.getRawType() == List.class) {
+                Type elementType = pt.getActualTypeArguments()[0];
+
+                if (elementType == Integer.class) {
+                    return "INTEGER ARRAY";
+                } else if (elementType == String.class) {
+                    if (length > 0) {
+                        return "VARCHAR(" + length + ") ARRAY";
+                    }
+                    return "TEXT ARRAY";
+                }
+            }
         }
 
         // UUID
