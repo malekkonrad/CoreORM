@@ -97,10 +97,44 @@ public class EntityMetadata {
         // create association constraints
         for (AssociationMetadata am : associationMetadata.values()) {
             if (am.getHasForeignKey() && am.getAssociationTable() != null) {
-                sb.append(am.getAssociationTable().getSqlConstraints());
+                sb.append(am.getAssociationTable().getSqlConstraintsForAssociationTable());
             }
         }
 
+        return sb.toString();
+    }
+
+    public String getSqlConstraintsForAssociationTable() {
+        StringBuilder sb = new StringBuilder();
+
+        Map<String, List<PropertyMetadata>> refToColumns = new HashMap<>();
+
+        for (PropertyMetadata pm : fkColumns.values()) {
+            if (!refToColumns.containsKey(pm.getReferencedTable())) {
+                refToColumns.put(pm.getReferencedTable(), new ArrayList<>());
+            }
+            refToColumns.get(pm.getReferencedTable()).add(pm);
+        }
+
+        for (String referencedTableName : refToColumns.keySet()) {
+            List<PropertyMetadata> columns = refToColumns.get(referencedTableName);
+
+            List<String> columnNames = columns.stream().map(PropertyMetadata::getColumnName).toList();
+            List<String> references = columns.stream().map(PropertyMetadata::getReferencedName).toList();
+
+            sb.append("ALTER TABLE ")
+                .append(tableName)
+                .append(" ADD CONSTRAINT ")
+                    .append(tableName).append("_")
+                    .append(String.join("_", columnNames))
+                    .append("_constraint FOREIGN KEY (")
+                    .append(String.join(", ", columnNames))
+                    .append(")\n").append("REFERENCES ")
+                    .append(referencedTableName).append("(")
+                    .append(String.join(", ", references))
+                    .append(")")
+                .append(";\n");
+        }
         return sb.toString();
     }
 

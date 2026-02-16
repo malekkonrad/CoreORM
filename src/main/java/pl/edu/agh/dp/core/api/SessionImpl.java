@@ -159,6 +159,9 @@ public class SessionImpl implements Session {
         Object entity = cachedEntities.findById(entityClass, id);
         if (entity == null) {
             EntityPersister persister = entityPersisters.get(entityClass);
+            if (persister == null) {
+                throw new IntegrityException("Unable to map: " + entityClass);
+            }
             entity = persister.findById(id, this);
             // fill the relationship data
             EntityMetadata metadata = persister.getEntityMetadata();

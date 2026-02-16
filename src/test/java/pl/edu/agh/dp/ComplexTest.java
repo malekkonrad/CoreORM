@@ -328,10 +328,10 @@ public class ComplexTest {
         String name;
         @ManyToOne
         @JoinColumn(joinColumns = { "version" })
-        Version version;
+        Version version; // -> version_id_fkey
         @OneToMany
         @JoinColumn(joinColumns = { "blocks", "version" })
-        List<Block> blocks;
+        List<Block> blocks; // -> join (
     }
 
     @Getter

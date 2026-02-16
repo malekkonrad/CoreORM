@@ -594,7 +594,7 @@ public class MetadataRegistry {
                                         + ")"
                         );
 
-                        columns.put(fkClone.getName(), fkClone);
+                        columns.put(fkClone.getColumnName(), fkClone);
 
                         currentJoinColumnsNew.add(fkClone);
                     }
@@ -617,7 +617,7 @@ public class MetadataRegistry {
                                         + ")"
                         );
 
-                        columns.put(targetFkClone.getName(), targetFkClone);
+                        columns.put(targetFkClone.getColumnName(), targetFkClone);
 
                         targetJoinColumnsList.add(targetFkClone);
                     }

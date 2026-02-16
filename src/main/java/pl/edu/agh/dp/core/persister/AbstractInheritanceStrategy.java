@@ -191,16 +191,17 @@ public abstract class AbstractInheritanceStrategy implements InheritanceStrategy
                 String assValuesStmt = "(" + "?,".repeat(assColumns.size() - 1) + "?)";
 
                 System.out.println(assStmt);
+                List<Object> baseValues = new ArrayList<>();
                 List<List<Object>> assAssValues = new ArrayList<>();
                 for (String fieldName : currentRef) {
                     System.out.println(fieldName + " from " + entity.getClass().getSimpleName());
                     Object field = ReflectionUtils.getFieldValue(entity, fieldName);
-                    assAssValues.add(new ArrayList<>(){{add(field);}});
+                    baseValues.add(field);
                 }
                 Collection<?> assField = (Collection<?>) ReflectionUtils.getFieldValue(entity, assFieldname);
                 for (Object relationshipEntity : assField) {
                     // first is the example, copy it and fill with the other values
-                    assAssValues.add(new ArrayList<>(){{addAll(assAssValues.get(0));}});
+                    assAssValues.add(new ArrayList<>(baseValues));
                     List<Object> assValues = assAssValues.get(assAssValues.size() - 1);
                     for (String fieldName : targetRef) {
                         System.out.println(fieldName + " from " + relationshipEntity.getClass().getSimpleName());
@@ -208,14 +209,13 @@ public abstract class AbstractInheritanceStrategy implements InheritanceStrategy
                         assValues.add(field);
                     }
                 }
-                // remove first example
-                assAssValues.remove(0);
                 // flatten array
                 assStmt += String.join(", ", java.util.Collections.nCopies(assAssValues.size(), assValuesStmt)) +";";
                 List<Object> array = new ArrayList<>();
                 for (List<Object> el : assAssValues) {
                     array.addAll(el);
                 }
+                System.out.println(array);
                 jdbc.insert(assStmt, "", array.toArray());
             }
         }

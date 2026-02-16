@@ -18,6 +18,7 @@ import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.util.ArrayList;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -209,6 +210,30 @@ public class ComplexKeysTest {
         Long id2;
     }
 
+    @NoArgsConstructor
+    @Getter
+    @Setter
+    public static class TwoM {
+        @Id(autoIncrement = false)
+        Long id;
+        @Id(autoIncrement = false)
+        Long id2;
+        @ManyToMany
+        List<OneM> one;
+    }
+
+    @NoArgsConstructor
+    @Getter
+    @Setter
+    public static class OneM {
+        @Id(autoIncrement = false)
+        Long id;
+        @Id(autoIncrement = false)
+        Long id2;
+        @ManyToMany
+        List<TwoM> two;
+    }
+
 
 // ---------------------------------------------------------------
 
@@ -280,6 +305,38 @@ public class ComplexKeysTest {
         oneId.setId2(4L);
 
         One one = session.find(One.class, oneId);
+        assertEquals(1, one.getTwo().size());
+    }
+
+    @Test
+    public void complexKeyManyToManyTest() {
+        config.register(TwoM.class, OneM.class);
+        sessionFactory = config.buildSessionFactory();
+        session = sessionFactory.openSession();
+
+        {
+            TwoM two = new TwoM();
+            two.setId(1L);
+            two.setId2(2L);
+
+            OneM one = new OneM();
+            one.setId(3L);
+            one.setId2(4L);
+
+            two.setOne(new ArrayList<>(){{add(one);}});
+
+            session.save(two);
+            session.commit();
+        }
+
+        session.close();
+        session = sessionFactory.openSession();
+
+        OneId oneId = new OneId();
+        oneId.setId(3L);
+        oneId.setId2(4L);
+
+        OneM one = session.find(OneM.class, oneId);
         assertEquals(1, one.getTwo().size());
     }
 

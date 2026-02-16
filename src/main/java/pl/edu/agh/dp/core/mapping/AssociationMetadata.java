@@ -15,7 +15,7 @@ import java.util.*;
 @AllArgsConstructor
 public class AssociationMetadata {
 
-    public static final String alias = "boss";
+    public static final String alias = "a1";
 
     public enum Type {
         ONE_TO_ONE,
