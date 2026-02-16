@@ -129,19 +129,5 @@ public class TransactionTest {
             }
 
         }
-
-//        try (Session session = sessionFactory.openSession()) {
-//
-//            List<User> users = session.finder(User.class)
-//                    .gt("transaction.amount", 100)
-//                    .list();
-//
-//            System.out.println(users.size());
-//
-//            for (var u : users) {
-//                System.out.println(u.getName());
-//            }
-//
-//        }
     }
 }
