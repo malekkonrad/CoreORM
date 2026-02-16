@@ -329,7 +329,6 @@ public class RelationshipTest {
             session.save(emp2);
             session.commit();
         }
-        // TODO don't add existing entities
         // Validation could be added here
     }
 

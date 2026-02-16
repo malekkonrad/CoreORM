@@ -23,8 +23,6 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.OffsetDateTime;
-import java.util.List;
-import java.util.Set;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -196,7 +194,7 @@ public class BasicTableTest {
         t.setAFloat(10.0f);
         t.setALong(10L);
         t.setAShort((short) 10);
-        t.setAString("test");
+        t.setAString("pl/edu/agh/dp/test");
         t.setATime(LocalTime.now());
         t.setABoolean(true);
         t.setUuid(UUID.randomUUID());

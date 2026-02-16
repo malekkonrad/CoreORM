@@ -365,7 +365,7 @@ public class SessionImpl implements Session {
         }
         EntityMetadata metadata = entityPersisters.get(entity.getClass()).getEntityMetadata();
         AssociationMetadata associationMetadata = metadata.getAssociationMetadata().get(relationshipName);
-        System.out.println(metadata.getAssociationMetadata());
+
         assert associationMetadata != null;
         Class<?> relationshipClass = associationMetadata.getTargetEntity();
         EntityMetadata relationshipMetadata = entityPersisters.get(relationshipClass).getEntityMetadata();
