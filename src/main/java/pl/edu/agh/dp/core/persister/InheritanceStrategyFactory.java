@@ -7,9 +7,9 @@ public class InheritanceStrategyFactory {
 
     public static InheritanceStrategy build(InheritanceType type, EntityMetadata metadata) {
         return switch (type){
-            case __OLD_SINGLE -> new SingleTableInheritanceStrategy(metadata);
-            case TABLE_PER_CLASS -> new JoinedTableInheritanceStrategy(metadata);
-            case SINGLE_TABLE -> new TablePerClassInheritanceStrategy(metadata);
+            case __OLD_SINGLE -> new OldSingleTableInheritanceStrategy(metadata);
+            case TABLE_PER_CLASS -> new TablePerClassInheritanceStrategy(metadata);
+            case SINGLE_TABLE -> new SingleTableInheritanceStrategy(metadata);
             case CONCRETE_CLASS ->  new ConcreteClassInheritanceStrategy(metadata);
         };
 

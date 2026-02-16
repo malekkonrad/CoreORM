@@ -1,23 +1,22 @@
 package pl.edu.agh.dp.core.persister;
 
+import javafx.util.Pair;
 import pl.edu.agh.dp.core.api.Session;
-import pl.edu.agh.dp.core.exceptions.IntegrityException;
+import pl.edu.agh.dp.core.finder.Condition;
 import pl.edu.agh.dp.core.finder.QuerySpec;
+import pl.edu.agh.dp.core.finder.Sort;
 import pl.edu.agh.dp.core.jdbc.JdbcExecutor;
 import pl.edu.agh.dp.core.mapping.*;
 import pl.edu.agh.dp.core.util.ReflectionUtils;
-import javafx.util.Pair;
 
-import java.sql.Date;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.*;
-import java.util.stream.Collectors;
 
-public class TablePerClassInheritanceStrategy extends AbstractInheritanceStrategy{
+public class TablePerClassInheritanceStrategy extends AbstractInheritanceStrategy {
 
-    public TablePerClassInheritanceStrategy(EntityMetadata metadata) {
-        super(metadata);
+    public TablePerClassInheritanceStrategy(EntityMetadata entityMetadata) {
+        super(entityMetadata);
     }
 
     @Override
@@ -27,8 +26,8 @@ public class TablePerClassInheritanceStrategy extends AbstractInheritanceStrateg
 
         TargetStatement joinStmt = associationMetadata.getJoinStatement();
         TargetStatement whereStmt = entityMetadata.getSelectByIdStatement(entity);
-        // table per class is it's own root
-        whereStmt.setTargetTableName(entityMetadata.getTableName());
+
+        whereStmt.setTargetTableName(entityMetadata.getInheritanceMetadata().getRootClass().getTableName());
         whereStmt.setTargetTableName(joinStmt.getRootTableName());
 
         return new PairTargetStatements(whereStmt, joinStmt);
@@ -36,270 +35,236 @@ public class TablePerClassInheritanceStrategy extends AbstractInheritanceStrateg
 
     @Override
     public Pair<String, String> create() {
-        assert this.entityMetadata != null;
-
         StringBuilder sb = new StringBuilder();
 
-        EntityMetadata rootMetadata = entityMetadata.getInheritanceMetadata().getRootClass();
+        assert entityMetadata != null;
 
-        if (entityMetadata.getIdColumns().isEmpty()) {
-            throw new IntegrityException("No id"); // sanity check
-        } else if (entityMetadata.getIdColumns().size() == 1) {
-            PropertyMetadata idProperty = entityMetadata.getIdColumns().values().iterator().next();
-            // must be autoincrement
-            if (!idProperty.isAutoIncrement()) {
-                throw new IntegrityException("Id column must be auto-increment");
-            }
-        } else if (entityMetadata != rootMetadata) {
-            throw new IntegrityException("Complex id not supported for Table per class inheritance");
-        }
+        sb.append(entityMetadata.getSqlTable());
 
-        // create sequence for all the subclasses to have the same id
-        String rootTableName = rootMetadata.getTableName();
-        String sequenceName = rootTableName + "_id_seq";
-        if (rootMetadata == entityMetadata) {
-            // create sequence only once
-            String seq =  "CREATE SEQUENCE " + sequenceName + " START 1 INCREMENT 1;\n";
-            sb.append(seq);
+        return new Pair<>(sb.toString(), entityMetadata.getSqlConstraints());
+    }
+
+    private List<EntityMetadata> buildInheritanceChain() {
+        List<EntityMetadata> visitingChain =  new ArrayList<>();
+        visitingChain.add(entityMetadata);
+
+        EntityMetadata current = entityMetadata;
+        while(true) {
+            assert current != null;
+            if (current.getInheritanceMetadata().getParent() == null) break;
+            visitingChain.add(current.getInheritanceMetadata().getParent());
+            current = current.getInheritanceMetadata().getParent();
         }
-        // change default in id to the sequence
-        PropertyMetadata rootId = entityMetadata.getIdColumns().values().iterator().next();
-        rootId.setSqlType("BIGINT");
-        rootId.setDefaultValue("nextval('" + sequenceName + "')");
-        // add table to the creation
-        if (!entityMetadata.isAbstract()) {
-            sb.append(entityMetadata.getSqlTable());
-        }
-        // return table and but skip the constraints cause it's TPC
-        return new Pair<>(sb.toString(), "");
+        Collections.reverse(visitingChain);
+
+        return visitingChain;
     }
 
     @Override
     public Object insert(Object entity, Session session) {
-        System.out.println("Inserting: " + entity.getClass().getName());
-
-        List<String> columns = new ArrayList<>();
-        List<Object> values = new ArrayList<>();
-
-        assert entityMetadata != null;
-
-        for (PropertyMetadata pm : entityMetadata.getProperties().values()) {
-            Object value = ReflectionUtils.getFieldValue(entity, pm.getName());
-            if (value != null) {
-                columns.add(pm.getColumnName());
-                values.add(value);
-            }
-        }
-        List<PropertyMetadata> idColumns = new ArrayList<>(entityMetadata.getIdColumns().values());
-        // get provided ids
-        Set<String> idProvided = getProvidedIds(entity);
-        // relationships
-        fillRelationshipData(entity, entityMetadata, columns, values);
-        // composite keys error handling
-        String idProp = getIdNameAndCheckCompositeKey(idProvided, idColumns);
-
-        StringBuilder sql = new StringBuilder();
-        sql.append("INSERT INTO ")
-                .append(entityMetadata.getTableName())
-                .append(" (")
-                .append(String.join(", ", columns))
-                .append(") VALUES (")
-                .append("?,".repeat(values.size()));
-        if (!values.isEmpty()) sql.deleteCharAt(sql.length() - 1); // sanity check if inserting nothing
-        sql.append(")");
-
-        System.out.println(sql.toString());
-        System.out.println(values.toString());
-
-        Long generatedId;
         try {
             JdbcExecutor jdbc = session.getJdbcExecutor();
-            generatedId = jdbc.insert(sql.toString(), idProp, values.toArray());
-            System.out.println("Generated ID: " + generatedId);
 
-            int numOfIds = entityMetadata.getInheritanceMetadata().getRootClass().getIdColumns().size();
-            if (numOfIds == 1) {        // we have one key if there's more then for sure it's not autoincrement
-                PropertyMetadata idPropName = entityMetadata.getInheritanceMetadata().getRootClass().getIdColumns().values().iterator().next();
-                if (idPropName.isAutoIncrement()) {
-                    System.out.println("seting id in " + entity.toString()+ " value: " + generatedId);
-                    ReflectionUtils.setFieldValue(entity, idPropName.getName(), generatedId);
+            Long generatedId = null;
+            // Sorted visiting chain from root to leaf
+            List<EntityMetadata> visitingChain = buildInheritanceChain();
+
+            assert entityMetadata != null;
+            EntityMetadata root = entityMetadata.getInheritanceMetadata().getRootClass();
+
+            List<PropertyMetadata> idColumns = new ArrayList<>(root.getIdColumns().values());
+            // get provided ids
+            Set<String> idProvided = getProvidedIds(entity);
+            // composite keys error handling
+            String idProp = getIdNameAndCheckCompositeKey(idProvided, idColumns);
+
+            for (EntityMetadata meta : visitingChain) {
+                List<String> columns = new ArrayList<>();
+                List<Object> values = new ArrayList<>();
+
+                boolean isRoot = meta.getInheritanceMetadata().isRoot();
+
+                for (PropertyMetadata prop : meta.getProperties().values()) {
+
+                    if (!fieldBelongsToClass(prop, meta.getEntityClass())) {
+                        continue;
+                    }
+
+                    //ID support in ROOT table (AutoIncrement)
+                    if (isRoot && prop.isId() && prop.isAutoIncrement()) {
+                        continue;
+                    }
+
+                    Object value = ReflectionUtils.getFieldValue(entity, prop.getName());
+                    if (value != null) {
+                        columns.add(prop.getColumnName());
+                        values.add(value);
+                    }
+                }
+
+                if (isRoot) {
+                    columns.add("DTYPE");
+                    values.add(root.getInheritanceMetadata().getClassToDiscriminator().get(entityMetadata.getEntityClass()));
+                }
+
+                // ID not in root
+                if (!isRoot) {
+                    if (generatedId == null) {
+                        throw new RuntimeException("Generated ID is null but trying to insert into child table! Root insert failed?");
+                    }
+
+                    String childIdColumnName = root.getIdColumns().keySet().iterator().next();
+                    columns.add(childIdColumnName);
+                    values.add(generatedId);
+                }
+
+                // relationships
+                fillRelationshipData(entity, meta, columns, values);
+
+                StringBuilder sql = new StringBuilder();
+                sql.append("INSERT INTO ")
+                        .append(meta.getTableName())
+                        .append(" (")
+                        .append(String.join(", ", columns))
+                        .append(") VALUES (")
+                        .append("?,".repeat(values.size()));
+
+                sql.deleteCharAt(sql.length() - 1); // delete last comma
+                sql.append(")");
+
+                System.out.println("Joined Insert SQL (" + (isRoot ? "ROOT" : "CHILD") + "): " + sql);
+                System.out.println("Values: " + values);
+
+                Long currentResult = jdbc.insert(sql.toString(), isRoot ? idProp : "", values.toArray());
+
+                if (isRoot) {
+                    // set generated ID
+                    int numOfIds = meta.getIdColumns().size();
+                    if (numOfIds == 1) {        // we have one key if there's more then for sure it's not autoincrement
+                        generatedId = currentResult;
+                        PropertyMetadata idPropName = meta.getIdColumns().values().iterator().next();
+                        if (idPropName.isAutoIncrement()) {
+                            System.out.println("seting id in " + entity.toString()+ " value: " + generatedId);
+                            ReflectionUtils.setFieldValue(entity, idPropName.getName(), generatedId);
+                        }
+                    }
                 }
             }
 
             // association tables
             insertAssociationTables(jdbc, entity);
 
-        } catch (Exception e) {
-            System.out.println(e.getMessage());
-            throw new RuntimeException("Error inserting entity " + entity, e);
-        }
-        return generatedId;
-    }
+            return generatedId;
 
+        } catch (Exception e) {
+            throw new RuntimeException("Error inserting entity with joined table strategy: " + entity, e);
+        }
+    }
 
     @Override
     public void update(Object entity, Session session) {
-        assert entityMetadata != null;
-        String tableName = entityMetadata.getTableName();
-
-        List<String> setColumns = new ArrayList<>();
-        List<Object> values = new ArrayList<>();
-
-        // Wszystkie pola z hierarchii (pomiń ID)
-        for (PropertyMetadata prop : entityMetadata.getProperties().values()) {
-            if (prop.isId()) {
-                continue; // ID nie jest aktualizowane
-            }
-
-            setColumns.add(prop.getColumnName());
-            Object value = ReflectionUtils.getFieldValue(entity, prop.getName());
-            values.add(value);
-        }
-
-        fillRelationshipData(entity, entityMetadata, setColumns, values);
-
-        StringBuilder sql = new StringBuilder();
-        sql.append("UPDATE ").append(tableName)
-                .append(" SET ").append(String.join(" = ?, ", setColumns)).append(setColumns.isEmpty() ? "" : " = ?")
-                .append(" WHERE ").append(entityMetadata.getSelectByIdStatement(entity).getStatement(tableName));
-
-        System.out.println("TablePerClass UPDATE SQL: " + sql);
-        System.out.println("Values: " + values);
-
         try {
             JdbcExecutor jdbc = session.getJdbcExecutor();
-            jdbc.update(sql.toString(), values.toArray());
+            List<EntityMetadata> chain = buildInheritanceChain();
+
+            for (EntityMetadata meta : chain) {
+                List<String> setColumns = new ArrayList<>();
+                List<Object> values = new ArrayList<>();
+
+                // Only fields defined in this particular class
+                for (PropertyMetadata prop : meta.getProperties().values()) {
+                    if (!fieldBelongsToClass(prop, meta.getEntityClass())) {
+                        continue;
+                    }
+
+                    if (prop.isId()) {
+                        continue;
+                    }
+
+                    setColumns.add(prop.getColumnName());
+                    Object value = ReflectionUtils.getFieldValue(entity, prop.getName());
+                    values.add(value);
+                }
+
+                fillRelationshipData(entity, meta, setColumns, values);
+
+                if (setColumns.isEmpty()) {
+                    continue;
+                }
+
+                assert entityMetadata != null;
+                EntityMetadata root = entityMetadata.getInheritanceMetadata().getRootClass();
+                Object idValue = getIdValue(entity);
+                String whereClause = buildWhereClause(root);
+                Object[] idParams = prepareIdParams(idValue);
+
+                List<Object> allParams = new ArrayList<>(values);
+                allParams.addAll(Arrays.asList(idParams));
+
+                StringBuilder sql = new StringBuilder();
+                sql.append("UPDATE ").append(meta.getTableName())
+                        .append(" SET ").append(String.join(" = ?, ", setColumns)).append(setColumns.isEmpty() ? "" : " = ?")
+                        .append(" WHERE ").append(whereClause);
+
+                System.out.println("Joined UPDATE SQL (" + meta.getTableName() + "): " + sql);
+                System.out.println("Values: " + allParams);
+
+                jdbc.update(sql.toString(), allParams.toArray());
+            }
 
             // association tables
             updateAssociationTables(jdbc, entity);
         } catch (Exception e) {
-            throw new RuntimeException("Error updating entity " + entity, e);
+            throw new RuntimeException("Error updating entity with joined table strategy: " + entity, e);
         }
     }
 
     @Override
     public void delete(Object entity, Session session) {
-        assert entityMetadata != null;
-        String tableName = entityMetadata.getTableName();
-
-        String sql = "DELETE FROM " + tableName + " WHERE " + entityMetadata.getSelectByIdStatement(entity).getStatement(tableName);
-
-        System.out.println("TablePerClass DELETE SQL: " + sql);
-        System.out.println("ID: " + getIdValue(entity));
-
         try {
             JdbcExecutor jdbc = session.getJdbcExecutor();
-            jdbc.update(sql);
+            List<EntityMetadata> chain = buildInheritanceChain();
+
+            // DELETE from the farthest child to the root (to avoid affecting foreign keys)
+            Collections.reverse(chain);
+
+            assert entityMetadata != null;
+            EntityMetadata root = entityMetadata.getInheritanceMetadata().getRootClass();
+            Object idValue = getIdValue(entity);
+            Object[] idParams = prepareIdParams(idValue);
+
+            for (EntityMetadata meta : chain) {
+                String whereClause = buildWhereClause(root);
+
+                StringBuilder sql = new StringBuilder();
+                sql.append("DELETE FROM ").append(meta.getTableName())
+                        .append(" WHERE ").append(whereClause);
+
+                System.out.println("Joined DELETE SQL (" + meta.getTableName() + "): " + sql);
+                System.out.println("ID: " + idValue);
+
+                jdbc.update(sql.toString(), idParams);
+            }
+
         } catch (Exception e) {
-            throw new RuntimeException("Error deleting entity " + entity, e);
+            throw new RuntimeException("Error deleting entity with joined table strategy: " + entity, e);
         }
     }
 
     @Override
     public Object findById(Object id, Session session) {
         try {
-            // PHASE 1: Find which specific class (table) has this ID
-            EntityMetadata concreteMetadata = findConcreteMetadata(id, session);
+            assert entityMetadata != null;
+            // query with LEFT JOINS
+            SqlAndParams query = buildPolymorphicQuery(id); // id != null -> generuje WHERE
 
-            // If ID not found in any table
-            if (concreteMetadata == null) {
-                return null;
-            }
+            System.out.println("Joined findById SQL: " + query.sql);
 
-            // PHASE 2: Get the full object from the correct table with all fields
-            return loadSpecificEntity(concreteMetadata, id, session);
+            JdbcExecutor jdbc = session.getJdbcExecutor();
+            return jdbc.queryOne(query.sql, this::mapRow, query.params.toArray()).orElse(null);
 
         } catch (Exception e) {
             throw new RuntimeException("Error finding entity with id = " + id, e);
-        }
-    }
-
-    private EntityMetadata findConcreteMetadata(Object id, Session session) throws Exception {
-        JdbcExecutor jdbc = session.getJdbcExecutor();
-        EntityMetadata root = entityMetadata.getInheritanceMetadata().getRootClass();
-        Collection<PropertyMetadata> idColumns = root.getIdColumns().values();
-
-        List<EntityMetadata> concreteSubclasses = getAllConcreteSubclasses(entityMetadata);
-
-        StringBuilder sql = new StringBuilder();
-        List<Object> params = new ArrayList<>();
-
-        // We build a query that checks the presence of ID in each table
-        for (int i = 0; i < concreteSubclasses.size(); i++) {
-            EntityMetadata subMeta = concreteSubclasses.get(i);
-
-            sql.append("SELECT '")
-                    .append(subMeta.getEntityClass().getName())
-                    .append("' as DTYPE FROM ")
-                    .append(subMeta.getTableName())
-                    .append(" WHERE ");
-
-            appendIdWhereClause(sql, params, idColumns, id);
-
-            if (i < concreteSubclasses.size() - 1) {
-                sql.append(" UNION ALL ");
-            }
-        }
-
-        // We execute a query that will return only the class name
-        return jdbc.queryOne(sql.toString(), rs -> {
-            String className = rs.getString("DTYPE");
-            // We are looking for metadata corresponding to the class name
-            return concreteSubclasses.stream()
-                    .filter(m -> m.getEntityClass().getName().equals(className))
-                    .findFirst()
-                    .orElseThrow(() -> new RuntimeException("Metadata not found for class: " + className));
-        }, params.toArray()).orElse(null);
-    }
-
-    private Object loadSpecificEntity(EntityMetadata specificMetadata, Object id, Session session) throws Exception {
-        JdbcExecutor jdbc = session.getJdbcExecutor();
-
-        List<String> columns = specificMetadata.getColumnsForConcreteTable()
-                .stream()
-                .map(PropertyMetadata::getColumnName)
-                .collect(Collectors.toList());
-
-        StringBuilder sql = new StringBuilder();
-        sql.append("SELECT ")
-                .append(String.join(", ", columns))
-                .append(" FROM ")
-                .append(specificMetadata.getTableName())
-                .append(" WHERE ");
-
-        EntityMetadata root = entityMetadata.getInheritanceMetadata().getRootClass();
-        Collection<PropertyMetadata> idColumns = root.getIdColumns().values();
-        List<Object> params = new ArrayList<>();
-        appendIdWhereClause(sql, params, idColumns, id);
-
-        System.out.println("Loading full entity SQL: " + sql);
-
-        return jdbc.queryOne(sql.toString(), rs -> mapSpecificEntity(rs, specificMetadata), params.toArray())
-                .orElse(null);
-    }
-
-    /**
-     * A mapper that can map an object based on the metadata provided,
-     * not the data assigned to the strategy.
-     */
-    private Object mapSpecificEntity(ResultSet rs, EntityMetadata metadata) throws SQLException {
-        try {
-            Object entity = metadata.getEntityClass().getDeclaredConstructor().newInstance();
-
-            for (PropertyMetadata prop : metadata.getColumnsForConcreteTable()) {
-                try {
-                    Object value = getValueFromResultSet(rs, prop.getColumnName(), prop.getType());
-
-                    if (value != null) {
-                        ReflectionUtils.setFieldValue(entity, prop.getName(), value);
-                    }
-                } catch (SQLException e) {
-                    // ignore
-                }
-            }
-            return entity;
-        } catch (Exception e) {
-            throw new RuntimeException("Error mapping entity " + metadata.getEntityClass().getName(), e);
         }
     }
 
@@ -307,191 +272,334 @@ public class TablePerClassInheritanceStrategy extends AbstractInheritanceStrateg
     public <T> List<T> findAll(Class<T> type, Session session, PairTargetStatements pairTargetStatements) {
         TargetStatement joinStmt = pairTargetStatements.getJoinStatements().get(0);
         TargetStatement whereStmt = pairTargetStatements.getWhereStatements().get(0);
+        assert entityMetadata != null;
+        try {
+            // without where id = ?
+            SqlAndParams query = buildPolymorphicQuery(null);
 
-        List<EntityMetadata> concreteSubclasses = getAllConcreteSubclasses(this.entityMetadata);
+            query.sql += " " + joinStmt.getStatement();
 
-        Map<String, PropertyMetadata> allProperties = new HashMap<>();
-        for (EntityMetadata meta : concreteSubclasses) {
-            allProperties.putAll(meta.getProperties());
-        }
+            // additional where
+            if (!whereStmt.isBlank()) {
 
-        // UNION ALL
-        StringBuilder sqlBuilder = new StringBuilder();
+                query.sql += " WHERE " + whereStmt.getStatement();
+            }
 
-        for (int i = 0; i < concreteSubclasses.size(); i++) {
-            EntityMetadata subMeta = concreteSubclasses.get(i);
+            System.out.println("Joined findAll SQL: " + query.sql);
 
-            Map<String, PropertyMetadata> subTableProperties = subMeta.getProperties();
+            JdbcExecutor jdbc = session.getJdbcExecutor();
 
-            String tableName = subMeta.getTableName();
+            List<Object> results = jdbc.query(query.sql, this::mapRow);
 
-            sqlBuilder.append("SELECT ");
-
-            List<String> selectionParts = new ArrayList<>();
-            for (String fieldName : allProperties.keySet()) {
-                PropertyMetadata pm = allProperties.get(fieldName);
-                String columnName = pm.getColumnName();
-                if (subTableProperties.containsKey(fieldName)) {
-                    selectionParts.add(tableName + "." + columnName);
-                } else {
-                    // aliasing and NULL
-                    selectionParts.add("NULL::" + pm.getSqlType() +" AS " + columnName);
+            List<T> filtered = new ArrayList<>();
+            for (Object obj : results) {
+                if (type.isInstance(obj)) {
+                    filtered.add(type.cast(obj));
                 }
             }
+            return filtered;
 
-            sqlBuilder.append(String.join(", ", selectionParts));
-
-            // DTYPE
-            sqlBuilder.append(", '").append(subMeta.getEntityClass().getName()).append("' as DTYPE")
-                    .append(" FROM ")
-                    .append(tableName);
-
-            // JOIN stmt
-            sqlBuilder.append(" ").append(joinStmt.getStatement(tableName));
-
-            // where
-            if (!whereStmt.isBlank()) {
-                sqlBuilder.append(" WHERE ");
-                sqlBuilder.append(whereStmt.getStatement());
-            }
-
-            if (i < concreteSubclasses.size() - 1) {
-                sqlBuilder.append(" UNION ALL ");
-            }
-        }
-
-        String sql = sqlBuilder.toString();
-        System.out.println("TPC findAll SQL: " + sql);
-
-        try {
-            JdbcExecutor jdbc = session.getJdbcExecutor();
-            return jdbc.query(sql, rs -> mapPolymorphicEntityFull(rs, type, allProperties));
         } catch (Exception e) {
-            throw new RuntimeException("Error finding all entities in TPC", e);
+            throw new RuntimeException("Error finding entities in Joined Strategy", e);
         }
     }
 
     @Override
     public <T> List<T> findBy(Class<T> type, Session session, QuerySpec<T> querySpec) {
         assert entityMetadata != null;
-        
-        // Get all concrete subclasses for polymorphic query
-        List<EntityMetadata> allSubclasses = getAllConcreteSubclasses(entityMetadata);
-        
-        // Collect all properties from the hierarchy
-        Map<String, PropertyMetadata> allProperties = new LinkedHashMap<>();
-        for (EntityMetadata sub : allSubclasses) {
-            allProperties.putAll(sub.getProperties());
-        }
-        
-        List<Object> allParams = new ArrayList<>();
-        StringBuilder sqlBuilder = new StringBuilder();
-        boolean first = true;
-        
-        for (EntityMetadata sub : allSubclasses) {
-            if (!first) {
-                sqlBuilder.append(" UNION ALL ");
-            }
-            first = false;
+        try {
+            // Build the polymorphic query
+            SqlAndParams query = buildPolymorphicQuery(null);
             
-            StringBuilder selectPart = new StringBuilder("SELECT ");
-            // Add DTYPE column
-            selectPart.append("'").append(sub.getEntityClass().getName()).append("' AS DTYPE, ");
-            
-            // Add columns with NULL padding for missing columns
-            List<String> columnDefs = new ArrayList<>();
-            for (String fieldName : allProperties.keySet()) {
-                PropertyMetadata pm = sub.getProperties().get(fieldName);
-                if (pm != null) {
-                    columnDefs.add(sub.getTableName() + "." + pm.getColumnName() + " AS " + pm.getColumnName());
+            List<Object> params = new ArrayList<>(query.params);
+            EntityMetadata root = entityMetadata.getInheritanceMetadata().getRootClass();
+
+            // QuerySpec conditions - need to resolve field to proper table in inheritance hierarchy
+            String querySpecWhere = buildJoinedQuerySpecWhereClause(querySpec, params);
+            if (!querySpecWhere.isEmpty()) {
+                if (query.sql.contains(" WHERE ")) {
+                    query.sql += " AND " + querySpecWhere;
                 } else {
-                    columnDefs.add("NULL AS " + allProperties.get(fieldName).getColumnName());
+                    query.sql += " WHERE " + querySpecWhere;
                 }
             }
-            selectPart.append(String.join(", ", columnDefs));
-            
-            StringBuilder fromWhere = new StringBuilder(" FROM " + sub.getTableName());
-            
-            List<Object> subParams = new ArrayList<>();
-            String querySpecWhere = buildQuerySpecWhereClause(querySpec, sub.getTableName(), subParams);
-            if (!querySpecWhere.isEmpty()) {
-                fromWhere.append(" WHERE ").append(querySpecWhere);
-                allParams.addAll(subParams);
+
+            // ORDER BY - need to resolve field to proper table
+            String orderBy = buildJoinedQuerySpecOrderByClause(querySpec);
+            if (!orderBy.isEmpty()) {
+                query.sql += " ORDER BY " + orderBy;
             }
-            
-            sqlBuilder.append(selectPart).append(fromWhere);
-        }
-        
-        // ORDER BY - needs special handling for UNION
-        String orderBy = buildQuerySpecOrderByClause(querySpec, entityMetadata.getTableName());
-        if (!orderBy.isEmpty()) {
-            // For UNION, we need to order by column name without table prefix
-            String simpleOrderBy = querySpec.getSortings().stream()
-                    .map(sort -> {
-                        String columnName = resolveColumnName(sort.getField(), entityMetadata);
-                        return columnName + " " + sort.getDirection().name();
-                    })
-                    .collect(Collectors.joining(", "));
-            sqlBuilder.append(" ORDER BY ").append(simpleOrderBy);
-        }
-        
-        // LIMIT/OFFSET
-        sqlBuilder.append(buildQuerySpecLimitOffsetClause(querySpec));
-        
-        String sql = sqlBuilder.toString();
-        System.out.println("TPC Finder SQL: " + sql);
-        System.out.println("TPC Finder params: " + allParams);
-        
-        try {
+
+            // LIMIT/OFFSET
+            query.sql += buildQuerySpecLimitOffsetClause(querySpec);
+
+            System.out.println("Joined Finder SQL: " + query.sql);
+            System.out.println("Joined Finder params: " + params);
+
             JdbcExecutor jdbc = session.getJdbcExecutor();
-            return jdbc.query(sql, rs -> mapPolymorphicEntityFull(rs, type, allProperties), allParams.toArray());
+            List<Object> results = jdbc.query(query.sql, this::mapRow, params.toArray());
+
+            // Filter by type
+            List<T> filtered = new ArrayList<>();
+            for (Object obj : results) {
+                if (type.isInstance(obj)) {
+                    filtered.add(type.cast(obj));
+                }
+            }
+            return filtered;
+
         } catch (Exception e) {
-            throw new RuntimeException("Error finding entities with QuerySpec in TPC", e);
+            throw new RuntimeException("Error finding entities with QuerySpec in Joined Strategy", e);
         }
     }
 
-    private <T> T mapPolymorphicEntityFull(ResultSet rs, Class<T> baseType, Map<String, PropertyMetadata> allProperties) throws SQLException {
+    private String findTableForField(String fieldName) {
+        EntityMetadata root = entityMetadata.getInheritanceMetadata().getRootClass();
+        List<EntityMetadata> allSubclasses = getAllSubclassesIncludingRoot(root);
+        
+        for (EntityMetadata meta : allSubclasses) {
+            if (meta.getProperties().containsKey(fieldName)) {
+                return meta.getTableName();
+            }
+            if (meta.getIdColumns().containsKey(fieldName)) {
+                return meta.getTableName();
+            }
+        }
+        // Default to root table if not found
+        return root.getTableName();
+    }
+
+    private String resolveJoinedColumnName(String fieldName) {
+        EntityMetadata root = entityMetadata.getInheritanceMetadata().getRootClass();
+        List<EntityMetadata> allSubclasses = getAllSubclassesIncludingRoot(root);
+        
+        for (EntityMetadata meta : allSubclasses) {
+            PropertyMetadata pm = meta.getProperties().get(fieldName);
+            if (pm != null) {
+                return pm.getColumnName();
+            }
+            pm = meta.getIdColumns().get(fieldName);
+            if (pm != null) {
+                return pm.getColumnName();
+            }
+        }
+        // If not found, assume it's already a column name
+        return fieldName;
+    }
+
+    private <T> String buildJoinedQuerySpecWhereClause(QuerySpec<T> querySpec, List<Object> params) {
+        if (!querySpec.hasConditions()) {
+            return "";
+        }
+        
+        List<String> sqlConditions = new ArrayList<>();
+        for (Condition condition : querySpec.getConditions()) {
+            String fieldName = condition.getField();
+            String tableName = findTableForField(fieldName);
+            String columnName = resolveJoinedColumnName(fieldName);
+            
+            // Generate SQL with proper table and column name
+            String sql = condition.toSql(tableName)
+                    .replace(tableName + "." + fieldName, tableName + "." + columnName);
+            sqlConditions.add(sql);
+            params.addAll(condition.getParams());
+        }
+        
+        return String.join(" AND ", sqlConditions);
+    }
+
+    private <T> String buildJoinedQuerySpecOrderByClause(QuerySpec<T> querySpec) {
+        if (!querySpec.hasSorting()) {
+            return "";
+        }
+        
+        List<String> sortClauses = new ArrayList<>();
+        for (Sort sort : querySpec.getSortings()) {
+            String fieldName = sort.getField();
+            String tableName = findTableForField(fieldName);
+            String columnName = resolveJoinedColumnName(fieldName);
+            sortClauses.add(tableName + "." + columnName + " " + sort.getDirection().name());
+        }
+        
+        return String.join(", ", sortClauses);
+    }
+
+    private static class SqlAndParams {
+        String sql;
+        List<Object> params;
+
+        public SqlAndParams(String sql, List<Object> params) {
+            this.sql = sql;
+            this.params = params;
+        }
+    }
+
+    private SqlAndParams buildPolymorphicQuery(Object id) {
+        EntityMetadata root = entityMetadata.getInheritanceMetadata().getRootClass();
+        List<EntityMetadata> allSubclasses = getAllSubclassesIncludingRoot(root);
+
+        StringBuilder selectPart = new StringBuilder("SELECT ");
+        StringBuilder joinPart = new StringBuilder(" FROM " + root.getTableName());
+
+        List<String> columns = new ArrayList<>();
+
+        // column list with aliases
+        for (EntityMetadata meta : allSubclasses) {
+            for (PropertyMetadata prop : meta.getProperties().values()) {
+                if (prop.getSqlType() != null) {
+                    columns.add(meta.getTableName() + "." + prop.getColumnName() +
+                            " AS " + meta.getTableName() + "_" + prop.getColumnName());
+                }
+            }
+        }
+
+        selectPart.append(String.join(", ", columns));
+
+        // LEFT JOINs
+        for (EntityMetadata sub : allSubclasses) {
+            if (sub == root) continue;
+
+            EntityMetadata parent = sub.getInheritanceMetadata().getParent();
+            // JOIN po ID
+            String pkName = root.getIdColumns().values().iterator().next().getColumnName();
+
+            joinPart.append(" LEFT JOIN ").append(sub.getTableName())
+                    .append(" ON ")
+                    .append(parent.getTableName()).append(".").append(pkName)
+                    .append(" = ")
+                    .append(sub.getTableName()).append(".").append(pkName);
+        }
+
+        // WHERE
+        List<Object> params = new ArrayList<>();
+        if (id != null) {
+            List<PropertyMetadata> idColumns = entityMetadata.getIdColumns().values().stream().toList();
+            joinPart.append(" WHERE ");
+
+            if (idColumns.size() == 1) {
+                PropertyMetadata pm = idColumns.iterator().next();
+                joinPart.append(root.getTableName()).append(".").append(pm.getColumnName()).append(" = ?");
+                params.add(((Class<?>) pm.getType()).cast(id));
+            } else {
+                // composite key
+                int count = 0;
+                for(PropertyMetadata pm : idColumns) {
+                    if(count > 0) joinPart.append(" AND ");
+                    joinPart.append(root.getTableName()).append(".").append(pm.getColumnName()).append(" = ?");
+                    Object val = ReflectionUtils.getFieldValue(id, pm.getName());
+                    params.add(val);
+                    count++;
+                }
+            }
+        }
+
+        return new SqlAndParams(selectPart.toString() + joinPart.toString(), params);
+    }
+
+    private Object mapRow(ResultSet rs) throws SQLException {
         try {
-            // DTYPE
-            String className = rs.getString("DTYPE");
-            Class<?> realClass = Class.forName(className);
+            assert entityMetadata != null;
+            EntityMetadata root = entityMetadata.getInheritanceMetadata().getRootClass();
+
+            String discriminatorCol = "DTYPE";
+            String alias = root.getTableName() + "_" + discriminatorCol;
+
+            String className;
+            try {
+                className = rs.getString(alias);
+            } catch (SQLException e) {
+                className = rs.getString(discriminatorCol);
+            }
+
+            if (className == null) {
+                className = root.getEntityClass().getName();
+            }
+
+            Class<?> realClass;
+            try {
+                realClass = root.getInheritanceMetadata().getDiscriminatorToClass().get(className);
+
+                if (realClass == null) {
+                    realClass = Class.forName(className);
+                }
+            } catch (Exception e) {
+                throw new RuntimeException("Unknown entity type: " + className);
+            }
 
             Object instance = realClass.getDeclaredConstructor().newInstance();
 
-            for (String fieldName : allProperties.keySet()) {
-                PropertyMetadata pm = allProperties.get(fieldName);
-                String colName = pm.getColumnName();
-                Object value = rs.getObject(colName);
+            populateFieldsWithAliases(instance, rs, realClass);
 
-                if (value != null) {
-                    Object castedValue = castSqlValueToJava((Class<?>)pm.getType(), value);
-                    ReflectionUtils.setFieldValue(instance, fieldName, castedValue);
-                }
-            }
-            return baseType.cast(instance);
+            return instance;
+
         } catch (Exception e) {
-            throw new RuntimeException("Error mapping polymorphic entity", e);
+            throw new RuntimeException("Error mapping row in Joined strategy", e);
         }
     }
 
-    private List<EntityMetadata> getAllConcreteSubclasses(EntityMetadata parent) {
-        List<EntityMetadata> result = new ArrayList<>();
-        List<EntityMetadata> toVisit = new ArrayList<>();
+    private void populateFieldsWithAliases(Object instance, ResultSet rs, Class<?> realClass) throws SQLException {
+        EntityMetadata currentMeta = findMetadataForClass(realClass);
 
-        toVisit.add(parent);
-        if (!parent.isAbstract()) {
-            result.add(parent);
-        }
-        while (!toVisit.isEmpty()) {
-            var current =  toVisit.remove(0);
-            for (EntityMetadata child: current.getInheritanceMetadata().getChildren()){
-                if (!child.isAbstract()) {
-                    result.add(child);
+        // we are going upwards
+        while (currentMeta != null) {
+            for (PropertyMetadata prop : currentMeta.getProperties().values()) {
+                if (prop.getSqlType() == null) continue;
+
+                if (prop.getName() == null) {
+                    continue;
                 }
-                toVisit.add(child);
+
+                if (Objects.equals(prop.getColumnName(), "DTYPE")) continue;
+
+                String columnAlias = currentMeta.getTableName() + "_" + prop.getColumnName();
+
+                try {
+                    String fieldName = prop.getName();
+                    Object value = getValueFromResultSet(rs, columnAlias, prop.getType());
+
+                    if (value != null) {
+                        Object castedValue = castSqlValueToJava((Class<?>) prop.getType(), value);
+                        ReflectionUtils.setFieldValue(instance, fieldName, castedValue);
+                    }
+                } catch (SQLException e) {
+                    // ignore
+                }
+            }
+
+            // go to parent
+            if (currentMeta.getInheritanceMetadata().getParent() != null) {
+                currentMeta = currentMeta.getInheritanceMetadata().getParent();
+            } else {
+                currentMeta = null;
             }
         }
-        return result;
+    }
+
+    private List<EntityMetadata> getAllSubclassesIncludingRoot(EntityMetadata root) {
+        List<EntityMetadata> list = new ArrayList<>();
+        list.add(root);
+
+        List<EntityMetadata> toProcess = new ArrayList<>(root.getInheritanceMetadata().getChildren());
+        while (!toProcess.isEmpty()) {
+            EntityMetadata current = toProcess.remove(0);
+            list.add(current);
+            toProcess.addAll(current.getInheritanceMetadata().getChildren());
+        }
+        return list;
+    }
+
+    private EntityMetadata findMetadataForClass(Class<?> clazz) {
+        EntityMetadata root = entityMetadata.getInheritanceMetadata().getRootClass();
+        if (root.getEntityClass().equals(clazz)) return root;
+
+        // BFS search
+        List<EntityMetadata> queue = new ArrayList<>(root.getInheritanceMetadata().getChildren());
+        while(!queue.isEmpty()) {
+            EntityMetadata current = queue.remove(0);
+            if (current.getEntityClass().equals(clazz)) return current;
+            queue.addAll(current.getInheritanceMetadata().getChildren());
+        }
+        return null;
     }
 
 }
