@@ -52,7 +52,11 @@ public class EntityMetadata {
             StringBuilder cond = new StringBuilder();
             cond.append(TargetStatement.getTargetName()).append(".").append(pm.getColumnName());
             cond.append(" = ");
+
+            if (pm.getType() == String.class) cond.append("'");
             cond.append(ReflectionUtils.getFieldValue(entity, pm.getName()));
+            if (pm.getType() == String.class) cond.append("'");
+
             conditions.add(cond.toString());
         }
         return new TargetStatement(String.join(" AND ", conditions), tableName);

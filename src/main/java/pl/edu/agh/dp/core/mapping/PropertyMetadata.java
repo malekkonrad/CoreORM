@@ -11,6 +11,8 @@ import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.OffsetDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.Collection;
+import java.util.List;
 import java.util.UUID;
 
 @Getter
@@ -47,9 +49,13 @@ public class PropertyMetadata implements Cloneable {
     public String toSqlColumn() {
         StringBuffer sb = new StringBuffer();
         if (columnName.contains(", ")) {
-            for (String sepName : columnName.split(", ")) {
+            String[] columnNames = columnName.split(", ");
+            String[] sqlTypes = sqlType.split(", ");
+            for (int i = 0; i < columnNames.length; i++) {
+                String sepName = columnNames[i];
+                String sepSqlType = sqlTypes[i];
                 sb.append(" ").append(sepName);
-                sb.append(" ").append(sqlType);
+                sb.append(" ").append(sepSqlType);
                 sb.append(",\n");
             }
             sb.deleteCharAt(sb.length() - 1);

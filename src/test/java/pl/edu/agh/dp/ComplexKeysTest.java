@@ -234,6 +234,26 @@ public class ComplexKeysTest {
         List<TwoM> two;
     }
 
+    @NoArgsConstructor
+    @Getter
+    @Setter
+    public static class TwoString {
+        @Id(autoIncrement = false)
+        String id;
+        @ManyToOne
+        OneString oneString;
+    }
+
+    @NoArgsConstructor
+    @Getter
+    @Setter
+    public static class OneString {
+        @Id(autoIncrement = false)
+        String id;
+        @OneToMany
+        List<TwoString> twoStrings;
+    }
+
 
 // ---------------------------------------------------------------
 
@@ -274,6 +294,32 @@ public class ComplexKeysTest {
         if (session != null) {
             session.close();
         }
+    }
+
+    @Test
+    public void stringKeyTest() {
+        config.register(TwoString.class, OneString.class);
+        sessionFactory = config.buildSessionFactory();
+        session = sessionFactory.openSession();
+
+        {
+            TwoString two = new TwoString();
+            two.setId("two");
+
+            OneString one = new OneString();
+            one.setId("one");
+
+            two.setOneString(one);
+
+            session.save(two);
+            session.commit();
+        }
+
+        session.close();
+        session = sessionFactory.openSession();
+
+        OneString one = session.find(OneString.class, "one");
+        assertEquals(1, one.getTwoStrings().size());
     }
 
     @Test
@@ -438,7 +484,7 @@ public class ComplexKeysTest {
 
     // LIBRARY TESTS -----------------------------------------------------------
 
-//    @Test
+    @Test
     public void findAllRentedBooksTest() {
         config.register(Library.class, Reader.class, Book.class);
         sessionFactory = config.buildSessionFactory();

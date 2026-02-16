@@ -316,6 +316,7 @@ public class MetadataRegistry {
                 if (targetIdColumns.size() == 1) {
                     fkColumn.setReferences(targetEntityMetadata.tableName + "(" + targetIdColumns.get(0).getColumnName() + ")");
                     fkColumn.setColumnName(fkColumn.getColumnName() + "_fkey");
+                    fkColumn.setSqlType(getForeignSqlType(targetIdColumns.get(0)));
 
                     currentAm.setJoinColumns(new ArrayList<>(){{
                         add(fkColumn);
@@ -367,6 +368,7 @@ public class MetadataRegistry {
                                         + targetIdColumn.getColumnName()
                                         + ")"
                         );
+                        fkClone.setSqlType(getForeignSqlType(targetIdColumn));
                         fkColumns.add(fkClone);
 
                         PropertyMetadata targetClone = targetIdColumn.clone();
@@ -407,6 +409,7 @@ public class MetadataRegistry {
                             + ")"
                     );
                     fkColumn.setColumnName(String.join(", ", fkColumns.stream().map(PropertyMetadata::getColumnName).toArray(String[]::new)));
+                    fkColumn.setSqlType(String.join(", ", fkColumns.stream().map(MetadataRegistry::getForeignSqlType).toArray(String[]::new)));
                     // cross reference
                     currentAm.setTargetJoinColumns(targetJoinColumnsNew);
                     targetAm.setTargetJoinColumns(fkColumns);
@@ -423,6 +426,7 @@ public class MetadataRegistry {
                 if (idColumns.size() == 1) {
                     targetFkColumn.setReferences(entityMetadata.tableName + "(" + idColumns.get(0).getColumnName() + ")");
                     targetFkColumn.setColumnName(targetFkColumn.getColumnName() + "_fkey");
+                    targetFkColumn.setSqlType(getForeignSqlType(idColumns.get(0)));
 
                     targetAm.setJoinColumns(new ArrayList<>(){{
                         add(targetFkColumn);
@@ -477,6 +481,7 @@ public class MetadataRegistry {
                                         + idColumn.getColumnName()
                                         + ")"
                         );
+                        fkClone.setSqlType(getForeignSqlType(idColumn));
                         targetFkColumns.add(fkClone);
 
                         PropertyMetadata currentClone = idColumn.clone();
@@ -515,6 +520,7 @@ public class MetadataRegistry {
                                     + ")"
                     );
                     targetFkColumn.setColumnName(String.join(", ", targetFkColumns.stream().map(PropertyMetadata::getColumnName).toArray(String[]::new)));
+                    targetFkColumn.setSqlType(String.join(", ", targetFkColumns.stream().map(MetadataRegistry::getForeignSqlType).toArray(String[]::new)));
                     // cross reference
                     currentAm.setTargetJoinColumns(targetFkColumns);
                     targetAm.setTargetJoinColumns(currentJoinColumnsNew);
@@ -593,7 +599,7 @@ public class MetadataRegistry {
                                         + targetIdColumn.getColumnName()
                                         + ")"
                         );
-
+                        fkClone.setSqlType(getForeignSqlType(targetIdColumn));
                         columns.put(fkClone.getColumnName(), fkClone);
 
                         currentJoinColumnsNew.add(fkClone);
@@ -616,7 +622,7 @@ public class MetadataRegistry {
                                         + idColumn.getColumnName()
                                         + ")"
                         );
-
+                        targetFkClone.setSqlType(getForeignSqlType(idColumn));
                         columns.put(targetFkClone.getColumnName(), targetFkClone);
 
                         targetJoinColumnsList.add(targetFkClone);
@@ -655,6 +661,18 @@ public class MetadataRegistry {
                 throw new IntegrityException("Unhandled relationship.");
             }
         }
+    }
+
+    private static String getForeignSqlType(PropertyMetadata pm) {
+        String sqlType = pm.getSqlType();
+        if (sqlType == "SERIAL") {
+            sqlType = "INTEGER";
+        } else if (sqlType == "BIGSERIAL") {
+            sqlType = "BIGINT";
+        } else if (sqlType == "SMALLSERIAL") {
+            sqlType = "SMALLINT";
+        }
+        return sqlType;
     }
 
     private static Set<String> checkJoinColumns(Class<?> clazz, AssociationMetadata am) {

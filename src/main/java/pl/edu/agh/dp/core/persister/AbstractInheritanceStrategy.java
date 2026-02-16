@@ -346,7 +346,7 @@ public abstract class AbstractInheritanceStrategy implements InheritanceStrategy
                                 "Add auto increment or set this field.");
             }
         }
-        return isCompositeKey ? "" : idColumns.iterator().next().getColumnName();
+        return isCompositeKey || !idProvided.isEmpty() ? "" : idColumns.iterator().next().getColumnName();
     }
 
     protected String buildWhereClause(EntityMetadata meta) {
