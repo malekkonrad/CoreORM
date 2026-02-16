@@ -26,7 +26,7 @@ public class ComplexTest {
     @Getter
     @Setter
     @NoArgsConstructor
-    @Inheritance(strategy = InheritanceType.TABLE_PER_CLASS)
+    @Inheritance(strategy = InheritanceType.SINGLE_TABLE)
     public static class AnimalOwnerT2T {
         @Id(autoIncrement = true)
         Long id2;
@@ -38,7 +38,7 @@ public class ComplexTest {
     @Getter
     @Setter
     @NoArgsConstructor
-    @Inheritance(strategy = InheritanceType.JOINED)
+    @Inheritance(strategy = InheritanceType.TABLE_PER_CLASS)
     public static class AnimalOwnerJ2J {
         @Id(autoIncrement = true)
         Long id2;
@@ -50,7 +50,7 @@ public class ComplexTest {
     @Getter
     @Setter
     @NoArgsConstructor
-    @Inheritance(strategy = InheritanceType.SINGLE_TABLE)
+    @Inheritance(strategy = InheritanceType.__OLD_SINGLE)
     public static class AnimalOwnerS2S {
         @Id(autoIncrement = true)
         Long id2;
@@ -83,7 +83,7 @@ public class ComplexTest {
     @Getter
     @Setter
     @NoArgsConstructor
-    @Inheritance(strategy = InheritanceType.TABLE_PER_CLASS)
+    @Inheritance(strategy = InheritanceType.SINGLE_TABLE)
     public static class AnimalT2T {
         @Id(autoIncrement = true)
         Long id;
@@ -110,7 +110,7 @@ public class ComplexTest {
     @Getter
     @Setter
     @NoArgsConstructor
-    @Inheritance(strategy = InheritanceType.JOINED)
+    @Inheritance(strategy = InheritanceType.TABLE_PER_CLASS)
     public static class AnimalJ2J {
         @Id(autoIncrement = true)
         Long id;
@@ -137,7 +137,7 @@ public class ComplexTest {
     @Getter
     @Setter
     @NoArgsConstructor
-    @Inheritance(strategy = InheritanceType.SINGLE_TABLE)
+    @Inheritance(strategy = InheritanceType.__OLD_SINGLE)
     public static class AnimalS2S {
         @Id(autoIncrement = true)
         Long id;
@@ -164,7 +164,7 @@ public class ComplexTest {
     @Getter
     @Setter
     @NoArgsConstructor
-    @Inheritance(strategy = InheritanceType.TABLE_PER_CLASS)
+    @Inheritance(strategy = InheritanceType.SINGLE_TABLE)
     public static class AnimalOwnerT2J {
         @Id(autoIncrement = true)
         Long id2;
@@ -183,7 +183,7 @@ public class ComplexTest {
     @Getter
     @Setter
     @NoArgsConstructor
-    @Inheritance(strategy = InheritanceType.JOINED)
+    @Inheritance(strategy = InheritanceType.TABLE_PER_CLASS)
     public static class AnimalT2J {
         @Id(autoIncrement = true)
         Long id;
@@ -212,7 +212,7 @@ public class ComplexTest {
     @Getter
     @Setter
     @NoArgsConstructor
-    @Inheritance(strategy = InheritanceType.TABLE_PER_CLASS)
+    @Inheritance(strategy = InheritanceType.SINGLE_TABLE)
     public static class AnimalOwnerT2S {
         @Id(autoIncrement = true)
         Long id2;
@@ -231,7 +231,7 @@ public class ComplexTest {
     @Getter
     @Setter
     @NoArgsConstructor
-    @Inheritance(strategy = InheritanceType.SINGLE_TABLE)
+    @Inheritance(strategy = InheritanceType.__OLD_SINGLE)
     public static class AnimalT2S {
         @Id(autoIncrement = true)
         Long id;
@@ -260,7 +260,7 @@ public class ComplexTest {
     @Getter
     @Setter
     @NoArgsConstructor
-    @Inheritance(strategy = InheritanceType.SINGLE_TABLE)
+    @Inheritance(strategy = InheritanceType.__OLD_SINGLE)
     public static class AnimalOwnerJ2S {
         @Id(autoIncrement = true)
         Long id2;
@@ -279,7 +279,7 @@ public class ComplexTest {
     @Getter
     @Setter
     @NoArgsConstructor
-    @Inheritance(strategy = InheritanceType.JOINED)
+    @Inheritance(strategy = InheritanceType.TABLE_PER_CLASS)
     public static class AnimalJ2S {
         @Id(autoIncrement = true)
         Long id;

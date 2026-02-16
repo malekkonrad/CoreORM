@@ -4,7 +4,6 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 import pl.edu.agh.dp.core.mapping.annotations.Column;
-import pl.edu.agh.dp.core.mapping.annotations.Entity;
 import pl.edu.agh.dp.core.mapping.annotations.Id;
 import pl.edu.agh.dp.core.mapping.annotations.Inheritance;
 import pl.edu.agh.dp.core.mapping.InheritanceType;
@@ -25,7 +24,7 @@ import java.time.LocalDate;
 @Setter
 @NoArgsConstructor
 //@Entity
-@Inheritance(strategy = InheritanceType.JOINED)
+@Inheritance(strategy = InheritanceType.TABLE_PER_CLASS)
 public class Account {
 
     @Id(autoIncrement = true)

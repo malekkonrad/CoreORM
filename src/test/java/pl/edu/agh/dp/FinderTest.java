@@ -406,7 +406,7 @@ public class FinderTest {
     @Getter
     @Setter
     @NoArgsConstructor
-    @Inheritance(strategy = InheritanceType.JOINED)
+    @Inheritance(strategy = InheritanceType.TABLE_PER_CLASS)
     public static class Vehicle {
         @Id(autoIncrement = true)
         Long id;
@@ -443,7 +443,7 @@ public class FinderTest {
     @Getter
     @Setter
     @NoArgsConstructor
-    @Inheritance(strategy = InheritanceType.SINGLE_TABLE)
+    @Inheritance(strategy = InheritanceType.__OLD_SINGLE)
     public static class Employee {
         @Id(autoIncrement = true)
         Long id;
@@ -471,7 +471,7 @@ public class FinderTest {
     @Getter
     @Setter
     @NoArgsConstructor
-    @Inheritance(strategy = InheritanceType.TABLE_PER_CLASS)
+    @Inheritance(strategy = InheritanceType.SINGLE_TABLE)
     public static class Shape {
         @Id(autoIncrement = true)
         Long id;

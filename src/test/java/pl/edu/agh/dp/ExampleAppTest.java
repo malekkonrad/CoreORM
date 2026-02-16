@@ -262,7 +262,7 @@ public class ExampleAppTest {
     @Getter
     @Setter
     @NoArgsConstructor
-    @Inheritance(strategy = InheritanceType.SINGLE_TABLE)
+    @Inheritance(strategy = InheritanceType.__OLD_SINGLE)
     public static class Student {
         @Id(autoIncrement = true)
         Long id;
@@ -276,7 +276,7 @@ public class ExampleAppTest {
     @Getter
     @Setter
     @NoArgsConstructor
-    @Inheritance(strategy = InheritanceType.SINGLE_TABLE)
+    @Inheritance(strategy = InheritanceType.__OLD_SINGLE)
     public static class Course {
         @Id(autoIncrement = true)
         Long id;

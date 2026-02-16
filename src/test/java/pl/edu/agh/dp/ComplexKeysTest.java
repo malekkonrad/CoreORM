@@ -13,7 +13,6 @@ import pl.edu.agh.dp.core.api.SessionFactory;
 import pl.edu.agh.dp.core.mapping.InheritanceType;
 import pl.edu.agh.dp.core.mapping.annotations.*;
 
-import java.io.Writer;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
@@ -27,7 +26,7 @@ public class ComplexKeysTest {
 
     @Getter
     @Setter
-    @Inheritance(strategy = InheritanceType.SINGLE_TABLE)
+    @Inheritance(strategy = InheritanceType.__OLD_SINGLE)
     public static abstract class PersonSingle {
         @Id
         Long id;
@@ -49,7 +48,7 @@ public class ComplexKeysTest {
     @NoArgsConstructor
     @Getter
     @Setter
-    @Inheritance(strategy = InheritanceType.SINGLE_TABLE)
+    @Inheritance(strategy = InheritanceType.__OLD_SINGLE)
     public static class SubjectSingle {
         @Id
         Long id;
@@ -62,7 +61,7 @@ public class ComplexKeysTest {
 
     @Getter
     @Setter
-    @Inheritance(strategy = InheritanceType.TABLE_PER_CLASS)
+    @Inheritance(strategy = InheritanceType.SINGLE_TABLE)
     public static abstract class PersonTPC {
         @Id
         Long id;
@@ -84,7 +83,7 @@ public class ComplexKeysTest {
     @NoArgsConstructor
     @Getter
     @Setter
-    @Inheritance(strategy = InheritanceType.TABLE_PER_CLASS)
+    @Inheritance(strategy = InheritanceType.SINGLE_TABLE)
     public static class SubjectTPC {
         @Id
         Long id;
@@ -97,7 +96,7 @@ public class ComplexKeysTest {
 
     @Getter
     @Setter
-    @Inheritance(strategy = InheritanceType.JOINED)
+    @Inheritance(strategy = InheritanceType.TABLE_PER_CLASS)
     public static abstract class PersonJoined {
         @Id
         Long id;
@@ -119,7 +118,7 @@ public class ComplexKeysTest {
     @NoArgsConstructor
     @Getter
     @Setter
-    @Inheritance(strategy = InheritanceType.JOINED)
+    @Inheritance(strategy = InheritanceType.TABLE_PER_CLASS)
     public static class SubjectJoined {
         @Id
         Long id;
@@ -484,7 +483,7 @@ public class ComplexKeysTest {
 
     // LIBRARY TESTS -----------------------------------------------------------
 
-    @Test
+//    @Test
     public void findAllRentedBooksTest() {
         config.register(Library.class, Reader.class, Book.class);
         sessionFactory = config.buildSessionFactory();

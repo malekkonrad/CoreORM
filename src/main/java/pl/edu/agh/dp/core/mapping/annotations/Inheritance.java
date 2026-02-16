@@ -10,5 +10,5 @@ import java.lang.annotation.Target;
 @Retention(RetentionPolicy.RUNTIME)
 @Target(ElementType.TYPE)
 public @interface Inheritance {
-    InheritanceType strategy() default InheritanceType.SINGLE_TABLE;
+    InheritanceType strategy() default InheritanceType.__OLD_SINGLE;
 }

@@ -1,8 +1,8 @@
 package pl.edu.agh.dp.core.mapping;
 
 public enum InheritanceType {
-    SINGLE_TABLE,
-    JOINED,
+    __OLD_SINGLE,
     TABLE_PER_CLASS,
+    SINGLE_TABLE,
     CONCRETE_CLASS
 }

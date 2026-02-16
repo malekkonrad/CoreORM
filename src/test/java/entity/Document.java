@@ -17,7 +17,7 @@ import java.time.LocalDate;
 @Getter
 @Setter
 @NoArgsConstructor
-@Inheritance(strategy = InheritanceType.SINGLE_TABLE)
+@Inheritance(strategy = InheritanceType.__OLD_SINGLE)
 @DiscriminatorValue("DOCUMENT")
 //@Entity
 public class Document {

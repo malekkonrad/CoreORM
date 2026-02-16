@@ -35,11 +35,11 @@ public class MetadataRegistry {
         // correct relationship after inheritance
         for (Class<?> clazz : entitiesClasses){
             EntityMetadata entity = entities.get(clazz);
-            if (entity.getInheritanceMetadata().getType() == InheritanceType.TABLE_PER_CLASS) {
+            if (entity.getInheritanceMetadata().getType() == InheritanceType.SINGLE_TABLE) {
                 entity.correctRelationshipsConcrete();
-            } else if (entity.getInheritanceMetadata().getType() == InheritanceType.SINGLE_TABLE) {
+            } else if (entity.getInheritanceMetadata().getType() == InheritanceType.__OLD_SINGLE) {
                 entity.correctRelationshipsSingle();
-            } else if (entity.getInheritanceMetadata().getType() == InheritanceType.JOINED) {
+            } else if (entity.getInheritanceMetadata().getType() == InheritanceType.TABLE_PER_CLASS) {
                 entity.correctRelationshipsJoined();
             } else if (entity.getInheritanceMetadata().getType() == InheritanceType.CONCRETE_CLASS) {
                 entity.correctRelationshipsJoined();
@@ -559,7 +559,7 @@ public class MetadataRegistry {
                     associationTable.setFkColumns(columns);
 
                     // set the dominant side of the relationship to the table per class
-                    boolean preferTablePerClass = entityMetadata.getInheritanceMetadata().getType() == InheritanceType.TABLE_PER_CLASS;
+                    boolean preferTablePerClass = entityMetadata.getInheritanceMetadata().getType() == InheritanceType.SINGLE_TABLE;
                     currentAm.setHasForeignKey(preferTablePerClass);
                     targetAm.setHasForeignKey(!preferTablePerClass);
 
@@ -642,7 +642,7 @@ public class MetadataRegistry {
                     // dominant side logic
                     boolean preferTablePerClass =
                             entityMetadata.getInheritanceMetadata().getType()
-                                    == InheritanceType.TABLE_PER_CLASS;
+                                    == InheritanceType.SINGLE_TABLE;
 
                     currentAm.setHasForeignKey(preferTablePerClass);
                     targetAm.setHasForeignKey(!preferTablePerClass);
@@ -797,8 +797,8 @@ public class MetadataRegistry {
             // We run the logic only for Root, because it manages the discriminator for the
             // entire table
             if (m.getInheritanceMetadata().isRoot()
-                    && (m.getInheritanceMetadata().getType() == InheritanceType.SINGLE_TABLE
-                            || m.getInheritanceMetadata().getType() == InheritanceType.JOINED
+                    && (m.getInheritanceMetadata().getType() == InheritanceType.__OLD_SINGLE
+                            || m.getInheritanceMetadata().getType() == InheritanceType.TABLE_PER_CLASS
                             || m.getInheritanceMetadata().getType() == InheritanceType.CONCRETE_CLASS)) {
                 handleDiscriminator(m);
             }
@@ -807,11 +807,11 @@ public class MetadataRegistry {
         // group together the columns
         for (EntityMetadata m : entities.values()) {
             InheritanceType type = m.getInheritanceMetadata().getType();
-            if (type == InheritanceType.TABLE_PER_CLASS) {
+            if (type == InheritanceType.SINGLE_TABLE) {
                 m.setMetadataForConcreteTable();
-            } else if (type == InheritanceType.SINGLE_TABLE) {
+            } else if (type == InheritanceType.__OLD_SINGLE) {
                 m.setMetadataForSingleTable();
-            } else if (type == InheritanceType.JOINED) {
+            } else if (type == InheritanceType.TABLE_PER_CLASS) {
                 m.addIdPropertyAll(m.getFkColumnsForJoinedTable());
                 m.addFkPropertyAll(m.getFkColumnsForJoinedTable());
             } else if (type == InheritanceType.CONCRETE_CLASS) {
@@ -834,9 +834,9 @@ public class MetadataRegistry {
         }
         // Default TABLE_PER_CLASS
         if (clazz.getSuperclass() != Object.class && clazz.getSuperclass().isAnnotationPresent(Entity.class)) {
-            return InheritanceType.SINGLE_TABLE;
+            return InheritanceType.TABLE_PER_CLASS;
         }
-        return InheritanceType.SINGLE_TABLE;
+        return InheritanceType.TABLE_PER_CLASS;
     }
 
     private boolean isEntity(Class<?> clazz) {

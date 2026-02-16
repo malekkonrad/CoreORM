@@ -16,7 +16,7 @@ import pl.edu.agh.dp.core.mapping.InheritanceType;
 @Setter
 @NoArgsConstructor
 //@Entity
-@Inheritance(strategy = InheritanceType.JOINED)
+@Inheritance(strategy = InheritanceType.TABLE_PER_CLASS)
 public class Person {
 
     @Id(autoIncrement = true)
