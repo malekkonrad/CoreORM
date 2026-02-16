@@ -99,7 +99,7 @@ public class MetadataRegistry {
             EntityMetadata targetEntityMetadata = entities.get(targetEntity);
             List<AssociationMetadata> targetAms = new ArrayList<>();
             for (AssociationMetadata am2 : targetEntityMetadata.getAssociationMetadata().values()) {
-                if (am2.getTargetEntity().equals(clazz)) {
+                if (am2.getTargetEntity().isAssignableFrom(clazz)) {
                     targetAms.add(am2);
                 }
             }

@@ -221,7 +221,8 @@ public class EntityMetadata {
             EntityMetadata m = chain.pop();
             idColumns.putAll(m.getIdColumns());
             properties.putAll(m.getProperties());
-            associationMetadata.putAll(m.getAssociationMetadata());
+            // NOTE: associationMetadata is NOT copied here — it is deferred
+            // to correctRelationships* which runs AFTER fillAssociationData.
         }
     }
 
@@ -247,24 +248,8 @@ public class EntityMetadata {
             stack.addAll(m.getInheritanceMetadata().getChildren());
         }
 
-        if (root == this) {
-            return;
-        }
-
-        // fill association metadata from the root class
-        boolean stop = false;
-        stack.add(getInheritanceMetadata().getRootClass());
-        while (!stack.isEmpty()) {
-            EntityMetadata m = stack.poll();
-            associationMetadata.putAll(m.getAssociationMetadata());
-            List<EntityMetadata> children = m.getInheritanceMetadata().getChildren();
-            if (children != null && children.contains(this)) {
-                stop = true;
-            }
-            if (!stop) {
-                stack.addAll(children);
-            }
-        }
+        // NOTE: associationMetadata is NOT copied here — it is deferred
+        // to correctRelationships* which runs AFTER fillAssociationData.
     }
 
     public void correctRelationshipsJoined() {
@@ -289,6 +274,7 @@ public class EntityMetadata {
         while (!stack.isEmpty()) {
             EntityMetadata m = stack.pop();
             fkColumns.putAll(m.getFkColumns());
+            associationMetadata.putAll(m.getAssociationMetadata());
 
             stack.addAll(m.getInheritanceMetadata().getChildren());
         }
@@ -307,6 +293,7 @@ public class EntityMetadata {
         while (!chain.isEmpty()) {
             EntityMetadata m = chain.pop();
             fkColumns.putAll(m.getFkColumns());
+            associationMetadata.putAll(m.getAssociationMetadata());
         }
 
         correctRelationshipsTableNames();
@@ -327,13 +314,14 @@ public class EntityMetadata {
         while (cur != null) {
             if (!cur.isAbstract()) {
                 // Hit a concrete parent — stop merging.
-                // This parent already has abstract fields above it merged.
+                // This parent already has all abstract fields above it merged.
                 break;
             }
             // Abstract parent → merge its fields (like TPC)
             idColumns.putAll(cur.getIdColumns());
             properties.putAll(cur.getProperties());
-            associationMetadata.putAll(cur.getAssociationMetadata());
+            // NOTE: associationMetadata is NOT copied here — it is deferred
+            // to correctRelationships* which runs AFTER fillAssociationData.
             cur = cur.getInheritanceMetadata().getParent();
         }
     }
@@ -384,8 +372,7 @@ public class EntityMetadata {
                         AssociationMetadata am = new AssociationMetadata(value);
                         am.setTableName(tableName);
                         result.put(key, am);
-                    }
-            );
+                    });
             associationMetadata = result;
         }
     }
@@ -413,18 +400,21 @@ public class EntityMetadata {
         return ids;
     }
 
-    private void collectColumnsFromMetadata(EntityMetadata m, List<PropertyMetadata> ids, List<PropertyMetadata> others) {
+    private void collectColumnsFromMetadata(EntityMetadata m, List<PropertyMetadata> ids,
+            List<PropertyMetadata> others) {
         // Dodaj ID (zakładając, że idColumns zawiera tylko ID)
         ids.addAll(m.getIdColumns().values());
 
         // Dodaj pozostałe właściwości, filtrując ID, bo `properties` zawiera wszystko
         for (PropertyMetadata pm : m.getProperties().values()) {
-            if (!pm.isId) { // Ważne: sprawdzamy flagę isId (zakładam, że masz takie pole w PropertyMetadata)
+            if (!pm.isId) { // Ważne: sprawdzamy flagę isId (zakładam, że masz takie pole w
+                            // PropertyMetadata)
                 others.add(pm);
             }
-            // Alternatywnie, jeśli nie masz pola isId w PropertyMetadata, sprawdź czy klucz istnieje w idColumns:
+            // Alternatywnie, jeśli nie masz pola isId w PropertyMetadata, sprawdź czy klucz
+            // istnieje w idColumns:
             // if (!m.getIdColumns().containsKey(pm.getName())) {
-            //    others.add(pm);
+            // others.add(pm);
             // }
         }
     }
