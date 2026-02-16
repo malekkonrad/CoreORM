@@ -834,9 +834,9 @@ public class MetadataRegistry {
         }
         // Default TABLE_PER_CLASS
         if (clazz.getSuperclass() != Object.class && clazz.getSuperclass().isAnnotationPresent(Entity.class)) {
-            return InheritanceType.TABLE_PER_CLASS;
+            return InheritanceType.CONCRETE_CLASS;
         }
-        return InheritanceType.TABLE_PER_CLASS;
+        return InheritanceType.CONCRETE_CLASS;
     }
 
     private boolean isEntity(Class<?> clazz) {
