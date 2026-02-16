@@ -16,7 +16,12 @@ import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.util.List;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 public class TransactionTest {
     String url = System.getenv("DB_URL") != null
@@ -123,9 +128,11 @@ public class TransactionTest {
             List<User> users = transactions.stream().map(transaction -> transaction.getUser()).toList();
 
             System.out.println(users.size());
+            assertEquals(2, users.size());
 
             for (var u : users) {
                 System.out.println(u.getName());
+                assertNotNull(u.getName());
             }
 
         }

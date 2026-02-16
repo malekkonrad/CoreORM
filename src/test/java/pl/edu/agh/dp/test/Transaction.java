@@ -10,7 +10,7 @@ import java.time.LocalDate;
 
 @Getter
 @Setter
-public class Transaction {
+public abstract class Transaction {
     @Id
     Long id;
 

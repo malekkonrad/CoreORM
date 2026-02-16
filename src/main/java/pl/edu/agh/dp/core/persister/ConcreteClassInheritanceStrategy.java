@@ -48,13 +48,15 @@ public class ConcreteClassInheritanceStrategy extends AbstractInheritanceStrateg
         assert entityMetadata != null;
 
         StringBuilder sb = new StringBuilder();
+        String constraints = "";
 
-        // Abstract classes have no table
+        // Abstract classes have no table and no constraints
         if (!entityMetadata.isAbstract()) {
             sb.append(entityMetadata.getSqlTable());
+            constraints = entityMetadata.getSqlConstraints();
         }
 
-        return new Pair<>(sb.toString(), entityMetadata.getSqlConstraints());
+        return new Pair<>(sb.toString(), constraints);
     }
 
     /**
@@ -624,6 +626,23 @@ public class ConcreteClassInheritanceStrategy extends AbstractInheritanceStrateg
      * Get all non-abstract subclasses (including root if not abstract) via BFS.
      */
     private List<EntityMetadata> getAllConcreteSubclassesIncludingRoot(EntityMetadata root) {
+        List<EntityMetadata> list = new ArrayList<>();
+        if (!root.isAbstract()) {
+            list.add(root);
+        }
+
+        List<EntityMetadata> toProcess = new ArrayList<>(root.getInheritanceMetadata().getChildren());
+        while (!toProcess.isEmpty()) {
+            EntityMetadata current = toProcess.remove(0);
+            if (!current.isAbstract()) {
+                list.add(current);
+            }
+            toProcess.addAll(current.getInheritanceMetadata().getChildren());
+        }
+        return list;
+    }
+
+    private List<EntityMetadata> getConcreteSubclassesIncludingRootInOneLeaf(EntityMetadata root) {
         List<EntityMetadata> list = new ArrayList<>();
         if (!root.isAbstract()) {
             list.add(root);
