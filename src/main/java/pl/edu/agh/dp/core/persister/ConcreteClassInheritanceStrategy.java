@@ -2,6 +2,7 @@ package pl.edu.agh.dp.core.persister;
 
 import javafx.util.Pair;
 import pl.edu.agh.dp.core.api.Session;
+import pl.edu.agh.dp.core.exceptions.IntegrityException;
 import pl.edu.agh.dp.core.finder.Condition;
 import pl.edu.agh.dp.core.finder.QuerySpec;
 import pl.edu.agh.dp.core.finder.Sort;
@@ -50,12 +51,46 @@ public class ConcreteClassInheritanceStrategy extends AbstractInheritanceStrateg
         StringBuilder sb = new StringBuilder();
         String constraints = "";
 
+        EntityMetadata rootMetadata = entityMetadata.getInheritanceMetadata().getRootClass();
+
+        boolean behaveLikeSingleTable = rootMetadata.isAbstract();
+
+        // check if root is abstract then behave differently
+        if (behaveLikeSingleTable) {
+
+            if (entityMetadata.getIdColumns().isEmpty()) {
+                throw new IntegrityException("No id"); // sanity check
+            } else if (entityMetadata.getIdColumns().size() == 1) {
+                PropertyMetadata idProperty = entityMetadata.getIdColumns().values().iterator().next();
+                // must be autoincrement
+                if (!idProperty.isAutoIncrement()) {
+                    throw new IntegrityException("Id column must be auto-increment");
+                }
+            } else if (entityMetadata != rootMetadata) {
+                throw new IntegrityException("Complex id not supported for concrete class inheritance with abstract class");
+            }
+
+            // create sequence for all the subclasses to have the same id
+            String rootTableName = rootMetadata.getTableName();
+            String sequenceName = rootTableName + "_id_seq";
+            if (rootMetadata == entityMetadata) {
+                // create sequence only once
+                String seq = "CREATE SEQUENCE " + sequenceName + " START 1 INCREMENT 1;\n";
+                sb.append(seq);
+            }
+            // change default in id to the sequence
+            PropertyMetadata rootId = entityMetadata.getIdColumns().values().iterator().next();
+            rootId.setSqlType("BIGINT");
+            rootId.setDefaultValue("nextval('" + sequenceName + "')");
+        }
         // Abstract classes have no table and no constraints
         if (!entityMetadata.isAbstract()) {
             sb.append(entityMetadata.getSqlTable());
+            if (!behaveLikeSingleTable) {
             constraints = entityMetadata.getSqlConstraints();
+            }
         }
-
+        // return table and but skip the constraints if abstract
         return new Pair<>(sb.toString(), constraints);
     }
 
@@ -65,6 +100,10 @@ public class ConcreteClassInheritanceStrategy extends AbstractInheritanceStrateg
      * metadata setup.
      */
     private List<EntityMetadata> buildConcreteChain() {
+        return buildConcreteChain(entityMetadata);
+    }
+
+    private List<EntityMetadata> buildConcreteChain(EntityMetadata entityMetadata) {
         List<EntityMetadata> fullChain = new ArrayList<>();
         fullChain.add(entityMetadata);
 
@@ -296,12 +335,29 @@ public class ConcreteClassInheritanceStrategy extends AbstractInheritanceStrateg
     public Object findById(Object id, Session session) {
         try {
             assert entityMetadata != null;
-            SqlAndParams query = buildPolymorphicQuery(id);
+            if (entityMetadata.isAbstract()) {
+                List<EntityMetadata> concreteSubclasses = buildAbstractChain();
+                for (EntityMetadata meta : concreteSubclasses) {
+                    SqlAndParams query = buildPolymorphicQuery(meta, id);
 
-            System.out.println("ConcreteClass findById SQL: " + query.sql);
+                    System.out.println("ConcreteClass findById SQL: " + query.sql);
 
-            JdbcExecutor jdbc = session.getJdbcExecutor();
-            return jdbc.queryOne(query.sql, this::mapRow, query.params.toArray()).orElse(null);
+                    JdbcExecutor jdbc = session.getJdbcExecutor();
+                    Object result = jdbc.queryOne(query.sql, this::mapRow, query.params.toArray()).orElse(null);
+
+                    if (result != null) {
+                        return result;
+                    }
+                }
+                return null;
+            } else {
+                SqlAndParams query = buildPolymorphicQuery(entityMetadata, id);
+
+                System.out.println("ConcreteClass findById SQL: " + query.sql);
+
+                JdbcExecutor jdbc = session.getJdbcExecutor();
+                return jdbc.queryOne(query.sql, this::mapRow, query.params.toArray()).orElse(null);
+            }
 
         } catch (Exception e) {
             throw new RuntimeException("Error finding entity with id = " + id, e);
@@ -314,73 +370,100 @@ public class ConcreteClassInheritanceStrategy extends AbstractInheritanceStrateg
         TargetStatement whereStmt = pairTargetStatements.getWhereStatements().get(0);
         assert entityMetadata != null;
         try {
-            SqlAndParams query = buildPolymorphicQuery(null);
-
-            query.sql += " " + joinStmt.getStatement();
-
-            if (!whereStmt.isBlank()) {
-                query.sql += " WHERE " + whereStmt.getStatement();
-            }
-
-            System.out.println("ConcreteClass findAll SQL: " + query.sql);
-
-            JdbcExecutor jdbc = session.getJdbcExecutor();
-            List<Object> results = jdbc.query(query.sql, this::mapRow);
-
-            List<T> filtered = new ArrayList<>();
-            for (Object obj : results) {
-                if (type.isInstance(obj)) {
-                    filtered.add(type.cast(obj));
+            if (entityMetadata.isAbstract()) {
+                List<T> result = new ArrayList<>();
+                List<EntityMetadata> concreteSubclasses = buildAbstractChain();
+                for (EntityMetadata meta : concreteSubclasses) {
+                    result.addAll(findAllSub(type, session, joinStmt, whereStmt, meta));
                 }
+                return result;
+            } else {
+                return findAllSub(type, session, joinStmt, whereStmt, entityMetadata);
             }
-            return filtered;
 
         } catch (Exception e) {
             throw new RuntimeException("Error finding entities in ConcreteClass Strategy", e);
         }
     }
 
+    private <T> List<T> findAllSub(Class<T> type, Session session, TargetStatement joinStmt, TargetStatement whereStmt, EntityMetadata entityMetadata) {
+        SqlAndParams query = buildPolymorphicQuery(entityMetadata, null);
+
+        query.sql += " " + joinStmt.getStatement();
+
+        if (!whereStmt.isBlank()) {
+            query.sql += " WHERE " + whereStmt.getStatement();
+        }
+
+        System.out.println("ConcreteClass findAll SQL: " + query.sql);
+
+        JdbcExecutor jdbc = session.getJdbcExecutor();
+        List<Object> results = jdbc.query(query.sql, this::mapRow);
+
+        List<T> filtered = new ArrayList<>();
+        for (Object obj : results) {
+            if (type.isInstance(obj)) {
+                filtered.add(type.cast(obj));
+            }
+        }
+
+        return filtered;
+    }
+
     @Override
     public <T> List<T> findBy(Class<T> type, Session session, QuerySpec<T> querySpec) {
         assert entityMetadata != null;
         try {
-            SqlAndParams query = buildPolymorphicQuery(null);
-
-            List<Object> params = new ArrayList<>(query.params);
-
-            String querySpecWhere = buildConcreteQuerySpecWhereClause(querySpec, params);
-            if (!querySpecWhere.isEmpty()) {
-                if (query.sql.contains(" WHERE ")) {
-                    query.sql += " AND " + querySpecWhere;
-                } else {
-                    query.sql += " WHERE " + querySpecWhere;
+            if (entityMetadata.isAbstract()) {
+                List<T> result = new ArrayList<>();
+                List<EntityMetadata> concreteSubclasses = buildAbstractChain();
+                for (EntityMetadata meta : concreteSubclasses) {
+                    result.addAll(findBySub(type, session, querySpec, meta));
                 }
+                return result;
+            } else {
+                return findBySub(type, session, querySpec, entityMetadata);
             }
-
-            String orderBy = buildConcreteQuerySpecOrderByClause(querySpec);
-            if (!orderBy.isEmpty()) {
-                query.sql += " ORDER BY " + orderBy;
-            }
-
-            query.sql += buildQuerySpecLimitOffsetClause(querySpec);
-
-            System.out.println("ConcreteClass Finder SQL: " + query.sql);
-            System.out.println("ConcreteClass Finder params: " + params);
-
-            JdbcExecutor jdbc = session.getJdbcExecutor();
-            List<Object> results = jdbc.query(query.sql, this::mapRow, params.toArray());
-
-            List<T> filtered = new ArrayList<>();
-            for (Object obj : results) {
-                if (type.isInstance(obj)) {
-                    filtered.add(type.cast(obj));
-                }
-            }
-            return filtered;
 
         } catch (Exception e) {
             throw new RuntimeException("Error finding entities with QuerySpec in ConcreteClass Strategy", e);
         }
+    }
+
+    private <T> List<T> findBySub(Class<T> type, Session session, QuerySpec<T> querySpec, EntityMetadata entityMetadata) {
+        SqlAndParams query = buildPolymorphicQuery(entityMetadata, null);
+
+        List<Object> params = new ArrayList<>(query.params);
+
+        String querySpecWhere = buildConcreteQuerySpecWhereClause(querySpec, params, entityMetadata);
+        if (!querySpecWhere.isEmpty()) {
+            if (query.sql.contains(" WHERE ")) {
+                query.sql += " AND " + querySpecWhere;
+            } else {
+                query.sql += " WHERE " + querySpecWhere;
+            }
+        }
+
+        String orderBy = buildConcreteQuerySpecOrderByClause(querySpec);
+        if (!orderBy.isEmpty()) {
+            query.sql += " ORDER BY " + orderBy;
+        }
+
+        query.sql += buildQuerySpecLimitOffsetClause(querySpec);
+
+        System.out.println("ConcreteClass Finder SQL: " + query.sql);
+        System.out.println("ConcreteClass Finder params: " + params);
+
+        JdbcExecutor jdbc = session.getJdbcExecutor();
+        List<Object> results = jdbc.query(query.sql, this::mapRow, params.toArray());
+
+        List<T> filtered = new ArrayList<>();
+        for (Object obj : results) {
+            if (type.isInstance(obj)) {
+                filtered.add(type.cast(obj));
+            }
+        }
+        return filtered;
     }
 
     // ==================== Helper methods ====================
@@ -418,7 +501,7 @@ public class ConcreteClassInheritanceStrategy extends AbstractInheritanceStrateg
         return fieldName;
     }
 
-    private <T> String buildConcreteQuerySpecWhereClause(QuerySpec<T> querySpec, List<Object> params) {
+    private <T> String buildConcreteQuerySpecWhereClause(QuerySpec<T> querySpec, List<Object> params, EntityMetadata entityMetadata) {
         if (!querySpec.hasConditions()) {
             return "";
         }
@@ -426,7 +509,8 @@ public class ConcreteClassInheritanceStrategy extends AbstractInheritanceStrateg
         List<String> sqlConditions = new ArrayList<>();
         for (Condition condition : querySpec.getConditions()) {
             String fieldName = condition.getField();
-            String tableName = findTableForField(fieldName);
+//            String tableName = findTableForField(fieldName);
+            String tableName = entityMetadata.getTableName();
             String columnName = resolveColumnName(fieldName);
 
             String sql = condition.toSql(tableName)
@@ -464,14 +548,69 @@ public class ConcreteClassInheritanceStrategy extends AbstractInheritanceStrateg
         }
     }
 
+    private List<EntityMetadata> buildAbstractChain() {
+        List<EntityMetadata> fullChain = new ArrayList<>();
+        Deque<EntityMetadata> stack = new ArrayDeque<>();
+
+        assert entityMetadata != null;
+        if (!entityMetadata.isAbstract()) {
+            fullChain.add(entityMetadata);
+            return fullChain;
+        }
+
+        stack.push(entityMetadata);
+
+        while (!stack.isEmpty()) {
+            EntityMetadata meta = stack.pop();
+            List<EntityMetadata> children = meta.getInheritanceMetadata().getChildren();
+            for (EntityMetadata child : children) {
+                if (child.isAbstract()) {
+                    stack.push(child);
+                } else {
+                    fullChain.add(child);
+                }
+            }
+        }
+        return fullChain;
+    }
+
+    private List<EntityMetadata> buildConcreteLeaf(EntityMetadata entityMetadata) {
+        List<EntityMetadata> fullChain = new ArrayList<>();
+        Deque<EntityMetadata> stack = new ArrayDeque<>();
+
+        EntityMetadata root = entityMetadata.getInheritanceMetadata().getRootClass();
+        EntityMetadata nonAbstractRoot = entityMetadata;
+        while (nonAbstractRoot != root && !nonAbstractRoot.getInheritanceMetadata().getParent().isAbstract()) {
+            nonAbstractRoot = nonAbstractRoot.getInheritanceMetadata().getParent();
+        }
+        fullChain.add(nonAbstractRoot);
+        stack.push(nonAbstractRoot);
+
+        while (!stack.isEmpty()) {
+            EntityMetadata meta = stack.pop();
+            List<EntityMetadata> children = meta.getInheritanceMetadata().getChildren();
+            stack.addAll(children);
+            for (EntityMetadata child : children) {
+                if (!child.isAbstract()) {
+                    fullChain.add(child);
+                }
+            }
+        }
+        return fullChain;
+    }
+
     /**
      * Build a polymorphic query that joins only non-abstract tables.
      * Abstract class fields are already present in the first concrete class's
      * table.
      */
-    private SqlAndParams buildPolymorphicQuery(Object id) {
+    private SqlAndParams buildPolymorphicQuery(EntityMetadata entityMetadata, Object id) {
         EntityMetadata root = entityMetadata.getInheritanceMetadata().getRootClass();
         List<EntityMetadata> allConcrete = getAllConcreteSubclassesIncludingRoot(root);
+        List<EntityMetadata> concreteChain = buildConcreteLeaf(entityMetadata);
+        if (!concreteChain.isEmpty()) {
+            allConcrete = concreteChain;
+        }
 
         // The "base" table is the first concrete class (which has merged abstract
         // fields)
@@ -484,10 +623,17 @@ public class ConcreteClassInheritanceStrategy extends AbstractInheritanceStrateg
 
         // Column list with aliases from each concrete table
         for (EntityMetadata meta : allConcrete) {
+            String discriminatorColumnName = meta.getInheritanceMetadata().getDiscriminatorColumnName();
             for (PropertyMetadata prop : meta.getProperties().values()) {
                 if (prop.getSqlType() != null) {
+                    String columnName = prop.getColumnName();
+                    if (discriminatorColumnName == columnName) {
+                        columnName = "DTYPE";
+                    } else {
+                        columnName = meta.getTableName() + "_" + columnName;
+                    }
                     columns.add(meta.getTableName() + "." + prop.getColumnName() +
-                            " AS " + meta.getTableName() + "_" + prop.getColumnName());
+                            " AS " + columnName);
                 }
             }
         }
@@ -545,10 +691,14 @@ public class ConcreteClassInheritanceStrategy extends AbstractInheritanceStrateg
             assert entityMetadata != null;
             EntityMetadata root = entityMetadata.getInheritanceMetadata().getRootClass();
             List<EntityMetadata> allConcrete = getAllConcreteSubclassesIncludingRoot(root);
+//            List<EntityMetadata> concreteChain = buildConcreteChain();
+//            if (!concreteChain.isEmpty()) {
+//                allConcrete = concreteChain;
+//            }
             EntityMetadata baseTable = allConcrete.get(0);
 
             String discriminatorCol = "DTYPE";
-            String alias = baseTable.getTableName() + "_" + discriminatorCol;
+            String alias = root.getTableName() + "_" + discriminatorCol;
 
             String className;
             try {

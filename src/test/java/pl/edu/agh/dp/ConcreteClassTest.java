@@ -13,6 +13,7 @@ import pl.edu.agh.dp.core.api.SessionFactory;
 import pl.edu.agh.dp.core.mapping.InheritanceType;
 import pl.edu.agh.dp.core.mapping.annotations.Id;
 import pl.edu.agh.dp.core.mapping.annotations.Inheritance;
+import pl.edu.agh.dp.core.util.ReflectionUtils;
 
 import java.sql.Connection;
 import java.sql.DriverManager;
@@ -280,6 +281,7 @@ public class ConcreteClassTest {
 
         List<Graduate> allGraduates = session.findAll(Graduate.class);
         assertEquals(1, allGraduates.size());
-        assertEquals("AI Research", allGraduates.get(0).getThesisTitle());
+        Graduate graduate = allGraduates.get(0);
+        assertEquals("AI Research", graduate.getThesisTitle());
     }
 }

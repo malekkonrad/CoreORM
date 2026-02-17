@@ -42,7 +42,7 @@ public class MetadataRegistry {
             } else if (entity.getInheritanceMetadata().getType() == InheritanceType.TABLE_PER_CLASS) {
                 entity.correctRelationshipsJoined();
             } else if (entity.getInheritanceMetadata().getType() == InheritanceType.CONCRETE_CLASS) {
-                entity.correctRelationshipsJoined();
+                entity.correctRelationshipsConcreteClass();
             } else {
                 throw new IntegrityException("Unhandled inheritance type: " + entity.getInheritanceMetadata().getType());
             }

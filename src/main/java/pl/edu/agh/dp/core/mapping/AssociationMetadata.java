@@ -136,11 +136,11 @@ public class AssociationMetadata {
         }
 
         // add alias if necessary
-//        boolean isAlias = tableName == targetTableName;
-//        String alias = isAlias ? AssociationMetadata.alias : tableName;
+        boolean isAlias = tableName == targetTableName;
+        String alias = isAlias ? AssociationMetadata.alias : tableName;
         // append table name
         joinStmt.append(tableName);
-//        if (isAlias)
+        if (isAlias)
             joinStmt.append(" AS ").append(alias);
         joinStmt.append(" ON ");
 

@@ -252,6 +252,30 @@ public class EntityMetadata {
         // to correctRelationships* which runs AFTER fillAssociationData.
     }
 
+    public void correctRelationshipsConcreteClass() {
+        Deque<EntityMetadata> chain = new ArrayDeque<>();
+        EntityMetadata cur = this;
+        while (cur != null) {
+            chain.push(cur);
+            cur = cur.getInheritanceMetadata().getParent();
+        }
+
+        while (!chain.isEmpty()) {
+            EntityMetadata m = chain.pop();
+            if (m.isAbstract()) {
+                fkColumns.putAll(m.getFkColumns());
+                for (String name : m.getAssociationMetadata().keySet()) {
+                    AssociationMetadata assoc = m.getAssociationMetadata().get(name);
+                    AssociationMetadata newAm = new AssociationMetadata(assoc);
+                    newAm.setTableName(tableName);
+                    associationMetadata.put(name, newAm);
+                }
+            } else {
+                associationMetadata.putAll(m.getAssociationMetadata());
+            }
+        }
+    }
+
     public void correctRelationshipsJoined() {
         Deque<EntityMetadata> chain = new ArrayDeque<>();
         EntityMetadata cur = this;

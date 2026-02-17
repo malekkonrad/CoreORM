@@ -1,6 +1,7 @@
 package pl.edu.agh.dp.core.jdbc;
 
 import pl.edu.agh.dp.core.persister.RowMapper;
+import pl.edu.agh.dp.core.util.ReflectionUtils;
 
 import java.sql.*;
 import java.util.ArrayList;

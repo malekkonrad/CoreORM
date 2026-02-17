@@ -15,7 +15,7 @@ import java.util.*;
 public class InheritanceMetadata {
 
     private InheritanceType type;
-    private String discriminatorColumnName; // tylko dla SINGLE_TABLE (opcjonalnie JOINED)
+    private String discriminatorColumnName = "DTYPE"; // tylko dla SINGLE_TABLE (opcjonalnie JOINED)
 
     // for SINGLE_TABLE
     private Map<Class<?>, String> classToDiscriminator;
