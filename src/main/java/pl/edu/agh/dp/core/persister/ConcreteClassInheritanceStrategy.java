@@ -389,7 +389,7 @@ public class ConcreteClassInheritanceStrategy extends AbstractInheritanceStrateg
     private <T> List<T> findAllSub(Class<T> type, Session session, TargetStatement joinStmt, TargetStatement whereStmt, EntityMetadata entityMetadata) {
         SqlAndParams query = buildPolymorphicQuery(entityMetadata, null);
 
-        query.sql += " " + joinStmt.getStatement();
+        query.sql += " " + joinStmt.getStatement(entityMetadata.getTableName());
 
         if (!whereStmt.isBlank()) {
             query.sql += " WHERE " + whereStmt.getStatement();
@@ -691,10 +691,7 @@ public class ConcreteClassInheritanceStrategy extends AbstractInheritanceStrateg
             assert entityMetadata != null;
             EntityMetadata root = entityMetadata.getInheritanceMetadata().getRootClass();
             List<EntityMetadata> allConcrete = getAllConcreteSubclassesIncludingRoot(root);
-//            List<EntityMetadata> concreteChain = buildConcreteChain();
-//            if (!concreteChain.isEmpty()) {
-//                allConcrete = concreteChain;
-//            }
+
             EntityMetadata baseTable = allConcrete.get(0);
 
             String discriminatorCol = "DTYPE";

@@ -206,7 +206,7 @@ public class SessionImpl implements Session {
         List<T> entities = persister.findBy(entityClass, this, querySpec);
         for (T entity : entities) {
             // fill the relationship data
-            EntityMetadata metadata = persister.getEntityMetadata();
+            EntityMetadata metadata = entityPersisters.get(entity.getClass()).getEntityMetadata();
             for (AssociationMetadata associationMetadata : metadata.getAssociationMetadata().values()) {
                 if (associationMetadata.getCollectionType() == AssociationMetadata.CollectionType.NONE) {
                     continue;
@@ -379,12 +379,21 @@ public class SessionImpl implements Session {
                 return;
             } else if (entities.size() == 1) {
                 Object value = entities.get(0);
-                ReflectionUtils.setFieldValue(entity, relationshipName, value);
                 if (associationMetadata.getType() == AssociationMetadata.Type.ONE_TO_ONE) {
                     // backref only possible for one to one
                     System.out.println("setting field: " + associationMetadata.getMappedBy() + " in " + value);
                     ReflectionUtils.setFieldValue(value, associationMetadata.getMappedBy(), entity);
                 }
+                // fill the relationship data
+                EntityMetadata m = entityPersisters.get(value.getClass()).getEntityMetadata();
+                for (AssociationMetadata am : m.getAssociationMetadata().values()) {
+                    if (am.getCollectionType() == AssociationMetadata.CollectionType.NONE) {
+                        continue;
+                    }
+                    ReflectionUtils.setFieldValue(value, am.getField(), am.createLazyCollection(this, value));
+                }
+                value = cachedEntities.replaceIfExistsAndAdd(value);
+                ReflectionUtils.setFieldValue(entity, relationshipName, value);
                 return;
             } else {
                 throw new IntegrityException("Something unexpected happened");

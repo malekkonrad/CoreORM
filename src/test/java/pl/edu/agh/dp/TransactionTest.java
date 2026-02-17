@@ -133,8 +133,8 @@ public class TransactionTest {
             for (var u : users) {
                 System.out.println(u.getName());
                 assertNotNull(u.getName());
+                u.getTransactions().size();
             }
-
         }
     }
 }
